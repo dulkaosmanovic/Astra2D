@@ -1,5 +1,5 @@
 project(
-  '2D Game Engine',
+  'Astra2D',
   'cpp',
   version : '0.1.0',
   default_options : [
