@@ -1,6 +1,8 @@
 # 2D Game Engine
 
-![Astra2D Logo](docs/logo.png)
+<p align="center">
+  <img src="docs/logo.png" width="200"/>
+</p>
 
 2D Game Engine is a modular 2D game engine written in modern C++ using OpenGL.  
 The project is being developed as a university diploma project focused on learning and implementing real-world game engine architecture, rendering systems, physics simulation, collision detection, and modern software engineering practices.
