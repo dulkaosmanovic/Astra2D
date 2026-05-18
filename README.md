@@ -1,7 +1,7 @@
 # 2D Game Engine
 
 <p align="center">
-  <img src="docs/logo.png" width="200"/>
+  <img src="docs/logo.png" width="500"/>
 </p>
 
 2D Game Engine is a modular 2D game engine written in modern C++ using OpenGL.  
