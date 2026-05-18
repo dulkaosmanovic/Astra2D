@@ -1,15 +1,15 @@
-# 2D Game Engine
+# Astra2D
 
 <p align="center">
   <img src="docs/logo2.png" width="500"/>
 </p>
 
-2D Game Engine is a modular 2D game engine written in modern C++ using OpenGL.  
+Astra2D is a modular 2D game engine written in modern C++ using OpenGL.
 The project is being developed as a university diploma project focused on learning and implementing real-world game engine architecture, rendering systems, physics simulation, collision detection, and modern software engineering practices.
 
-The engine is designed as a reusable framework for creating 2D games and interactive applications. Its goal is not only to render graphics, but also to provide the core systems commonly found in professional engines such as entity management, scene organization, input handling, physics, asset management, debugging tools, and developer utilities.
+The engine is designed as a reusable framework for creating 2D games and interactive applications. Its goal is not only to render graphics, but also to provide the core systems commonly found in professional engines such as entity management, scene organization, input handling, physics, asset management, and developer utilities.
 
-Unlike a single standalone game project, 2D Game Engine is structured as a separate engine library that can be used to build multiple games and tools on top of it. The project emphasizes clean architecture, modularity, maintainability, and modern C++ design principles.
+Unlike a single standalone game project, Astra2D is structured as a separate engine library that can be used to build multiple games and tools on top of it. The project emphasizes clean architecture, modularity, maintainability, and modern C++ design principles.
 
 The engine currently uses:
 - C++
@@ -67,7 +67,7 @@ Additional features may be added during development depending on project scope a
 ## Repository Structure
 
 ```text
-Mini2DEngine/
+Astra2D/
 ├── include/      # Public engine API
 ├── src/          # Engine implementation
 ├── examples/     # Example applications and sandbox
@@ -137,8 +137,6 @@ The project integrates several development and debugging tools, including:
 - AddressSanitizer
 - Valgrind
 - spdlog
-- clang-format
-- clang-tidy
 
 These tools are used to improve code quality, maintainability, testing, and debugging.
 
