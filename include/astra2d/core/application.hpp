@@ -1,10 +1,24 @@
 #pragma once
 
+#include "astra2d/core/input.hpp"
+#include "astra2d/core/timestep.hpp"
 #include "astra2d/core/window.hpp"
 
 #include <memory>
 
+/// @addtogroup core
+/// @{
+
 namespace astra2d {
+
+/// Settings used when creating an Application.
+struct ApplicationSettings {
+    /// Settings for the main window.
+    WindowSettings window{};
+
+    /// Length of one fixed update step in seconds (physics, deterministic gameplay).
+    double fixedTimestep = 1.0 / 60.0;
+};
 
 /// Base class for games and tools built on Astra2D.
 ///
@@ -13,13 +27,26 @@ namespace astra2d {
 /// class MyGame : public astra2d::Application { ... };
 /// int main() { MyGame game; game.run(); }
 /// @endcode
+///
+/// Each frame of the main loop:
+/// 1. Input::beginFrame(), then window events are polled;
+/// 2. if the framebuffer was resized, the viewport is updated and onResize() is called;
+/// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep);
+/// 4. onUpdate() runs once with the real frame time;
+/// 5. onRender() runs once, then buffers are swapped.
+///
+/// While the window is minimized the loop sleeps until the next event and no updates run.
 class Application {
 public:
-    explicit Application(const WindowSettings& settings = {});
+    /// Creates the main window. Nothing else happens until run() is called.
+    /// @throws std::runtime_error if the window or OpenGL context cannot be created.
+    explicit Application(const ApplicationSettings& settings = {});
     virtual ~Application();
 
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
+    Application(Application&&) = delete;
+    Application& operator=(Application&&) = delete;
 
     /// Runs the main loop until the window is closed or quit() is called.
     void run();
@@ -27,23 +54,43 @@ public:
     /// Requests the main loop to stop after the current frame.
     void quit();
 
+    /// The main window.
     [[nodiscard]] Window& window() { return *m_window; }
+
+    /// Keyboard and mouse state for the current frame.
+    [[nodiscard]] const Input& input() const { return m_window->input(); }
+
+    /// Length of one fixed update step in seconds.
+    [[nodiscard]] double fixedTimestep() const { return m_timestep.step(); }
+
+    /// How far the current frame is between the last two fixed updates, in [0, 1).
+    /// Can be used in onRender() to interpolate positions for smooth movement.
+    [[nodiscard]] float interpolationAlpha() const { return static_cast<float>(m_timestep.alpha()); }
 
 protected:
     /// Called once before the first frame.
     virtual void onStart() {}
 
-    /// Called once per frame with the elapsed time in seconds.
+    /// Called at a fixed rate with fixedTimestep() seconds; use for physics and simulation.
+    virtual void onFixedUpdate(float /*fixedDeltaTime*/) {}
+
+    /// Called once per frame with the real elapsed time in seconds; use for input and animation.
     virtual void onUpdate(float /*deltaTime*/) {}
 
     /// Called once per frame after onUpdate().
     virtual void onRender() {}
+
+    /// Called when the framebuffer size changes (in pixels); the viewport is already updated.
+    virtual void onResize(int /*width*/, int /*height*/) {}
 
     /// Called once after the main loop ends.
     virtual void onShutdown() {}
 
 private:
     std::unique_ptr<Window> m_window;
+    FixedTimestep m_timestep;
 };
 
 } // namespace astra2d
+
+/// @}

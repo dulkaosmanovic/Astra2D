@@ -1,5 +1,9 @@
 engine_sources = files(
   'core/application.cpp',
+  'core/assert.cpp',
+  'core/input.cpp',
+  'core/log.cpp',
+  'core/timestep.cpp',
   'core/window.cpp'
 )
 
