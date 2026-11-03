@@ -23,6 +23,6 @@ sudo pacman -Syu --needed \
 
 echo "Setting up Meson build..."
 
-meson setup build || true
+meson setup build -Db_sanitize=address,undefined || true
 
 echo "Done!"

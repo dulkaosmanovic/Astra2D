@@ -1,30 +1,25 @@
 engine_sources = files(
-  'core/application.cpp'
+  'core/application.cpp',
+  'core/window.cpp'
 )
 
-engine_static = static_library(
-  '2DGameEngineStatic',
-  engine_sources,
-  include_directories : engine_inc,
-  dependencies : [
-    glfw_dep,
-    opengl_dep,
-    spdlog_dep
-  ]
-)
+engine_deps = [
+  glfw_dep,
+  glad_dep,
+  glm_dep,
+  spdlog_dep,
+  opengl_dep
+]
 
-engine_shared = shared_library(
-  '2DGameEngine',
+engine_lib = library(
+  'astra2d',
   engine_sources,
   include_directories : engine_inc,
-  dependencies : [
-    glfw_dep,
-    opengl_dep,
-    spdlog_dep
-  ]
+  dependencies : engine_deps
 )
 
 engine_dep = declare_dependency(
   include_directories : engine_inc,
-  link_with : engine_static
+  link_with : engine_lib,
+  dependencies : engine_deps
 )
