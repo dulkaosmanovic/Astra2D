@@ -69,7 +69,7 @@ Required
 - [ ] README build/run instructions kept up to date
 
 Stretch
-- [ ] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
+- [x] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
 - [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind), publish Doxygen docs to GitHub Pages
 - [ ] `.clang-format` / `.clang-tidy`
 
