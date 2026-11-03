@@ -10,6 +10,13 @@
   <a href="https://dulkaosmanovic.github.io/Astra2D/"><img src="https://img.shields.io/badge/docs-online-2a7fae" alt="Documentation online"/></a>
 </p>
 
+<p align="center">
+  <b><a href="https://dulkaosmanovic.github.io/Astra2D/">📖 Documentation</a></b> ·
+  <a href="https://dulkaosmanovic.github.io/Astra2D/getting-started.html">Getting started</a> ·
+  <a href="https://dulkaosmanovic.github.io/Astra2D/architecture.html">Architecture</a> ·
+  <a href="https://dulkaosmanovic.github.io/Astra2D/topics.html">API reference</a>
+</p>
+
 Astra2D is a modular 2D game engine written in C++20 using OpenGL 3.3 core.
 It is developed as a university diploma project focused on the architecture and core systems of a real-time game engine:
 rendering, an entity component system, physics simulation and collision detection.
@@ -133,6 +140,21 @@ Running under Valgrind:
 ninja -C build-valgrind
 valgrind --leak-check=full ./build-valgrind/tests/engine_tests
 ```
+
+### Docker
+
+The `Dockerfile` provides a reproducible environment (Arch Linux pinned to a dated package snapshot,
+OpenGL through Mesa's software renderer on a virtual display), so no local dependencies or GPU are needed:
+
+```bash
+docker build -t astra2d .
+docker run --rm astra2d                             # build with ASan + UBSan and run the tests
+docker run --rm astra2d all                         # tests, Valgrind, release build, docs, sandbox smoke test
+docker run --rm -v "$PWD/site:/out" astra2d docs    # generate the documentation into ./site
+docker run --rm -it astra2d shell                   # interactive shell
+```
+
+The same commands work without Docker: `scripts/docker-entrypoint.sh all`.
 
 ---
 
