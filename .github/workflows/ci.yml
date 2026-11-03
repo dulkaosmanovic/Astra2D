@@ -1,0 +1,99 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Dependencies come from the system; Meson falls back to subprojects/*.wrap for anything missing.
+  APT_PACKAGES: >-
+    build-essential clang meson ninja-build pkg-config cmake
+    libglfw3-dev libglm-dev libspdlog-dev libgtest-dev libgl-dev
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: GCC, ASan + UBSan
+            cc: gcc
+            cxx: g++
+            setup: -Db_sanitize=address,undefined
+          - name: Clang, ASan + UBSan
+            cc: clang
+            cxx: clang++
+            setup: -Db_sanitize=address,undefined
+          - name: GCC, release
+            cc: gcc
+            cxx: g++
+            setup: --buildtype=release
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      # Make UBSan findings fail the test run instead of only printing a message.
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      ASAN_OPTIONS: detect_leaks=1
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES
+
+      # Ubuntu 24.04 runners use 32 bits of mmap randomness, which older sanitizer runtimes
+      # cannot handle ("AddressSanitizer:DEADLYSIGNAL"). 28 bits is the usual workaround.
+      - name: Adjust ASLR for sanitizers
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure
+        run: meson setup build ${{ matrix.setup }}
+
+      - name: Build
+        run: ninja -C build
+
+      - name: Test
+        run: meson test -C build --print-errorlogs
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: testlog-${{ matrix.cc }}-${{ strategy.job-index }}
+          path: build/meson-logs/
+
+  valgrind:
+    name: Valgrind
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES valgrind
+
+      - name: Configure
+        run: meson setup build-valgrind -Db_sanitize=none
+
+      - name: Build
+        run: ninja -C build-valgrind
+
+      # Death tests fork and abort on purpose, which Valgrind would report as errors.
+      - name: Run tests under Valgrind
+        run: >-
+          valgrind --leak-check=full --show-leak-kinds=definite,indirect --errors-for-leak-kinds=definite,indirect
+          --error-exitcode=1 --quiet
+          ./build-valgrind/tests/engine_tests --gtest_filter=-*DeathTest*

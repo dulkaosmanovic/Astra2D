@@ -1,0 +1,85 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }} # never interrupt a Pages deploy
+
+permissions:
+  contents: read
+
+env:
+  # The theme header, layout file and Doxyfile use options from Doxygen 1.18, so the version is pinned
+  # instead of using the much older Ubuntu package. Update the checksum together with the version.
+  DOXYGEN_VERSION: 1.18.0
+  DOXYGEN_SHA256: 14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true # doxygen-awesome-css theme
+
+      # Meson needs the engine dependencies to configure the project, even though only the docs are built.
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential meson ninja-build pkg-config cmake graphviz \
+            libglfw3-dev libglm-dev libspdlog-dev libgtest-dev libgl-dev
+
+      - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
+        run: |
+          tag="Release_${DOXYGEN_VERSION//./_}"
+          curl -fsSL -o doxygen.tar.gz \
+            "https://github.com/doxygen/doxygen/releases/download/${tag}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          echo "${DOXYGEN_SHA256}  doxygen.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/doxygen"
+          tar -xzf doxygen.tar.gz -C "$RUNNER_TEMP/doxygen" --strip-components=1
+          rm doxygen.tar.gz
+          echo "$RUNNER_TEMP/doxygen/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: |
+          doxygen --version
+          meson setup build
+
+      # Doxygen only prints warnings, so fail the job explicitly to keep the API fully documented.
+      - name: Generate documentation
+        run: |
+          ninja -C build docs 2>&1 | tee doxygen.log
+          if grep -q 'warning:' doxygen.log; then
+            echo "::error::Doxygen reported warnings:"
+            grep 'warning:' doxygen.log
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/docs/html
+
+  deploy:
+    name: Publish to GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

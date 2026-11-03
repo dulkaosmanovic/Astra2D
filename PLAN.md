@@ -70,7 +70,7 @@ Required
 
 Stretch
 - [ ] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
-- [ ] GitHub Actions: build + test, publish Doxygen docs (`.github/workflows/docs.yml` is empty)
+- [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind), publish Doxygen docs to GitHub Pages
 - [ ] `.clang-format` / `.clang-tidy`
 
 ## 2. Core
