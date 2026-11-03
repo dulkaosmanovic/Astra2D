@@ -1,0 +1,95 @@
+# Architecture {#architecture}
+
+[TOC]
+
+## Layers
+
+The engine is split into modules arranged in layers. A module may use modules in the same or a
+lower layer, never a higher one. Games use only the public headers in `include/astra2d/`.
+
+@dot
+digraph layers {
+    rankdir=TB;
+    nodesep=0.25;
+    ranksep=0.35;
+    node [shape=box, style="rounded,filled", fontname="Helvetica,Arial,sans-serif", fontsize=11,
+          color="#2a7fae", fillcolor="#eaf4fa", width=1.6];
+    edge [color="#5a7b91", arrowsize=0.7];
+
+    game     [label="Games and demos\nexamples/", fillcolor="#2a7fae", fontcolor="white"];
+
+    subgraph cluster_high {
+        label="High level"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
+        style="rounded,dashed"; color="#9fbfd3";
+        scene [label="scene"];
+        debug [label="debug"];
+    }
+    subgraph cluster_systems {
+        label="Systems"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
+        style="rounded,dashed"; color="#9fbfd3";
+        ecs      [label="ecs"];
+        physics  [label="physics"];
+        renderer [label="renderer"];
+        assets   [label="assets"];
+    }
+    subgraph cluster_base {
+        label="Foundation"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
+        style="rounded,dashed"; color="#9fbfd3";
+        core [label="core", fillcolor="#1a2f55", fontcolor="white", URL="\ref core"];
+        math [label="math"];
+    }
+
+    game -> scene; game -> debug;
+    scene -> ecs; scene -> physics; scene -> renderer;
+    debug -> renderer; debug -> physics;
+    renderer -> assets;
+    renderer -> core; assets -> core; ecs -> math; physics -> math; renderer -> math;
+}
+@enddot
+
+| Module | Responsibility | Uses OpenGL | Status |
+|---|---|---|---|
+| @ref core "core" | Application, main loop, window, input, timestep, logging, assertions | yes | ready |
+| math | GLM, rectangles, transform helpers | no | planned |
+| assets | Load each texture and shader file once | yes | planned |
+| renderer | Shaders, textures, batched quads, camera, debug lines | yes | planned |
+| ecs | Entities, sparse-set component storage, views | no | planned |
+| physics | Bodies, shapes, broad and narrow phase, impulse solver | no | planned |
+| scene | Owns a registry and runs systems in a fixed order | — | planned |
+| debug | Debug drawing and statistics | yes | planned |
+
+`ecs`, `physics` and `math` do not depend on OpenGL. They can be unit-tested and benchmarked
+headless, which is what the evaluation chapter relies on.
+
+## Source layout
+
+```text
+include/astra2d/<module>/   public headers: the engine API
+src/<module>/               implementation
+tests/                      one GoogleTest file per module
+examples/                   sandbox, demos and the showcase platformer
+docs/                       Doxygen configuration, these pages and the theme
+external/                   vendored code (GLAD, doxygen-awesome-css)
+subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
+```
+
+## Dependencies
+
+| Library | Used for |
+|---|---|
+| GLFW | Window, OpenGL context, input events |
+| GLAD | Loading OpenGL 3.3 core functions |
+| GLM | Vectors and matrices |
+| spdlog | Logging (wrapped by @ref astra2d::log) |
+| GoogleTest | Unit tests |
+
+Meson uses system packages when they are installed and falls back to the wraps in
+`subprojects/` otherwise, so the project builds on a machine with only a compiler, Meson and Ninja.
+
+## Conventions
+
+- Namespace `astra2d`; implementation details go in `astra2d::detail` and are not part of the API.
+- Classes that own OS or GPU resources are non-copyable (RAII).
+- Logging goes to stderr, so stdout stays free for program output such as benchmark CSV.
+- `ASTRA_ASSERT` checks programmer errors in debug builds; recoverable errors (missing files, failed
+  context creation) throw exceptions.

@@ -21,6 +21,10 @@ sudo pacman -Syu --needed \
     clang \
     clang-tools-extra
 
+echo "Fetching git submodules..."
+
+git submodule update --init --recursive
+
 echo "Setting up Meson build..."
 
 meson setup build -Db_sanitize=address,undefined || true
