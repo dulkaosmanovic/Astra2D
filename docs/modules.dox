@@ -1,0 +1,16 @@
+/**
+@defgroup core Core
+@brief Application and main loop, window, input, fixed timestep, logging and assertions.
+
+The lowest engine layer. Everything else builds on it, and it depends only on GLFW, OpenGL (through
+GLAD) and spdlog. See @ref core_guide for an explanation of how the pieces work together.
+
+Public headers live in `include/astra2d/core/`.
+*/
+
+/**
+@namespace astra2d
+@brief All public engine types and functions.
+
+Implementation details live in `astra2d::detail` and are not part of the API.
+*/

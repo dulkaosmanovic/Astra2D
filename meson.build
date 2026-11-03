@@ -7,6 +7,7 @@ project(
     'cpp_std=c++20',
     'warning_level=3',
     'buildtype=debugoptimized',
+    'b_ndebug=if-release',
     'default_library=static'
   ]
 )
@@ -54,17 +55,25 @@ subdir('tests')
 # Doxygen
 # ==========================================
 
+fs = import('fs')
+
 doxygen_conf = configure_file(
   input : 'docs/Doxyfile.in',
   output : 'Doxyfile',
   configuration : {
     'PROJECT_NAME' : meson.project_name(),
+    'VERSION' : meson.project_version(),
     'SOURCE_ROOT' : meson.project_source_root(),
     'BUILD_ROOT' : meson.project_build_root()
   }
 )
 
 doxygen = find_program('doxygen', required : false)
+doxygen_theme = 'external/doxygen-awesome-css/doxygen-awesome.css'
+if doxygen.found() and not fs.exists(doxygen_theme)
+  warning('Docs theme missing (' + doxygen_theme + '); the docs will be unstyled. ' +
+          'Run: git submodule update --init')
+endif
 if doxygen.found()
   run_target('docs',
     command : [doxygen, doxygen_conf]

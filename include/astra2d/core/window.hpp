@@ -1,45 +1,90 @@
 #pragma once
 
+#include "astra2d/core/input.hpp"
+
 #include <string>
 
 struct GLFWwindow;
+
+/// @addtogroup core
+/// @{
 
 namespace astra2d {
 
 /// Settings used when creating a Window.
 struct WindowSettings {
-    std::string title = "Astra2D";
-    int width = 1280;
-    int height = 720;
-    bool vsync = true;
+    std::string title = "Astra2D"; ///< Text in the title bar.
+    int width = 1280;               ///< Initial width in screen coordinates.
+    int height = 720;               ///< Initial height in screen coordinates.
+    bool vsync = true;              ///< Synchronize buffer swaps with the display refresh rate.
+    bool resizable = true;          ///< Allow the user to resize the window.
 };
 
-/// Owns a GLFW window and its OpenGL 3.3 core context.
+/// Owns a GLFW window and its OpenGL 3.3 core context, and forwards its events to an Input.
 class Window {
 public:
+    /// Creates the window, makes its OpenGL context current and loads OpenGL functions.
+    /// @throws std::runtime_error if GLFW, the window or the OpenGL 3.3 context cannot be created.
     explicit Window(const WindowSettings& settings);
     ~Window();
 
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
+    Window(Window&&) = delete;
+    Window& operator=(Window&&) = delete;
 
     /// Processes pending window and input events.
     void pollEvents();
 
+    /// Blocks until at least one event arrives, then processes it.
+    void waitEvents();
+
     /// Presents the back buffer.
     void swapBuffers();
 
+    /// True after the user closed the window or requestClose() was called.
     [[nodiscard]] bool shouldClose() const;
+
+    /// Marks the window to be closed; the main loop stops after the current frame.
     void requestClose();
 
-    /// Size of the framebuffer in pixels (may differ from window size on HiDPI).
-    [[nodiscard]] int framebufferWidth() const;
-    [[nodiscard]] int framebufferHeight() const;
+    /// Sets the window title (e.g. to show FPS).
+    void setTitle(const std::string& title);
 
+    /// Width of the framebuffer in pixels (may differ from the window size on HiDPI displays).
+    [[nodiscard]] int framebufferWidth() const { return m_framebufferWidth; }
+
+    /// Height of the framebuffer in pixels.
+    [[nodiscard]] int framebufferHeight() const { return m_framebufferHeight; }
+
+    /// Framebuffer width / height, or 1 while the window is minimized.
+    [[nodiscard]] float aspectRatio() const;
+
+    /// True while the framebuffer has zero size (window minimized).
+    [[nodiscard]] bool isMinimized() const { return m_framebufferWidth == 0 || m_framebufferHeight == 0; }
+
+    /// Returns true once after the framebuffer size changed, then false until the next change.
+    [[nodiscard]] bool consumeResize();
+
+    /// Input state fed by this window's events.
+    [[nodiscard]] Input& input() { return m_input; }
+
+    /// @copydoc input()
+    [[nodiscard]] const Input& input() const { return m_input; }
+
+    /// The underlying GLFW window, for integrations such as ImGui. Prefer the Window API.
     [[nodiscard]] GLFWwindow* nativeHandle() const { return m_handle; }
 
 private:
+    void installCallbacks();
+
     GLFWwindow* m_handle = nullptr;
+    Input m_input;
+    int m_framebufferWidth = 0;
+    int m_framebufferHeight = 0;
+    bool m_resized = false;
 };
 
 } // namespace astra2d
+
+/// @}

@@ -76,11 +76,11 @@ Stretch
 ## 2. Core
 
 Required
-- [ ] `Log` wrapper over spdlog, `ASTRA_ASSERT` macros
-- [ ] Main loop with **fixed timestep** for physics and variable rendering (accumulator, interpolation optional)
-- [ ] `Input`: keyboard and mouse; pressed / held / released per frame
-- [ ] Window resize handling (viewport, camera aspect)
-- [ ] Tests: input state transitions, timestep accumulator
+- [x] `Log` wrapper over spdlog, `ASTRA_ASSERT` macros
+- [x] Main loop with **fixed timestep** for physics and variable rendering (accumulator, interpolation optional)
+- [x] `Input`: keyboard and mouse; pressed / held / released per frame
+- [x] Window resize handling (viewport, camera aspect)
+- [x] Tests: input state transitions, timestep accumulator
 
 Stretch
 - [ ] Action mapping (`"jump" → Space`), gamepad support

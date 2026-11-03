@@ -76,8 +76,8 @@ Astra2D/
 ### Requirements
 
 - Linux with an OpenGL 3.3 capable GPU/driver
-- GCC 11+ or Clang 14+, Meson 1.1+, Ninja
-- Optional: Doxygen, Valgrind
+- GCC 13+ or Clang 17+ (C++20 with `<format>`), Meson 1.1+, Ninja
+- Optional: Doxygen and Graphviz (documentation), Valgrind
 
 On Arch Linux, all dependencies can be installed with:
 
@@ -139,11 +139,12 @@ A game derives from `astra2d::Application` and overrides its hooks:
 
 class MyGame : public astra2d::Application {
 public:
-    MyGame() : Application({ .title = "My Game", .width = 1280, .height = 720 }) {}
+    MyGame() : Application({ .window = { .title = "My Game", .width = 1280, .height = 720 } }) {}
 
 protected:
     void onStart() override {}
-    void onUpdate(float deltaTime) override {}
+    void onFixedUpdate(float fixedDeltaTime) override {}  // physics, 60 times per second
+    void onUpdate(float deltaTime) override {}            // input, animation, once per frame
     void onRender() override {}
 };
 
@@ -160,7 +161,8 @@ More documentation on rendering, entities, physics and scenes will be added as t
 
 ## Documentation
 
-API documentation is generated with Doxygen (`ninja -C build docs`).
+Documentation is generated with Doxygen (`ninja -C build docs`) into `build/docs/html/index.html`.
+It contains a getting-started guide, the architecture overview, a guide per module and the API reference.
 
 ---
 
