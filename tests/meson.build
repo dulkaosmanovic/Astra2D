@@ -1,4 +1,4 @@
-gtest_dep = dependency('gtest')
+gtest_dep = dependency('gtest', main : true)
 
 test_sources = files(
   'test_math.cpp',
