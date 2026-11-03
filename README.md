@@ -4,6 +4,12 @@
   <img src="docs/logo2.png" width="500"/>
 </p>
 
+<p align="center">
+  <a href="https://github.com/dulkaosmanovic/Astra2D/actions/workflows/ci.yml"><img src="https://github.com/dulkaosmanovic/Astra2D/actions/workflows/ci.yml/badge.svg" alt="Build and test"/></a>
+  <a href="https://github.com/dulkaosmanovic/Astra2D/actions/workflows/docs.yml"><img src="https://github.com/dulkaosmanovic/Astra2D/actions/workflows/docs.yml/badge.svg" alt="Documentation"/></a>
+  <a href="https://dulkaosmanovic.github.io/Astra2D/"><img src="https://img.shields.io/badge/docs-online-2a7fae" alt="Documentation online"/></a>
+</p>
+
 Astra2D is a modular 2D game engine written in C++20 using OpenGL 3.3 core.
 It is developed as a university diploma project focused on the architecture and core systems of a real-time game engine:
 rendering, an entity component system, physics simulation and collision detection.
@@ -161,7 +167,8 @@ More documentation on rendering, entities, physics and scenes will be added as t
 
 ## Documentation
 
-Documentation is generated with Doxygen (`ninja -C build docs`) into `build/docs/html/index.html`.
+Documentation is published at **https://dulkaosmanovic.github.io/Astra2D/** on every push to `main`.
+To generate it locally, run `ninja -C build docs` and open `build/docs/html/index.html`.
 It contains a getting-started guide, the architecture overview, a guide per module and the API reference.
 
 ---
