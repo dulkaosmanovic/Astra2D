@@ -144,7 +144,10 @@ cmd_template() {
     dir=$(mktemp -d)
     cp -r templates/game/. "$dir/"
     ln -s "$PWD" "$dir/subprojects/astra2d"
-    meson setup "$dir/build" "$dir" -Dwerror=true
+    # Warnings are errors in the template's own code. The engine is already built with -Werror
+    # by the other jobs; here it is compiled the way a game compiles it, where false positives in
+    # third-party headers (e.g. GCC 13's -Warray-bounds inside fmt) must not break the game.
+    meson setup "$dir/build" "$dir" -Dwerror=true -Dastra2d:werror=false
     ninja -C "$dir/build"
     run_for 2 "$dir/build/mygame"
     rm -rf "$dir"
