@@ -113,8 +113,13 @@ public:
     [[nodiscard]] std::vector<Entity> children(Entity entity) const;
 
     /// The world transform of @p entity: its Transform combined with those of its ancestors.
-    /// O(depth). Entities without a Transform count as the identity.
-    [[nodiscard]] Transform worldTransform(Entity entity) const;
+    /// O(depth). Entities without a Transform count as the identity. Entities with Interpolated
+    /// are blended by @p alpha (see render()); the default 1 gives the latest state.
+    [[nodiscard]] Transform worldTransform(Entity entity, float alpha = 1.0F) const;
+
+    /// Draws @p entity at its current Transform until the next fixed step, instead of blending
+    /// from where it was. Call it after moving an Interpolated entity instantly.
+    void resetInterpolation(Entity entity);
 
     // --- Systems ---------------------------------------------------------------------------------
 
@@ -129,7 +134,8 @@ public:
     /// Names of the systems of @p phase, in execution order.
     [[nodiscard]] std::vector<std::string> systemNames(SystemPhase phase) const;
 
-    /// Runs the FixedUpdate systems, then destroys the entities queued by destroyLater().
+    /// Remembers the Transform of every Interpolated entity, runs the FixedUpdate systems, then
+    /// destroys the entities queued by destroyLater().
     void fixedUpdate(float fixedDeltaTime);
 
     /// Runs the Update systems, then the LateUpdate systems, then destroys the queued entities.
@@ -137,7 +143,9 @@ public:
 
     /// Draws every visible SpriteRenderer at its entity's world transform, lower layers first;
     /// within a layer, parents before children. Call between Renderer2D::begin() and end().
-    void render(Renderer2D& renderer);
+    /// Pass Application::interpolationAlpha() as @p alpha to draw Interpolated entities between
+    /// their last two fixed steps, so motion is smooth at any frame rate.
+    void render(Renderer2D& renderer, float alpha = 1.0F);
 
 private:
     struct RegisteredSystem {
@@ -156,7 +164,8 @@ private:
     void runPhase(SystemPhase phase, float deltaTime);
     void detach(Entity child);
     void onRelationshipDestroyed(Entity entity);
-    void collectDrawItems(Entity root);
+    void collectDrawItems(Entity root, float alpha);
+    [[nodiscard]] Transform localTransform(Entity entity, float alpha) const;
     [[nodiscard]] bool isAncestor(Entity ancestor, Entity entity) const;
 
     Registry m_registry;

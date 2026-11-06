@@ -81,9 +81,9 @@ Add `-Dwerror=true` to any variant to treat warnings as errors, as CI does. `-Dt
 | `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
 | `./build/examples/input` | Action mapping, gamepads, rebinding at run time (R), game events |
 | `./build/examples/post_processing` | Render targets and effects: 1-4 switch the effect, Tab low resolution |
-| `./build/examples/coin_collector` | A small complete game: title, score, lives, timer, shake, events |
+| `./build/examples/coin_collector` | A small complete game built on the Scene and ECS: title, score, lives, timer, shake, events |
 | `./build/examples/scene` | Entities, systems, hierarchy and signals; F5 saves and F9 loads the scene |
-| `./build/examples/Sandbox` | Everything at once: WASD / left stick move, Q/E rotate the camera, wheel zooms, click shakes, P toggles the CRT effect, B batching, Space resets. Edit `examples/assets/shaders/crt.frag` while it runs to see hot reloading |
+| `./build/examples/Sandbox` | Everything at once, with its world in a Scene: WASD / left stick move, Q/E rotate the camera, wheel zooms, click shakes, P toggles the CRT effect, B batching, Space resets. Edit `examples/assets/shaders/crt.frag` while it runs to see hot reloading |
 | `./build/examples/renderer_stress` | Thousands of moving sprites: B toggles batching, Up/Down doubles or halves the count, V toggles vsync |
 | `meson test -C build` | Runs the unit tests |
 | `ninja -C build docs` | Generates this documentation into `build/docs/html` |

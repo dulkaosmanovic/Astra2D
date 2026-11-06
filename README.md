@@ -155,9 +155,9 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 | `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
 | `./build/examples/input` | Action mapping, gamepads, rebinding at run time, game events |
 | `./build/examples/post_processing` | Render targets and effects (1-4 switch, Tab low resolution) |
-| `./build/examples/coin_collector` | A small complete game: states, score, lives, shake, events |
+| `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, states, score, lives, shake, events |
 | `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
-| `./build/examples/Sandbox` | Everything at once: parallax, rotation, CRT effect, hot reloading |
+| `./build/examples/Sandbox` | Everything at once: a Scene with interpolated movement, parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 
 ```bash

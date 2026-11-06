@@ -172,10 +172,31 @@ the end of `fixedUpdate()` and `update()`.
 | @ref astra2d::RigidBody | velocity, mass, body type; moved by the physics module (next) |
 | @ref astra2d::Collider | box or circle shape, material, trigger flag; for the physics module |
 | @ref astra2d::Relationship | hierarchy links, managed by `Scene::setParent()` |
+| @ref astra2d::Interpolated | opt-in smooth drawing of entities moved at the fixed timestep |
 
 `scene.render(renderer)` draws every visible SpriteRenderer at its entity's world transform, lower
 layers first; within a layer parents are drawn before children. It is called between
 `Renderer2D::begin()` and `end()`, so the game still chooses the camera.
+
+### Smooth motion with interpolation
+
+Systems in `FixedUpdate` move entities 60 times per second, but a 144 Hz display shows more frames
+than that, so an entity drawn at its latest Transform moves in visible jumps. Add
+@ref astra2d::Interpolated to such an entity and pass the application's interpolation alpha to
+`render()`:
+
+```cpp
+registry.emplace<astra2d::Interpolated>(player);
+// ...
+m_scene.render(m_renderer, interpolationAlpha());
+const glm::vec2 cameraTarget = m_scene.worldTransform(player, interpolationAlpha()).position;
+```
+
+`fixedUpdate()` remembers each such entity's Transform before the step runs. `render()` and
+`worldTransform(entity, alpha)` blend between that and the current Transform, so the entity is
+drawn where it was a fraction `alpha` of the way through the step. After an instant move (respawn,
+teleport), call `scene.resetInterpolation(entity)` so it does not slide there. It is opt-in, because
+entities that never move at the fixed rate gain nothing from it.
 
 ## Hierarchy
 
@@ -256,7 +277,12 @@ cost the same. Beyond that, the ECS stays flat, while the game objects get 2.7 t
 allocation order and 5 times slower shuffled, because each object is a cache miss and carries data
 the update does not need.
 
-## Example
+## Examples
+
+`./build/examples/coin_collector` is a small complete game on the Scene: the player, coins,
+spikes and effects are entities with engine components (Transform, SpriteRenderer, Animator,
+Collider, Interpolated) and the game's own (Player, Coin, Spike, Burst), and the gameplay is
+systems. The Sandbox keeps its world in a Scene too.
 
 `./build/examples/scene` shows all of it: the solar system hierarchy, animated coins with a
 `Pickup` component, an `onDestroy<Pickup>` signal that counts collected coins and spawns an effect,

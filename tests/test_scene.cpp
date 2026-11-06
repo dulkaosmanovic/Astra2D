@@ -305,3 +305,58 @@ TEST(SceneDeathTest, RemovingASystemWhileSystemsRunAsserts)
     EXPECT_DEATH(scene.update(0.0F), "while systems are running");
 }
 #endif
+
+// ---------------------------------------------------------------------------------------------
+// Interpolation
+
+TEST(InterpolationTests, BlendsBetweenTheLastTwoFixedSteps)
+{
+    Scene scene;
+    const Entity entity = scene.createEntity({}, {0.0F, 0.0F});
+    scene.registry().emplace<astra2d::Interpolated>(entity);
+    scene.addSystem(SystemPhase::FixedUpdate, "move", [](Scene& s, float) {
+        s.registry().view<Transform>().each([](Transform& t) { t.position.x += 10.0F; });
+    });
+
+    // Before the first step there is no history: the current state is drawn.
+    expectNear(scene.worldTransform(entity, 0.5F).position, {0.0F, 0.0F});
+    scene.fixedUpdate(1.0F / 60.0F); // 0 -> 10
+    expectNear(scene.worldTransform(entity, 0.0F).position, {0.0F, 0.0F});
+    expectNear(scene.worldTransform(entity, 0.25F).position, {2.5F, 0.0F});
+    expectNear(scene.worldTransform(entity).position, {10.0F, 0.0F}); // default alpha 1
+    scene.fixedUpdate(1.0F / 60.0F);                                  // 10 -> 20
+    expectNear(scene.worldTransform(entity, 0.5F).position, {15.0F, 0.0F});
+}
+
+TEST(InterpolationTests, ResetDrawsTheTeleportedPositionAtOnce)
+{
+    Scene scene;
+    const Entity entity = scene.createEntity();
+    scene.registry().emplace<astra2d::Interpolated>(entity);
+    scene.fixedUpdate(0.016F);
+    scene.registry().get<Transform>(entity).position = {500.0F, 0.0F}; // teleport
+    scene.resetInterpolation(entity);
+    expectNear(scene.worldTransform(entity, 0.1F).position, {500.0F, 0.0F});
+}
+
+TEST(InterpolationTests, ParentsAreInterpolatedToo)
+{
+    Scene scene;
+    const Entity parent = scene.createEntity();
+    const Entity child = scene.createEntity({}, {1.0F, 0.0F}); // not Interpolated itself
+    scene.setParent(child, parent);
+    scene.registry().emplace<astra2d::Interpolated>(parent);
+    scene.fixedUpdate(0.016F);
+    scene.registry().get<Transform>(parent).position = {100.0F, 0.0F};
+    expectNear(scene.worldTransform(child, 0.5F).position, {51.0F, 0.0F});
+}
+
+TEST(InterpolationTests, InterpolateBlendsEveryPart)
+{
+    const Transform from{.position = {0.0F, 0.0F}, .rotation = 0.0F, .scale = {1.0F, 1.0F}};
+    const Transform to{.position = {4.0F, 8.0F}, .rotation = 1.0F, .scale = {3.0F, 1.0F}};
+    const Transform half = astra2d::interpolate(from, to, 0.5F);
+    expectNear(half.position, {2.0F, 4.0F});
+    EXPECT_NEAR(half.rotation, 0.5F, 1e-6F);
+    expectNear(half.scale, {2.0F, 1.0F});
+}

@@ -1,12 +1,14 @@
-// coin_collector: a small but complete game built from the core and renderer modules.
+// coin_collector: a small but complete game built on the engine's Scene and ECS.
 //
 // Collect as many coins as possible in 30 seconds while avoiding the bouncing spikes; three hits
 // and the round is over. It shows how the pieces fit together in a real game:
+//   - game objects are entities with components (Transform, SpriteRenderer, Animator, Collider and
+//     the game's own Player, Coin, Spike, Burst); the gameplay is systems run by the Scene
 //   - game states (title, playing, game over) switched in onUpdate()
-//   - gameplay in onFixedUpdate(), drawing interpolated in onRender()
+//   - gameplay at the fixed timestep, drawn smoothly with Interpolated
 //   - an ActionMap, so keyboard and gamepad both work
-//   - events that decouple gameplay from its effects (score, camera shake, particles)
-//   - a sprite sheet with animations, text for the HUD, screen shake
+//   - events that decouple gameplay from its effects (score, camera shake, bursts)
+//   - text for the HUD, screen shake
 //
 // Controls (keyboard / gamepad):
 //   WASD, arrows / left stick, d-pad   move
@@ -24,6 +26,8 @@
 #include <astra2d/renderer/font.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/renderer/sprite.hpp>
+#include <astra2d/scene/components.hpp>
+#include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
 
@@ -44,6 +48,11 @@
 
 namespace {
 
+using astra2d::Entity;
+using astra2d::Scene;
+using astra2d::SystemPhase;
+using astra2d::Transform;
+
 // ---------------------------------------------------------------------------------------------
 // Tuning
 
@@ -56,18 +65,40 @@ constexpr float kPlayerRadius = 14.0F;
 constexpr float kCoinRadius = 12.0F;
 constexpr float kSpikeRadius = 14.0F;
 constexpr float kInvulnerableTime = 1.2F; // after a hit
-constexpr float kSprite = 32.0F;          // 16 px frames drawn at 2x
+constexpr float kBurstTime = 0.5F;
+constexpr float kSprite = 32.0F; // 16 px frames drawn at 2x
 constexpr float kTextSize = 16.0F;
 
 constexpr glm::vec4 kBackground{0.06F, 0.07F, 0.11F, 1.0F};
 constexpr glm::vec4 kArena{0.11F, 0.13F, 0.20F, 1.0F};
 constexpr glm::vec4 kBorder{0.35F, 0.40F, 0.60F, 1.0F};
-constexpr glm::vec4 kSpike{1.0F, 0.35F, 0.35F, 1.0F};
+constexpr glm::vec4 kSpikeColor{1.0F, 0.35F, 0.35F, 1.0F};
 constexpr glm::vec4 kGold{1.0F, 0.85F, 0.3F, 1.0F};
 constexpr glm::vec4 kWhite{1.0F};
 
 // ---------------------------------------------------------------------------------------------
-// Events: what happened in the game, published by the gameplay code. The effects subscribe.
+// Components of this game: plain data. The engine's Transform, SpriteRenderer, Animator, Collider
+// and Interpolated do the rest.
+
+struct Player {
+    bool moving = false;
+    bool facingLeft = false;
+    float invulnerable = 0.0F; // seconds left
+};
+
+struct Coin {};
+
+struct Spike {
+    glm::vec2 velocity{0.0F};
+};
+
+struct Burst {
+    glm::vec4 color{1.0F};
+    float age = 0.0F;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Events: what happened in the game, published by the gameplay systems. The effects subscribe.
 
 struct CoinCollected {
     glm::vec2 position;
@@ -78,26 +109,21 @@ struct PlayerHit {
     int livesLeft;
 };
 
-// ---------------------------------------------------------------------------------------------
-// Game objects: plain data. (Module 4 of the engine, the ECS, will replace these.)
-
-struct Spike {
-    glm::vec2 position;
-    glm::vec2 previous;
-    glm::vec2 velocity;
-};
-
-struct Burst {
-    glm::vec2 position;
-    glm::vec4 color;
-    float age = 0.0F;
-};
-
 enum class State { Title, Playing, GameOver };
 
-bool overlaps(glm::vec2 a, float radiusA, glm::vec2 b, float radiusB)
+astra2d::Collider circle(float radius)
 {
-    return glm::distance(a, b) < radiusA + radiusB;
+    return {.shape = astra2d::ColliderShape::Circle, .radius = radius, .isTrigger = true};
+}
+
+// Circle-circle overlap of two entities with a Transform and a circle Collider.
+bool overlaps(const astra2d::Registry& registry, Entity a, Entity b)
+{
+    const auto& colliderA = registry.get<astra2d::Collider>(a);
+    const auto& colliderB = registry.get<astra2d::Collider>(b);
+    const glm::vec2 centerA = registry.get<Transform>(a).position + colliderA.offset;
+    const glm::vec2 centerB = registry.get<Transform>(b).position + colliderB.offset;
+    return glm::distance(centerA, centerB) < colliderA.radius + colliderB.radius;
 }
 
 class CoinCollector : public astra2d::Application {
@@ -117,36 +143,30 @@ public:
         // The arena plus the HUD above it stay fully visible in any window shape.
         m_camera.fitArea(2.0F * (kArenaHalf + glm::vec2{30.0F, 60.0F}));
         bindControls();
+        addSystems();
+        spawnArena(); // shown behind the title screen too
 
-        // Each effect is its own subscriber; the gameplay code only publishes what happened.
+        // Each effect is its own subscriber; the gameplay systems only publish what happened.
         m_onCoin = events().subscribe<CoinCollected>([this](const CoinCollected& event) {
             ++m_score;
             m_shake.addTrauma(0.25F);
-            m_bursts.push_back({.position = event.position, .color = kGold});
+            spawnBurst(event.position, kGold);
         });
         m_onHit = events().subscribe<PlayerHit>([this](const PlayerHit& event) {
             m_shake.addTrauma(0.7F);
-            m_bursts.push_back({.position = event.position, .color = kSpike});
+            spawnBurst(event.position, kSpikeColor);
             ASTRA_INFO("Hit! {} lives left", event.livesLeft);
         });
     }
 
 protected:
-    void onStart() override
-    {
-        m_playerAnimation.play(m_idle);
-        m_coinAnimation.play(m_spin);
-    }
-
     void onFixedUpdate(float dt) override
     {
-        if (m_state != State::Playing) {
-            return;
+        // The gameplay systems only run during a round; the title and game-over screens stand
+        // still.
+        if (m_state == State::Playing) {
+            m_scene.fixedUpdate(dt);
         }
-        updatePlayer(dt);
-        updateSpikes(dt);
-        collectCoins();
-        checkHits();
     }
 
     void onUpdate(float dt) override
@@ -164,21 +184,13 @@ protected:
             break;
         case State::Playing:
             m_timeLeft -= dt;
-            m_invulnerable = std::max(m_invulnerable - dt, 0.0F);
             if (m_timeLeft <= 0.0F || m_lives <= 0) {
                 endRound();
             }
             break;
         }
-
-        m_playerAnimation.play(m_moving ? m_walk : m_idle);
-        m_playerAnimation.update(dt);
-        m_coinAnimation.update(dt);
+        m_scene.update(dt); // animations and effects keep running between rounds
         m_shake.update(dt);
-        for (auto& burst : m_bursts) {
-            burst.age += dt;
-        }
-        std::erase_if(m_bursts, [](const Burst& burst) { return burst.age > 0.5F; });
         m_time += dt;
     }
 
@@ -193,31 +205,21 @@ protected:
         const float alpha = interpolationAlpha();
 
         m_renderer.begin(m_camera);
-        m_renderer.drawQuad({0.0F, 0.0F}, 2.0F * kArenaHalf, kArena);
+        // Every sprite in the scene, by layer, between the last two fixed steps.
+        m_scene.render(m_renderer, alpha);
+        // Outlines and rings are not sprites; they are drawn straight from the components.
         m_renderer.drawRect({0.0F, 0.0F}, (2.0F * kArenaHalf) + glm::vec2{8.0F}, kBorder, 4.0F);
-
-        for (const glm::vec2 coin : m_coins) {
-            m_renderer.drawSprite(coin, {kSprite, kSprite}, m_sheet.frame(m_coinAnimation.frame()));
-        }
-        for (const Spike& spike : m_spikes) {
-            const glm::vec2 position = glm::mix(spike.previous, spike.position, alpha);
-            m_renderer.drawQuad(position, glm::vec2{kSpikeRadius * 1.6F}, kSpike, m_time * 4.0F);
-            m_renderer.drawCircle(position, kSpikeRadius, kSpike, 2.0F, 16);
-        }
-        for (const Burst& burst : m_bursts) {
-            const float t = burst.age / 0.5F;
-            m_renderer.drawCircle(burst.position, 10.0F + (40.0F * t),
-                                  {burst.color.r, burst.color.g, burst.color.b, 1.0F - t}, 3.0F);
-        }
-
-        // Blink while invulnerable.
-        const bool visible = m_invulnerable <= 0.0F || std::fmod(m_time, 0.2F) < 0.1F;
-        if (m_state != State::Title && visible) {
-            const glm::vec2 player = glm::mix(m_previousPlayer, m_player, alpha);
-            m_renderer.drawSprite(player, {kSprite, kSprite},
-                                  m_sheet.frame(m_playerAnimation.frame()), kWhite, 0.0F,
-                                  m_facingLeft);
-        }
+        auto& registry = m_scene.registry();
+        registry.view<Spike>().each([&](Entity spike, const Spike&) {
+            m_renderer.drawCircle(m_scene.worldTransform(spike, alpha).position, kSpikeRadius,
+                                  kSpikeColor, 2.0F, 16);
+        });
+        registry.view<Burst, Transform>().each([&](const Burst& burst, const Transform& t) {
+            const float progress = burst.age / kBurstTime;
+            m_renderer.drawCircle(t.position, 10.0F + (40.0F * progress),
+                                  {burst.color.r, burst.color.g, burst.color.b, 1.0F - progress},
+                                  3.0F);
+        });
         drawHud();
         m_renderer.end();
     }
@@ -249,7 +251,109 @@ private:
         m_actions.bind("quit", Key::Escape);
     }
 
-    // --- Round flow -------------------------------------------------------------------------
+    // --- Systems: the gameplay, run by the Scene in this order ------------------------------
+
+    void addSystems()
+    {
+        m_scene.addSystem(SystemPhase::FixedUpdate, "player movement",
+                          [this](Scene& scene, float dt) { movePlayer(scene, dt); });
+        m_scene.addSystem(SystemPhase::FixedUpdate, "spike movement", [](Scene& scene, float dt) {
+            const glm::vec2 limit = kArenaHalf - glm::vec2{kSpikeRadius};
+            scene.registry().view<Spike, Transform>().each([&](Spike& spike, Transform& t) {
+                t.position += spike.velocity * dt;
+                t.rotation += 4.0F * dt;
+                for (int axis = 0; axis < 2; ++axis) { // bounce off the walls
+                    if (std::abs(t.position[axis]) > limit[axis]) {
+                        t.position[axis] = std::copysign(limit[axis], t.position[axis]);
+                        spike.velocity[axis] = -spike.velocity[axis];
+                    }
+                }
+            });
+        });
+        m_scene.addSystem(SystemPhase::FixedUpdate, "coin pickup",
+                          [this](Scene& scene, float) { collectCoins(scene); });
+        m_scene.addSystem(SystemPhase::FixedUpdate, "spike hits",
+                          [this](Scene& scene, float) { checkHits(scene); });
+
+        m_scene.addSystem(SystemPhase::Update, "player look", [this](Scene& scene, float dt) {
+            scene.registry().view<Player, astra2d::Animator, astra2d::SpriteRenderer>().each(
+                [&](Player& player, astra2d::Animator& animator, astra2d::SpriteRenderer& sprite) {
+                player.invulnerable = std::max(player.invulnerable - dt, 0.0F);
+                animator.player.play(player.moving ? m_walk : m_idle);
+                sprite.flipX = player.facingLeft;
+                // Blink while invulnerable.
+                sprite.visible = player.invulnerable <= 0.0F || std::fmod(m_time, 0.2F) < 0.1F;
+            });
+        });
+        m_scene.addSystem(SystemPhase::Update, "bursts", [](Scene& scene, float dt) {
+            scene.registry().view<Burst>().each([&](Entity entity, Burst& burst) {
+                burst.age += dt;
+                if (burst.age > kBurstTime) {
+                    scene.destroyLater(entity); // safe inside a view
+                }
+            });
+        });
+        // The built-in "animation" system (LateUpdate) then advances every Animator.
+    }
+
+    void movePlayer(Scene& scene, float dt)
+    {
+        glm::vec2 direction{m_actions.axis("move_x", input()), m_actions.axis("move_y", input())};
+        if (glm::length(direction) > 1.0F) {
+            direction = glm::normalize(direction);
+        }
+        scene.registry().view<Player, Transform>().each([&](Player& player, Transform& t) {
+            const glm::vec2 limit = kArenaHalf - glm::vec2{kPlayerRadius};
+            t.position = glm::clamp(t.position + (direction * kPlayerSpeed * dt), -limit, limit);
+            player.moving = glm::length(direction) > 0.1F;
+            if (direction.x != 0.0F) {
+                player.facingLeft = direction.x < 0.0F;
+            }
+        });
+    }
+
+    void collectCoins(Scene& scene)
+    {
+        // First find the coins, then react. Reacting creates entities (a burst, maybe a spike),
+        // and both get a Transform, a type this view iterates; doing that inside the loop could
+        // move the Transform storage under the reference the loop holds.
+        auto& registry = scene.registry();
+        m_collected.clear();
+        registry.view<Coin, Transform>().each([&](Entity coin, Coin&, Transform&) {
+            if (overlaps(registry, m_player, coin)) {
+                m_collected.push_back(coin);
+            }
+        });
+        for (const Entity coin : m_collected) {
+            const glm::vec2 position = registry.get<Transform>(coin).position; // a copy:
+            events().publish(CoinCollected{.position = position}); // the handlers add entities
+            registry.get<Transform>(coin).position = randomFreePosition(); // respawn elsewhere
+            // Every fifth coin makes the game a little harder.
+            if (m_score % 5 == 0) {
+                spawnSpike();
+            }
+        }
+    }
+
+    void checkHits(Scene& scene)
+    {
+        auto& registry = scene.registry();
+        auto& player = registry.get<Player>(m_player);
+        if (player.invulnerable > 0.0F) {
+            return;
+        }
+        for (const Entity spike : registry.view<Spike>()) {
+            if (overlaps(registry, m_player, spike)) {
+                --m_lives;
+                player.invulnerable = kInvulnerableTime;
+                const glm::vec2 position = registry.get<Transform>(m_player).position;
+                events().publish(PlayerHit{.position = position, .livesLeft = m_lives});
+                return;
+            }
+        }
+    }
+
+    // --- Creating entities -------------------------------------------------------------------
 
     void startRound()
     {
@@ -257,107 +361,87 @@ private:
         m_score = 0;
         m_lives = kLives;
         m_timeLeft = kRoundTime;
-        m_invulnerable = 0.0F;
-        m_player = m_previousPlayer = {0.0F, 0.0F};
-        m_coins.clear();
+        m_scene.clear();
+        spawnArena();
+
+        m_player = m_scene.createEntity("player");
+        auto& registry = m_scene.registry();
+        registry.emplace<Player>(m_player);
+        registry.emplace<astra2d::SpriteRenderer>(
+            m_player, astra2d::SpriteRenderer{.size = glm::vec2{kSprite}, .layer = 2});
+        registry.emplace<astra2d::Animator>(m_player, astra2d::Animator{.sheet = &m_sheet})
+            .player.play(m_idle);
+        registry.emplace<astra2d::Collider>(m_player, circle(kPlayerRadius));
+        registry.emplace<astra2d::Interpolated>(m_player);
+
         for (int i = 0; i < kCoinsOnField; ++i) {
-            m_coins.push_back(randomFreePosition());
+            spawnCoin();
         }
-        m_spikes.clear();
-        addSpike();
-        addSpike();
+        spawnSpike();
+        spawnSpike();
+    }
+
+    void spawnArena()
+    {
+        const Entity arena = m_scene.createEntity("arena");
+        m_scene.registry().emplace<astra2d::SpriteRenderer>(
+            arena, astra2d::SpriteRenderer{.size = 2.0F * kArenaHalf, .tint = kArena, .layer = -1});
     }
 
     void endRound()
     {
         m_state = State::GameOver;
         m_best = std::max(m_best, m_score);
-        m_moving = false;
+        m_scene.registry().get<Player>(m_player).moving = false;
     }
 
-    // --- Gameplay (fixed timestep) ----------------------------------------------------------
-
-    void updatePlayer(float dt)
+    void spawnCoin()
     {
-        glm::vec2 direction{m_actions.axis("move_x", input()), m_actions.axis("move_y", input())};
-        if (glm::length(direction) > 1.0F) {
-            direction = glm::normalize(direction);
-        }
-        m_previousPlayer = m_player;
-        const glm::vec2 limit = kArenaHalf - glm::vec2{kPlayerRadius};
-        m_player = glm::clamp(m_player + (direction * kPlayerSpeed * dt), -limit, limit);
-        m_moving = glm::length(direction) > 0.1F;
-        if (direction.x != 0.0F) {
-            m_facingLeft = direction.x < 0.0F;
-        }
+        const Entity coin = m_scene.createEntity("coin", randomFreePosition());
+        auto& registry = m_scene.registry();
+        registry.emplace<Coin>(coin);
+        registry.emplace<astra2d::SpriteRenderer>(
+            coin, astra2d::SpriteRenderer{.size = glm::vec2{kSprite}, .layer = 1});
+        registry.emplace<astra2d::Animator>(coin, astra2d::Animator{.sheet = &m_sheet})
+            .player.play(m_spin);
+        registry.emplace<astra2d::Collider>(coin, circle(kCoinRadius));
     }
 
-    void updateSpikes(float dt)
-    {
-        const glm::vec2 limit = kArenaHalf - glm::vec2{kSpikeRadius};
-        for (Spike& spike : m_spikes) {
-            spike.previous = spike.position;
-            spike.position += spike.velocity * dt;
-            // Bounce off the walls.
-            for (int axis = 0; axis < 2; ++axis) {
-                if (std::abs(spike.position[axis]) > limit[axis]) {
-                    spike.position[axis] = std::copysign(limit[axis], spike.position[axis]);
-                    spike.velocity[axis] = -spike.velocity[axis];
-                }
-            }
-        }
-    }
-
-    void collectCoins()
-    {
-        for (glm::vec2& coin : m_coins) {
-            if (overlaps(m_player, kPlayerRadius, coin, kCoinRadius)) {
-                events().publish(CoinCollected{.position = coin});
-                coin = randomFreePosition();
-                // Every fifth coin makes the game a little harder.
-                if (m_score % 5 == 0) {
-                    addSpike();
-                }
-            }
-        }
-    }
-
-    void checkHits()
-    {
-        if (m_invulnerable > 0.0F) {
-            return;
-        }
-        for (const Spike& spike : m_spikes) {
-            if (overlaps(m_player, kPlayerRadius, spike.position, kSpikeRadius)) {
-                --m_lives;
-                m_invulnerable = kInvulnerableTime;
-                events().publish(PlayerHit{.position = m_player, .livesLeft = m_lives});
-                return;
-            }
-        }
-    }
-
-    void addSpike()
+    void spawnSpike()
     {
         std::uniform_real_distribution<float> angle(0.0F, 6.2832F);
         std::uniform_real_distribution<float> speed(100.0F, 170.0F);
         const float a = angle(m_random);
-        const glm::vec2 position = randomFreePosition();
-        m_spikes.push_back({.position = position,
-                            .previous = position,
-                            .velocity = speed(m_random) * glm::vec2{std::cos(a), std::sin(a)}});
+        const Entity spike = m_scene.createEntity("spike", randomFreePosition());
+        auto& registry = m_scene.registry();
+        registry.emplace<Spike>(spike,
+                                Spike{speed(m_random) * glm::vec2{std::cos(a), std::sin(a)}});
+        registry.emplace<astra2d::SpriteRenderer>(
+            spike, astra2d::SpriteRenderer{
+                       .size = glm::vec2{kSpikeRadius * 1.6F}, .tint = kSpikeColor, .layer = 1});
+        registry.emplace<astra2d::Collider>(spike, circle(kSpikeRadius));
+        registry.emplace<astra2d::Interpolated>(spike);
+    }
+
+    void spawnBurst(glm::vec2 position, glm::vec4 color)
+    {
+        const Entity burst = m_scene.createEntity({}, position);
+        m_scene.registry().emplace<Burst>(burst, Burst{.color = color});
     }
 
     // A random point in the arena that is not right next to the player.
     glm::vec2 randomFreePosition()
     {
+        const glm::vec2 player = m_scene.registry().valid(m_player)
+                                     ? m_scene.registry().get<Transform>(m_player).position
+                                     : glm::vec2{0.0F};
         const glm::vec2 limit = kArenaHalf - glm::vec2{24.0F};
         std::uniform_real_distribution<float> x(-limit.x, limit.x);
         std::uniform_real_distribution<float> y(-limit.y, limit.y);
         glm::vec2 position{};
         do {
             position = {x(m_random), y(m_random)};
-        } while (glm::distance(position, m_player) < 100.0F);
+        } while (glm::distance(position, player) < 100.0F);
         return position;
     }
 
@@ -376,7 +460,7 @@ private:
             m_renderer.drawText(m_font, std::format("SCORE {}", m_score), {-kArenaHalf.x, top},
                                 kTextSize, kGold);
             const std::string lives(static_cast<std::size_t>(std::max(m_lives, 0)), '*');
-            drawCentered(std::format("LIVES {}", lives), top - 8.0F, kTextSize, kSpike);
+            drawCentered(std::format("LIVES {}", lives), top - 8.0F, kTextSize, kSpikeColor);
             const std::string time =
                 std::format("TIME {:2}", static_cast<int>(std::ceil(std::max(m_timeLeft, 0.0F))));
             const float width = m_font.atlas().measure(time, kTextSize).x;
@@ -391,7 +475,7 @@ private:
             }
             break;
         case State::GameOver:
-            drawCentered(m_lives <= 0 ? "GAME OVER" : "TIME UP", 50.0F, 32.0F, kSpike);
+            drawCentered(m_lives <= 0 ? "GAME OVER" : "TIME UP", 50.0F, 32.0F, kSpikeColor);
             drawCentered(std::format("score {}   best {}", m_score, m_best), 0.0F, kTextSize,
                          kWhite);
             drawCentered("press ENTER to play again", -50.0F, kTextSize, kWhite);
@@ -410,29 +494,23 @@ private:
     astra2d::CameraShake m_shake;
     astra2d::Renderer2D m_renderer;
     astra2d::ActionMap m_actions;
-    astra2d::EventDispatcher::Subscription m_onCoin;
-    astra2d::EventDispatcher::Subscription m_onHit;
     std::mt19937 m_random;
 
+    // Animations are data that Animators point to, so they are declared before the scene.
     const astra2d::SpriteAnimation m_idle{.frames = {0, 1, 2, 1}, .frameDuration = 0.18F};
     const astra2d::SpriteAnimation m_walk{.frames = {0, 1, 2, 1}, .frameDuration = 0.08F};
     const astra2d::SpriteAnimation m_spin{.frames = {4, 5, 6, 7}, .frameDuration = 0.1F};
-    astra2d::AnimationPlayer m_playerAnimation;
-    astra2d::AnimationPlayer m_coinAnimation;
+    Scene m_scene;
+    Entity m_player;
+    std::vector<Entity> m_collected; // reused by collectCoins()
+    astra2d::EventDispatcher::Subscription m_onCoin;
+    astra2d::EventDispatcher::Subscription m_onHit;
 
     State m_state = State::Title;
-    glm::vec2 m_player{0.0F};
-    glm::vec2 m_previousPlayer{0.0F};
-    bool m_moving = false;
-    bool m_facingLeft = false;
-    std::vector<glm::vec2> m_coins;
-    std::vector<Spike> m_spikes;
-    std::vector<Burst> m_bursts;
     int m_score = 0;
     int m_best = 0;
     int m_lives = kLives;
     float m_timeLeft = kRoundTime;
-    float m_invulnerable = 0.0F;
     float m_time = 0.0F;
 };
 

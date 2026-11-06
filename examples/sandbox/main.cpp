@@ -1,4 +1,6 @@
-// Sandbox: a small scene that exercises the core and renderer modules.
+// Sandbox: a small scene that exercises the core, renderer and scene modules. The blob, the coins,
+// the ground and the spinning square are entities in a Scene; the parallax background, debug
+// lines and HUD are drawn directly with Renderer2D around it.
 //
 // Controls (keyboard / gamepad):
 //   WASD, arrows / left stick, d-pad   move the blob
@@ -26,6 +28,8 @@
 #include <astra2d/renderer/post_process.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/renderer/sprite.hpp>
+#include <astra2d/scene/components.hpp>
+#include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
 
@@ -62,6 +66,20 @@ constexpr glm::vec4 kHudShadow{0.0F, 0.0F, 0.0F, 0.6F};
 constexpr astra2d::TextureSettings kPixelRepeat{.filter = astra2d::TextureFilter::Nearest,
                                                 .wrap = astra2d::TextureWrap::Repeat};
 
+// Components of the sandbox; the engine's Transform, SpriteRenderer, Animator and Interpolated do
+// the rest.
+struct Blob {
+    bool moving = false;
+    bool facingLeft = false;
+};
+struct Bob {
+    float baseY = 0.0F;
+    float phase = 0.0F;
+};
+struct Spin {
+    float speed = 0.0F;
+};
+
 class Sandbox : public astra2d::Application {
 public:
     Sandbox()
@@ -75,7 +93,7 @@ public:
         , m_hills(m_assets.texture("textures/hills.png", kPixelRepeat))
         , m_font(astra2d::Font::fromFile(m_assets.resolve("fonts/PressStart2P-Regular.ttf"), 8.0F))
         , m_camera(480.0F, framebufferSize())
-        , m_scene(framebufferSize().x, framebufferSize().y)
+        , m_sceneTarget(framebufferSize().x, framebufferSize().y)
     {
         bindActions();
 
@@ -94,26 +112,12 @@ public:
 protected:
     void onStart() override
     {
-        m_player.play(m_blobIdle);
-        m_coin.play(m_coinSpin);
+        buildScene();
         // Load the effect up front, so a broken shader is reported at start-up.
         (void)m_assets.effect("shaders/crt.frag");
     }
 
-    void onFixedUpdate(float dt) override
-    {
-        // Held state and axes are safe to read here; they do not depend on the frame/step ratio.
-        glm::vec2 direction{m_actions.axis("move_x", input()), m_actions.axis("move_y", input())};
-        if (glm::length(direction) > 1.0F) {
-            direction = glm::normalize(direction); // diagonals are not faster
-        }
-        m_previousPosition = m_position;
-        m_position += direction * (kSpeed * dt);
-        m_moving = glm::length(direction) > 0.1F;
-        if (direction.x != 0.0F) {
-            m_facingLeft = direction.x < 0.0F;
-        }
-    }
+    void onFixedUpdate(float dt) override { m_scene.fixedUpdate(dt); }
 
     void onUpdate(float dt) override
     {
@@ -123,8 +127,8 @@ protected:
             quit();
         }
         if (m_actions.isPressed("reset", in)) {
-            m_position = glm::vec2{0.0F};
-            m_previousPosition = m_position;
+            m_scene.registry().get<astra2d::Transform>(m_blob).position = glm::vec2{0.0F};
+            m_scene.resetInterpolation(m_blob); // jump there instead of sliding
             m_cameraRotation = 0.0F;
         }
         if (m_actions.isPressed("batching", in)) {
@@ -146,9 +150,7 @@ protected:
         }
         m_cameraRotation += m_actions.axis("rotate", in) * dt;
 
-        m_player.play(m_moving ? m_blobWalk : m_blobIdle); // faster squish while walking
-        m_player.update(dt);
-        m_coin.update(dt);
+        m_scene.update(dt); // bobbing coins, blob animation, then the built-in Animator system
         m_shake.update(dt);
         m_time += dt;
         m_noticeTime = std::max(m_noticeTime - dt, 0.0F);
@@ -165,7 +167,7 @@ protected:
     void onResize(int width, int height) override
     {
         m_camera.setViewportSize(width, height);
-        m_scene.resize(width, height);
+        m_sceneTarget.resize(width, height);
     }
 
     void onRender() override
@@ -174,7 +176,7 @@ protected:
         // With post-processing the scene goes into a texture first, otherwise straight to the
         // window.
         if (m_postProcessing) {
-            m_scene.bind();
+            m_sceneTarget.bind();
         } else {
             astra2d::Framebuffer::bindDefault(size.x, size.y);
         }
@@ -183,16 +185,17 @@ protected:
         m_renderer.resetStats();
 
         // Interpolate between the last two fixed steps for smooth motion at any frame rate.
-        const glm::vec2 player = glm::mix(m_previousPosition, m_position, interpolationAlpha());
+        const float alpha = interpolationAlpha();
+        const glm::vec2 player = m_scene.worldTransform(m_blob, alpha).position;
         m_shake.apply(m_camera, player, m_cameraRotation);
 
         drawBackgroundLayer(m_mountains, kMountainFill, {0.15F, 0.1F}, 70.0F);
         drawBackgroundLayer(m_hills, kHillFill, {0.45F, 0.3F}, 10.0F);
-        drawWorld(player);
+        drawWorld(player, alpha);
 
         if (m_postProcessing) {
             astra2d::Framebuffer::bindDefault(size.x, size.y);
-            m_postProcess.apply(m_scene.colorTexture(), m_assets.effect("shaders/crt.frag"),
+            m_postProcess.apply(m_sceneTarget.colorTexture(), m_assets.effect("shaders/crt.frag"),
                                 m_time);
         }
         drawHud(size); // after the effect, so the text stays sharp
@@ -203,6 +206,85 @@ private:
     {
         return {std::max(window().framebufferWidth(), 1),
                 std::max(window().framebufferHeight(), 1)};
+    }
+
+    // The world as entities, and the systems that animate it.
+    void buildScene()
+    {
+        auto& registry = m_scene.registry();
+        using astra2d::SpriteRenderer;
+
+        // A checkerboard island of solid quads around the origin.
+        constexpr int kHalf = 4;
+        for (int y = -kHalf; y < kHalf; ++y) {
+            for (int x = -kHalf; x < kHalf; ++x) {
+                const glm::vec2 center{(static_cast<float>(x) + 0.5F) * kTile,
+                                       (static_cast<float>(y) + 0.5F) * kTile};
+                const astra2d::Entity tile = m_scene.createEntity({}, center);
+                registry.emplace<SpriteRenderer>(
+                    tile, SpriteRenderer{.size = {kTile, kTile},
+                                         .tint = ((x + y) % 2 == 0) ? kGrass : kGrassDark,
+                                         .layer = -1});
+            }
+        }
+        // Coins bobbing up and down, each a little out of step with the previous one.
+        for (int i = 0; i < 5; ++i) {
+            const astra2d::Entity coin =
+                m_scene.createEntity("coin", {(static_cast<float>(i) - 2.0F) * 48.0F, 96.0F});
+            registry.emplace<SpriteRenderer>(coin, SpriteRenderer{.size = {kTile, kTile}});
+            registry.emplace<astra2d::Animator>(coin, astra2d::Animator{.sheet = &m_sheet})
+                .player.play(m_coinSpin);
+            registry.emplace<Bob>(coin, Bob{.baseY = 96.0F, .phase = static_cast<float>(i)});
+        }
+        const astra2d::Entity square = m_scene.createEntity("square", {-120.0F, 60.0F});
+        registry.emplace<SpriteRenderer>(
+            square, SpriteRenderer{.size = {40.0F, 40.0F}, .tint = {0.4F, 0.6F, 1.0F, 0.6F}});
+        registry.emplace<Spin>(square, Spin{1.0F});
+
+        m_blob = m_scene.createEntity("blob");
+        registry.emplace<SpriteRenderer>(m_blob,
+                                         SpriteRenderer{.size = {kTile, kTile}, .layer = 1});
+        registry.emplace<astra2d::Animator>(m_blob, astra2d::Animator{.sheet = &m_sheet})
+            .player.play(m_blobIdle);
+        registry.emplace<Blob>(m_blob);
+        registry.emplace<astra2d::Interpolated>(m_blob); // smooth at any frame rate
+
+        using astra2d::SystemPhase;
+        using astra2d::Transform;
+        m_scene.addSystem(SystemPhase::FixedUpdate, "blob movement",
+                          [this](astra2d::Scene& scene, float dt) {
+            // Held state and axes are safe to read here; they do not depend on the frame/step
+            // ratio.
+            glm::vec2 direction{m_actions.axis("move_x", input()),
+                                m_actions.axis("move_y", input())};
+            if (glm::length(direction) > 1.0F) {
+                direction = glm::normalize(direction); // diagonals are not faster
+            }
+            scene.registry().view<Blob, Transform>().each([&](Blob& blob, Transform& t) {
+                t.position += direction * (kSpeed * dt);
+                blob.moving = glm::length(direction) > 0.1F;
+                if (direction.x != 0.0F) {
+                    blob.facingLeft = direction.x < 0.0F;
+                }
+            });
+        });
+        m_scene.addSystem(SystemPhase::Update, "blob look", [this](astra2d::Scene& scene, float) {
+            scene.registry().view<Blob, astra2d::Animator, SpriteRenderer>().each(
+                [&](const Blob& blob, astra2d::Animator& animator, SpriteRenderer& sprite) {
+                // Faster squish while walking.
+                animator.player.play(blob.moving ? m_blobWalk : m_blobIdle);
+                sprite.flipX = blob.facingLeft;
+            });
+        });
+        m_scene.addSystem(SystemPhase::Update, "bob", [this](astra2d::Scene& scene, float) {
+            scene.registry().view<Bob, Transform>().each([this](const Bob& bob, Transform& t) {
+                t.position.y = bob.baseY + (std::sin((m_time * 3.0F) + bob.phase) * 3.0F);
+            });
+        });
+        m_scene.addSystem(SystemPhase::Update, "spin", [](astra2d::Scene& scene, float dt) {
+            scene.registry().view<Spin, Transform>().each(
+                [dt](const Spin& spin, Transform& t) { t.rotation += spin.speed * dt; });
+        });
     }
 
     void bindActions()
@@ -248,28 +330,11 @@ private:
         m_renderer.end();
     }
 
-    void drawWorld(glm::vec2 player)
+    void drawWorld(glm::vec2 player, float alpha)
     {
         m_renderer.begin(m_camera);
-
-        // A checkerboard island of solid quads around the origin.
-        constexpr int kHalf = 4;
-        for (int y = -kHalf; y < kHalf; ++y) {
-            for (int x = -kHalf; x < kHalf; ++x) {
-                const glm::vec2 center{(static_cast<float>(x) + 0.5F) * kTile,
-                                       (static_cast<float>(y) + 0.5F) * kTile};
-                m_renderer.drawQuad(center, {kTile, kTile},
-                                    ((x + y) % 2 == 0) ? kGrass : kGrassDark);
-            }
-        }
-        for (int i = 0; i < 5; ++i) {
-            const float bob = std::sin((m_time * 3.0F) + static_cast<float>(i)) * 3.0F;
-            const glm::vec2 position{(static_cast<float>(i) - 2.0F) * 48.0F, 96.0F + bob};
-            m_renderer.drawSprite(position, {kTile, kTile}, m_sheet.frame(m_coin.frame()));
-        }
-        m_renderer.drawSprite(player, {kTile, kTile}, m_sheet.frame(m_player.frame()), kWhite, 0.0F,
-                              m_facingLeft);
-        m_renderer.drawQuad({-120.0F, 60.0F}, {40.0F, 40.0F}, {0.4F, 0.6F, 1.0F, 0.6F}, m_time);
+        // Ground, coins, the blob and the square: every SpriteRenderer, by layer, interpolated.
+        m_scene.render(m_renderer, alpha);
 
         // Debug primitives: player bounds, a pickup radius and a line to the mouse.
         m_renderer.drawRect(player, {kTile, kTile}, kDebugGreen, 1.0F);
@@ -321,7 +386,7 @@ private:
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;
     astra2d::CameraShake m_shake;
-    astra2d::Framebuffer m_scene;
+    astra2d::Framebuffer m_sceneTarget; // the scene before post-processing
     astra2d::Renderer2D m_renderer;
     astra2d::PostProcess m_postProcess;
     astra2d::ActionMap m_actions;
@@ -331,14 +396,11 @@ private:
     const astra2d::SpriteAnimation m_blobIdle{.frames = {0, 1, 2, 1}, .frameDuration = 0.18F};
     const astra2d::SpriteAnimation m_blobWalk{.frames = {0, 1, 2, 1}, .frameDuration = 0.09F};
     const astra2d::SpriteAnimation m_coinSpin{.frames = {4, 5, 6, 7}, .frameDuration = 0.12F};
-    astra2d::AnimationPlayer m_player;
-    astra2d::AnimationPlayer m_coin;
+    // After the sheet and animations its entities point to, so it is destroyed before them.
+    astra2d::Scene m_scene;
+    astra2d::Entity m_blob;
 
-    glm::vec2 m_position{0.0F};
-    glm::vec2 m_previousPosition{0.0F};
     float m_cameraRotation = 0.0F;
-    bool m_moving = false;
-    bool m_facingLeft = false;
     bool m_postProcessing = true;
     float m_time = 0.0F;
     float m_reloadTimer = 0.0F;

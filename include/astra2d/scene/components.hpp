@@ -38,6 +38,25 @@ struct Transform {
 /// @pre parent.scale has no zero component.
 [[nodiscard]] Transform relativeTo(const Transform& parent, const Transform& world);
 
+/// Smooth drawing for an entity that moves at the fixed timestep.
+///
+/// Game logic runs at a fixed rate (e.g. 60 steps per second) but frames come at the display's
+/// rate, so an entity drawn at its latest Transform moves in visible jumps on a 144 Hz display.
+/// With this component, Scene::fixedUpdate() remembers the Transform from before each step, and
+/// Scene::render() / Scene::worldTransform() blend between that and the current one by
+/// Application::interpolationAlpha(). Rotation is blended linearly, so keep it continuous (do not
+/// wrap it from 2π to 0 in one step).
+///
+/// After moving an entity instantly (respawn, teleport), call Scene::resetInterpolation(), or it is
+/// drawn sliding across the screen for one step.
+struct Interpolated {
+    Transform previous; ///< Transform before the last fixed step; kept by the Scene.
+    bool valid = false; ///< False until the next fixed step: the current Transform is drawn.
+};
+
+/// Blends two transforms: @p alpha 0 gives @p from, 1 gives @p to.
+[[nodiscard]] Transform interpolate(const Transform& from, const Transform& to, float alpha);
+
 /// Draws a sprite at the entity's world transform. Drawn by Scene::render().
 struct SpriteRenderer {
     Sprite sprite{};      ///< Texture and region; a null texture draws a solid quad.

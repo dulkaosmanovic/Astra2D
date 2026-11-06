@@ -3,6 +3,7 @@
 #include "astra2d/core/assert.hpp"
 #include "astra2d/renderer/renderer2d.hpp"
 
+#include <glm/common.hpp>
 #include <glm/geometric.hpp>
 
 #include <algorithm>
@@ -28,6 +29,13 @@ Transform compose(const Transform& parent, const Transform& local)
     return {.position = parent.position + rotate(local.position * parent.scale, parent.rotation),
             .rotation = parent.rotation + local.rotation,
             .scale = parent.scale * local.scale};
+}
+
+Transform interpolate(const Transform& from, const Transform& to, float alpha)
+{
+    return {.position = glm::mix(from.position, to.position, alpha),
+            .rotation = from.rotation + ((to.rotation - from.rotation) * alpha),
+            .scale = glm::mix(from.scale, to.scale, alpha)};
 }
 
 Transform relativeTo(const Transform& parent, const Transform& world)
@@ -246,16 +254,35 @@ std::vector<Entity> Scene::children(Entity entity) const
     return result;
 }
 
-Transform Scene::worldTransform(Entity entity) const
+Transform Scene::localTransform(Entity entity, float alpha) const
 {
     const auto* local = m_registry.tryGet<Transform>(entity);
-    Transform world = local != nullptr ? *local : Transform{};
+    if (local == nullptr) {
+        return Transform{};
+    }
+    const auto* history = m_registry.tryGet<Interpolated>(entity);
+    if (history == nullptr || !history->valid || alpha >= 1.0F) {
+        return *local;
+    }
+    return interpolate(history->previous, *local, alpha);
+}
+
+Transform Scene::worldTransform(Entity entity, float alpha) const
+{
+    Transform world = localTransform(entity, alpha);
     for (Entity ancestor = parent(entity); !ancestor.isNull(); ancestor = parent(ancestor)) {
-        if (const auto* transform = m_registry.tryGet<Transform>(ancestor)) {
-            world = compose(*transform, world);
+        if (m_registry.has<Transform>(ancestor)) {
+            world = compose(localTransform(ancestor, alpha), world);
         }
     }
     return world;
+}
+
+void Scene::resetInterpolation(Entity entity)
+{
+    if (auto* history = m_registry.tryGet<Interpolated>(entity)) {
+        history->valid = false;
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -308,6 +335,12 @@ void Scene::runPhase(SystemPhase phase, float deltaTime)
 
 void Scene::fixedUpdate(float fixedDeltaTime)
 {
+    // The state before this step; render() blends from it to the state after it.
+    m_registry.view<Transform, Interpolated>().each(
+        [](const Transform& transform, Interpolated& history) {
+        history.previous = transform;
+        history.valid = true;
+    });
     runPhase(SystemPhase::FixedUpdate, fixedDeltaTime);
     flushDestroyed();
 }
@@ -322,7 +355,7 @@ void Scene::update(float deltaTime)
 // ---------------------------------------------------------------------------------------------
 // Rendering
 
-void Scene::collectDrawItems(Entity root)
+void Scene::collectDrawItems(Entity root, float alpha)
 {
     // Depth-first with an explicit stack: parents before children, siblings in order.
     std::vector<PendingDraw>& stack = m_drawStack;
@@ -332,9 +365,10 @@ void Scene::collectDrawItems(Entity root)
     while (!stack.empty()) {
         const PendingDraw current = stack.back();
         stack.pop_back();
-        const auto* local = m_registry.tryGet<Transform>(current.entity);
         const Transform world =
-            local != nullptr ? compose(current.parentWorld, *local) : current.parentWorld;
+            m_registry.has<Transform>(current.entity)
+                ? compose(current.parentWorld, localTransform(current.entity, alpha))
+                : current.parentWorld;
         if (const auto* sprite = m_registry.tryGet<SpriteRenderer>(current.entity);
             sprite != nullptr && sprite->visible) {
             m_drawItems.push_back({.layer = sprite->layer, .world = world, .sprite = sprite});
@@ -354,13 +388,13 @@ void Scene::collectDrawItems(Entity root)
     }
 }
 
-void Scene::render(Renderer2D& renderer)
+void Scene::render(Renderer2D& renderer, float alpha)
 {
     // World transforms are computed top-down once per frame: every root, then its subtree.
     m_drawItems.clear();
-    m_registry.forEach([this](Entity entity) {
+    m_registry.forEach([this, alpha](Entity entity) {
         if (parent(entity).isNull()) {
-            collectDrawItems(entity);
+            collectDrawItems(entity, alpha);
         }
     });
     // Stable: within a layer, the traversal order (parents before children) is kept.
