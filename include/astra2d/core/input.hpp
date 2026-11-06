@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 
 /// @addtogroup core
 /// @{
@@ -82,15 +83,49 @@ enum class MouseButton : int {
     Button8 = 7,
 };
 
-/// Per-frame keyboard and mouse state.
+/// Gamepad buttons in the standard (Xbox-style) layout. Values match GLFW gamepad button codes.
+enum class GamepadButton : int {
+    A = 0,           ///< Bottom face button (Cross on PlayStation).
+    B = 1,           ///< Right face button (Circle).
+    X = 2,           ///< Left face button (Square).
+    Y = 3,           ///< Top face button (Triangle).
+    LeftBumper = 4,  ///< L1.
+    RightBumper = 5, ///< R1.
+    Back = 6,        ///< Select / Share.
+    Start = 7,       ///< Start / Options.
+    Guide = 8,       ///< Xbox / PS button.
+    LeftThumb = 9,   ///< Left stick pressed.
+    RightThumb = 10, ///< Right stick pressed.
+    DpadUp = 11,     ///< D-pad up.
+    DpadRight = 12,  ///< D-pad right.
+    DpadDown = 13,   ///< D-pad down.
+    DpadLeft = 14,   ///< D-pad left.
+};
+
+/// Gamepad analog axes. Values match GLFW gamepad axis codes.
+enum class GamepadAxis : int {
+    LeftX = 0,        ///< Left stick, -1 (left) to 1 (right).
+    LeftY = 1,        ///< Left stick, -1 (down) to 1 (up).
+    RightX = 2,       ///< Right stick, -1 (left) to 1 (right).
+    RightY = 3,       ///< Right stick, -1 (down) to 1 (up).
+    LeftTrigger = 4,  ///< 0 (released) to 1 (fully pressed).
+    RightTrigger = 5, ///< 0 (released) to 1 (fully pressed).
+};
+
+/// Per-frame keyboard, mouse and gamepad state.
 ///
-/// For every key and mouse button three queries are available:
+/// For every key, mouse button and gamepad button three queries are available:
 /// - isPressed(): went down during the current frame,
 /// - isHeld(): is currently down,
 /// - isReleased(): went up during the current frame.
 ///
 /// Pressed/released are tracked from events rather than by comparing two snapshots, so a tap that
 /// is pressed and released between two frames still reports both isPressed() and isReleased().
+///
+/// Gamepads are polled once per frame (GLFW reports them as state, not as events), so for them a
+/// press and release between two frames is not seen. Up to kMaxGamepads gamepads with a known
+/// mapping (GLFW's gamepad database) are supported; stick Y axes are flipped so that up is
+/// positive, matching the y-up world. Stick input inside deadZone() is ignored.
 ///
 /// The class does not depend on GLFW: the Window forwards events to the on*() methods and calls
 /// beginFrame() before polling events. This keeps it unit-testable.
@@ -124,6 +159,35 @@ public:
     /// Scroll wheel offset accumulated during the current frame.
     [[nodiscard]] glm::vec2 scrollDelta() const { return m_scrollDelta; }
 
+    /// Number of gamepads that can be used at once.
+    static constexpr int kMaxGamepads = 4;
+    /// Number of GamepadButton values.
+    static constexpr int kGamepadButtonCount = static_cast<int>(GamepadButton::DpadLeft) + 1;
+    /// Number of GamepadAxis values.
+    static constexpr int kGamepadAxisCount = static_cast<int>(GamepadAxis::RightTrigger) + 1;
+
+    /// True if gamepad @p gamepad (0 to kMaxGamepads - 1) is connected.
+    [[nodiscard]] bool isGamepadConnected(int gamepad = 0) const;
+    /// True if @p button of @p gamepad went down this frame.
+    [[nodiscard]] bool isPressed(GamepadButton button, int gamepad = 0) const;
+    /// True while @p button of @p gamepad is down.
+    [[nodiscard]] bool isHeld(GamepadButton button, int gamepad = 0) const;
+    /// True if @p button of @p gamepad went up this frame.
+    [[nodiscard]] bool isReleased(GamepadButton button, int gamepad = 0) const;
+    /// Value of @p axis of @p gamepad (see GamepadAxis for the ranges); 0 if not connected.
+    /// Stick axes have the dead zone applied (radially, per stick).
+    [[nodiscard]] float axis(GamepadAxis axis, int gamepad = 0) const;
+    /// Left stick as a vector, dead zone applied; length at most 1.
+    [[nodiscard]] glm::vec2 leftStick(int gamepad = 0) const;
+    /// Right stick as a vector, dead zone applied; length at most 1.
+    [[nodiscard]] glm::vec2 rightStick(int gamepad = 0) const;
+
+    /// Sets the stick dead zone in [0, 1). Deflections shorter than this read as 0, and the rest
+    /// of the range is rescaled to start at 0, so small drift is ignored without a jump.
+    void setDeadZone(float deadZone);
+    /// Stick dead zone (default 0.15).
+    [[nodiscard]] float deadZone() const { return m_deadZone; }
+
     /// @name Event interface (called by the platform layer)
     /// @{
 
@@ -139,6 +203,14 @@ public:
     void onMouseMove(glm::vec2 position);
     /// Adds a scroll wheel offset to this frame's scrollDelta().
     void onScroll(glm::vec2 offset);
+
+    /// Records the polled state of a connected gamepad. @p buttons and @p axes are in GLFW order;
+    /// stick Y axes as GLFW reports them (down positive), triggers from -1 to 1. Out-of-range
+    /// gamepad indices are ignored.
+    void onGamepadState(int gamepad, std::span<const bool, kGamepadButtonCount> buttons,
+                        std::span<const float, kGamepadAxisCount> axes);
+    /// Records that a gamepad is not connected: its buttons are released and axes reset.
+    void onGamepadDisconnected(int gamepad);
 
     /// Releases all held keys and buttons (e.g. when the window loses focus). Keys still down when
     /// focus returns are not reported as held until they are pressed again.
@@ -158,8 +230,19 @@ private:
 
     static void apply(std::uint8_t& state, bool down);
 
+    struct Gamepad {
+        bool connected = false;
+        std::array<std::uint8_t, kGamepadButtonCount> buttons{};
+        std::array<float, kGamepadAxisCount> axes{}; // engine convention: y up, triggers 0..1
+    };
+
+    [[nodiscard]] const Gamepad* gamepadAt(int gamepad) const;
+    [[nodiscard]] glm::vec2 stick(int gamepad, GamepadAxis xAxis, GamepadAxis yAxis) const;
+
     std::array<std::uint8_t, kKeyCount> m_keys{};
     std::array<std::uint8_t, kMouseButtonCount> m_mouseButtons{};
+    std::array<Gamepad, kMaxGamepads> m_gamepads{};
+    float m_deadZone = 0.15F;
     glm::vec2 m_mousePosition{0.0F};
     glm::vec2 m_previousMousePosition{0.0F};
     glm::vec2 m_scrollDelta{0.0F};

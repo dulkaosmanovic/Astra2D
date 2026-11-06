@@ -2,12 +2,18 @@
 
 #include "astra2d/core/input.hpp"
 
+#include <cstddef>
+
 #include <glm/vec2.hpp>
 
 #include <memory>
 #include <string>
 
 struct GLFWwindow;
+
+namespace astra2d {
+class EventDispatcher;
+}
 
 /// @addtogroup core
 /// @{
@@ -25,9 +31,15 @@ struct WindowSettings {
 
 /// Owns a GLFW window and its OpenGL 3.3 core context, and forwards its events to an Input.
 ///
+/// In debug builds of the engine (without `NDEBUG`) the context is a debug context, and OpenGL
+/// errors and warnings reported by the driver are logged through the engine logger at the call
+/// that caused them.
+///
 /// GLFW is initialized by the first Window and terminated when the last one is destroyed, so
-/// several windows may exist at once. Like GLFW itself, Window must only be used from the main
-/// thread.
+/// several windows may exist at once. Each window has its own OpenGL context, and OpenGL calls go
+/// to whichever context is *current*: creating a Window makes its context current, and
+/// makeContextCurrent() switches back. OpenGL objects (textures, buffers, ...) belong to the
+/// context they were created in. Like GLFW itself, Window must only be used from the main thread.
 class Window {
 public:
     /// Creates the window, makes its OpenGL context current and loads OpenGL functions.
@@ -40,8 +52,8 @@ public:
     Window(Window&&) = delete;
     Window& operator=(Window&&) = delete;
 
-    /// Starts a new Input frame (Input::beginFrame()), then processes pending window and input
-    /// events. Call once per frame.
+    /// Starts a new Input frame (Input::beginFrame()), processes pending window and input events,
+    /// then polls the gamepads. Call once per frame.
     void pollEvents();
 
     /// Blocks until at least one event arrives, then processes it. Unlike pollEvents(), it does
@@ -56,6 +68,17 @@ public:
 
     /// Marks the window to be closed; the main loop stops after the current frame.
     void requestClose();
+
+    /// Makes this window's OpenGL context current, so that following OpenGL calls draw into it.
+    /// Application::run() does this for its window before the first frame.
+    void makeContextCurrent();
+
+    /// True if this window's OpenGL context is the current one.
+    [[nodiscard]] bool isContextCurrent() const;
+
+    /// Turns vertical sync on or off (e.g. off for benchmarks, to measure the real frame time).
+    /// Applies to this window; the current context is left unchanged.
+    void setVsync(bool enabled);
 
     /// Sets the window title (e.g. to show FPS).
     void setTitle(const std::string& title);
@@ -84,6 +107,10 @@ public:
     /// @copydoc input()
     [[nodiscard]] const Input& input() const { return m_input; }
 
+    /// Window events (WindowFocusEvent, GamepadConnectionEvent) are queued on @p events while
+    /// polling. Pass nullptr to stop. Application connects its dispatcher automatically.
+    void setEventDispatcher(EventDispatcher* events) { m_events = events; }
+
     /// The underlying GLFW window, for integrations such as ImGui. Prefer the Window API.
     [[nodiscard]] GLFWwindow* nativeHandle() const { return m_handle.get(); }
 
@@ -104,6 +131,7 @@ private:
     };
 
     void installCallbacks();
+    void pollGamepads();
     void updateCursorScale();
     [[nodiscard]] glm::vec2 toFramebuffer(double x, double y) const;
 
@@ -115,6 +143,7 @@ private:
     int m_framebufferWidth = 0;
     int m_framebufferHeight = 0;
     glm::vec2 m_cursorScale{1.0F}; // framebuffer pixels per screen coordinate (HiDPI)
+    EventDispatcher* m_events = nullptr;
     bool m_resized = false;
 };
 

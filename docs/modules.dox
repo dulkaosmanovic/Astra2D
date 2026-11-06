@@ -1,11 +1,33 @@
 /**
 @defgroup core Core
-@brief Application and main loop, window, input, fixed timestep, logging and assertions.
+@brief Application and main loop, window, keyboard/mouse/gamepad input, action mapping, events,
+fixed timestep, logging and assertions.
 
 The lowest engine layer. Everything else builds on it, and it depends only on GLFW, OpenGL (through
 GLAD) and spdlog. See @ref core_guide for an explanation of how the pieces work together.
 
 Public headers live in `include/astra2d/core/`.
+*/
+
+/**
+@defgroup renderer Renderer
+@brief 2D camera (rotation, parallax, shake), batched quad, sprite and text rendering, sprite
+sheets and animation, render targets and post-processing, OpenGL wrappers.
+
+Builds on @ref core. The camera, sprite sheet layout and animation player do not use OpenGL and
+are unit-tested; Renderer2D and the wrappers need a current OpenGL 3.3 context. See
+@ref renderer_guide for how batching works and how the pieces fit together.
+
+Public headers live in `include/astra2d/renderer/`.
+*/
+
+/**
+@defgroup assets Assets
+@brief Loading each texture, shader and font file once, with hot reloading.
+
+Builds on @ref renderer. See the asset cache section of @ref renderer_guide.
+
+Public headers live in `include/astra2d/assets/`.
 */
 
 /**

@@ -72,7 +72,9 @@ Stretch
 - [x] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
 - [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind, `-Dwerror=true`), sandbox smoke test on Xvfb, publish Doxygen docs to GitHub Pages
 - [x] Usable as a Meson subproject: `dependency('astra2d')`, tests/examples skipped as a subproject
-- [x] `.clang-format` / `.clang-tidy`, enforced by a CI lint job (`scripts/docker-entrypoint.sh lint`)
+- [x] `templates/game`: a game in its own repository using the engine as a subproject, with its own assets found via `executableDirectory()`; built and run in CI
+- [x] Feature examples (`hello_window`, `shapes`, `sprites`, `text`, `input`, `post_processing`, `coin_collector`), all smoke-tested in CI; example assets moved to `examples/assets/`
+- [ ] `.clang-format` / `.clang-tidy`
 
 ## 2. Core
 
@@ -84,26 +86,26 @@ Required
 - [x] Tests: input state transitions, timestep accumulator
 
 Stretch
-- [ ] Action mapping (`"jump" → Space`), gamepad support
-- [ ] Generic event dispatcher
+- [x] Action mapping (`"jump" → Space`), gamepad support
+- [x] Generic event dispatcher
 
 ## 3. Renderer
 
 Required
-- [ ] RAII wrappers: `Shader` (load from file), `VertexArray`, `Buffer`, `Texture2D` (stb_image in `external/`)
-- [ ] `OrthographicCamera` (position, zoom; screen ↔ world conversion)
-- [ ] `Renderer2D` **batch renderer**: colored and textured quads, multiple texture slots
-- [ ] Sprite sheets and frame-based sprite animation
-- [ ] Line / rectangle primitives (needed for physics debug draw)
-- [ ] Render stats: draw calls, quad count
-- [ ] Simple texture/shader cache (load each file once)
-- [ ] Demo `examples/renderer_stress` with a switch between batched and naive rendering (used in evaluation)
+- [x] RAII wrappers: `Shader` (load from file), `VertexArray`, `Buffer`, `Texture2D` (stb_image in `external/`)
+- [x] `OrthographicCamera` (position, zoom; screen ↔ world conversion)
+- [x] `Renderer2D` **batch renderer**: colored and textured quads, multiple texture slots
+- [x] Sprite sheets and frame-based sprite animation
+- [x] Line / rectangle / circle primitives (needed for physics debug draw)
+- [x] Render stats: draw calls, quad count
+- [x] Simple texture/shader cache (load each file once)
+- [x] Demo `examples/renderer_stress` with a switch between batched and naive rendering (used in evaluation); `scripts/bench_renderer.sh` runs E1
 
 Stretch
-- [ ] Camera rotation, camera shake, parallax layers
-- [ ] Shader hot-reload
-- [ ] Render-to-texture / post-processing
-- [ ] Text rendering (stb_truetype)
+- [x] Camera rotation, camera shake, parallax layers
+- [x] Shader hot-reload (also textures; `AssetCache::reloadChanged()`)
+- [x] Render-to-texture / post-processing
+- [x] Text rendering (stb_truetype)
 
 ## 4. ECS
 

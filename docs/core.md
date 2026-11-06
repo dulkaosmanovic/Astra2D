@@ -1,4 +1,4 @@
-# Core: main loop, timestep and input {#core_guide}
+# Core: main loop, timestep, input and events {#core_guide}
 
 [TOC]
 
@@ -21,7 +21,7 @@ digraph frame {
           fontcolor="#5a7b91"];
 
     start  [label="onStart()", shape=ellipse, width=1.2];
-    begin  [label="poll events  (starts a new Input frame)"];
+    begin  [label="poll events and gamepads  ·  dispatch queued events"];
     resize [label="onResize(w, h)  if the size changed", style="rounded,dashed"];
     fixed  [label="onFixedUpdate(step)", fillcolor="#2a7fae", fontcolor="white"];
     update [label="onUpdate(frameTime)"];
@@ -104,7 +104,7 @@ simulation rate. The sandbox example does exactly this.
 
 ## Input
 
-@ref astra2d::Input answers three questions for every key and mouse button:
+@ref astra2d::Input answers three questions for every key, mouse button and gamepad button:
 
 | Query | True when | Typical use |
 |---|---|---|
@@ -145,6 +145,97 @@ once it is pressed again.
 fully covered by unit tests that feed it synthetic events (`tests/test_input.cpp`). The @ref
 astra2d::Key and @ref astra2d::MouseButton values equal the GLFW codes, which is checked at compile
 time, so no translation table is needed.
+
+### Gamepads
+
+Up to four gamepads are supported through GLFW's gamepad API, which maps hundreds of controllers to
+one standard (Xbox-style) layout. Gamepads are *polled* once per frame rather than delivered as
+events, so `Input` finds presses and releases by comparing each poll with the previous one:
+
+```cpp
+if (input().isPressed(astra2d::GamepadButton::A)) { jump(); }
+const glm::vec2 move = input().leftStick();          // dead zone applied, length <= 1
+const float brake = input().axis(astra2d::GamepadAxis::LeftTrigger);  // 0 to 1
+```
+
+Stick Y is flipped so that up is positive, matching the y-up world. Small stick deflections inside
+the **dead zone** (`setDeadZone()`, 0.15 by default) read as 0. The dead zone is *radial*: the
+distance of the stick from the centre decides, not each axis separately, so diagonal movement is not
+cut off, and the remaining range is rescaled to start at 0, so there is no jump at its edge.
+
+## Action mapping
+
+Game code should ask "does the player want to jump?", not "is Space down?".
+@ref astra2d::ActionMap binds named actions to any number of keys, mouse buttons and gamepad
+inputs:
+
+```cpp
+astra2d::ActionMap actions;
+actions.bind("jump", Key::Space).bind("jump", GamepadButton::A);
+actions.bindAxis("move_x", Key::A, Key::D)          // -1 / +1
+       .bindAxis("move_x", GamepadAxis::LeftX);    // analog
+
+if (actions.isPressed("jump", input())) { ... }
+velocity.x = actions.axis("move_x", input()) * speed;
+```
+
+| Kind | Value | Rule with several bindings |
+|---|---|---|
+| Button action | pressed / held / released | held while *any* binding is held; pressed when it becomes held, released when the last binding is let go |
+| Axis action | -1 to 1 | the binding with the largest magnitude wins |
+
+Each map reads one gamepad, so local multiplayer uses one map per player. Asking for an action that
+was never bound fails an assertion in debug builds: such a name is almost always a typo, which would
+otherwise silently do nothing. The class is plain logic over Input and is unit-tested
+(`tests/test_actions.cpp`).
+
+## Events
+
+Systems that should not know each other communicate through events. @ref astra2d::EventDispatcher
+is a type-safe publish/subscribe mechanism: an event is any struct, and handlers subscribe to its
+type.
+
+```cpp
+struct CoinCollected { int value; };
+
+auto subscription = events().subscribe<CoinCollected>([&](const CoinCollected& e) {
+    m_score += e.value;
+});
+events().publish(CoinCollected{10});   // handlers run now
+events().enqueue(CoinCollected{5});    // handlers run at a fixed point of the next frame
+```
+
+| Property | How |
+|---|---|
+| Lifetime | a handler stays registered while its `Subscription` exists; destroying the subscription unsubscribes (RAII), also after the dispatcher is gone |
+| Re-entrancy | handlers may publish, subscribe and unsubscribe during dispatch; new handlers start with the next event |
+| Deferred events | `enqueue()` stores a copy; `dispatchQueued()` delivers them in order, events queued meanwhile wait for the next call |
+| Order | handlers run in subscription order |
+
+Application owns a dispatcher (`events()`) and calls `dispatchQueued()` once per frame, right after
+polling the window. The engine publishes `WindowResizeEvent`, `WindowFocusEvent` and
+`GamepadConnectionEvent` on it. The window events are queued during polling, so their handlers run at
+that defined point of the frame rather than inside GLFW's callbacks.
+
+## Finding files
+
+A game's working directory depends on how it was started (a launcher, a desktop shortcut, a
+terminal somewhere else), so paths relative to it break. Paths compiled in at build time point
+into the source tree, which players do not have. @ref astra2d::executableDirectory returns the
+directory of the running executable instead, and @ref astra2d::findDirectory picks the first
+existing directory from a list:
+
+```cpp
+#include <astra2d/core/paths.hpp>
+
+const auto assets = astra2d::findDirectory({
+    astra2d::executableDirectory() / "assets", // shipped: assets/ next to the executable
+    GAME_SOURCE_ASSETS_DIR,                    // development: the source tree, set by meson.build
+});
+```
+
+If none exists, the exception lists every place that was tried. `templates/game` uses exactly
+this, and its `meson install` puts `assets/` next to the executable.
 
 ## Logging
 

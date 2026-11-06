@@ -1030,6 +1030,7 @@ INPUT                  = @SOURCE_ROOT@/docs/introduction.md \
                          @SOURCE_ROOT@/docs/getting-started.md \
                          @SOURCE_ROOT@/docs/architecture.md \
                          @SOURCE_ROOT@/docs/core.md \
+                         @SOURCE_ROOT@/docs/renderer.md \
                          @SOURCE_ROOT@/docs/modules.dox \
                          @SOURCE_ROOT@/include
 

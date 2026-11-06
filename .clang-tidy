@@ -17,6 +17,8 @@
 #   readability-convert-member-functions-to-static  Window methods wrap GLFW and stay members
 #   bugprone-easily-swappable-parameters          noisy for (width, height) / (x, y) pairs
 #   cppcoreguidelines-pro-type-union-access       glm vectors are unions internally
+#   readability-trailing-comma                    clang-format decides line breaks in initializer
+#                                                 lists; the check contradicts itself on them
 Checks: >
   -*,
   bugprone-*,
@@ -41,10 +43,15 @@ Checks: >
   -readability-enum-initial-value,
   -readability-convert-member-functions-to-static,
   -bugprone-easily-swappable-parameters,
-  -cppcoreguidelines-pro-type-union-access
+  -cppcoreguidelines-pro-type-union-access,
+  -readability-trailing-comma
 WarningsAsErrors: '*'
 # Only the project's own headers; third-party headers are system includes and are skipped anyway.
 HeaderFilterRegex: '(include/astra2d|src|examples|tests)/'
 CheckOptions:
   # GoogleTest's EXPECT_* macros expand to branches; count only the test's own logic.
   readability-function-cognitive-complexity.IgnoreMacros: true
+  # ASTRA_ASSERT expands to `if (!(condition))`; suggestions inside the expansion are noise.
+  readability-simplify-boolean-expr.IgnoreMacros: true
+  # Plain data holders such as a pimpl `struct Impl` keep all members public on purpose.
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true

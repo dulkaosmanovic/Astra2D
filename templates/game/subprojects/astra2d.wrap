@@ -1,0 +1,9 @@
+# Lets Meson download Astra2D into subprojects/astra2d/ on the first `meson setup`.
+# Pin `revision` to a tag or commit for reproducible builds.
+[wrap-git]
+url = https://github.com/dulkaosmanovic/Astra2D.git
+revision = main
+depth = 1
+
+[provide]
+astra2d = engine_dep

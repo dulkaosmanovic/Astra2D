@@ -24,6 +24,15 @@ project(
 #   meson setup build-valgrind -Db_sanitize=none
 
 # ==========================================
+# Warnings
+# ==========================================
+#
+# On top of warning_level=3: -Wundef makes `#if SOME_MACRO` an error-prone typo visible when the
+# macro is not defined (e.g. a test that forgot to include assert.hpp before ASTRA_ASSERTS_ENABLED).
+
+add_project_arguments('-Wundef', language : ['c', 'cpp'])
+
+# ==========================================
 # Dependencies
 # ==========================================
 #

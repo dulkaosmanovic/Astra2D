@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astra2d/core/events.hpp"
 #include "astra2d/core/input.hpp"
 #include "astra2d/core/timestep.hpp"
 #include "astra2d/core/window.hpp"
@@ -34,8 +35,10 @@ struct ApplicationSettings {
 /// @endcode
 ///
 /// Each frame of the main loop:
-/// 1. window events are polled (Window::pollEvents() also starts a new Input frame);
-/// 2. if the framebuffer was resized, the viewport is updated and onResize() is called;
+/// 1. window events are polled (Window::pollEvents() also starts a new Input frame and polls the
+///    gamepads), then queued events() are dispatched;
+/// 2. if the framebuffer was resized, the viewport is updated, onResize() is called and a
+///    WindowResizeEvent is published;
 /// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep);
 /// 4. onUpdate() runs once with the real frame time, clamped to ApplicationSettings::maxFrameTime;
 /// 5. onRender() runs once, then buffers are swapped.
@@ -64,9 +67,16 @@ public:
 
     /// The main window.
     [[nodiscard]] Window& window() { return *m_window; }
+    /// @copydoc window()
+    [[nodiscard]] const Window& window() const { return *m_window; }
 
-    /// Keyboard and mouse state for the current frame.
+    /// Keyboard, mouse and gamepad state for the current frame.
     [[nodiscard]] const Input& input() const { return m_window->input(); }
+
+    /// The application's event dispatcher. The engine publishes WindowResizeEvent,
+    /// WindowFocusEvent and GamepadConnectionEvent on it; games can use it for their own events.
+    /// Queued events are dispatched once per frame, after the window events were polled.
+    [[nodiscard]] EventDispatcher& events() { return m_events; }
 
     /// Length of one fixed update step in seconds.
     [[nodiscard]] double fixedTimestep() const { return m_timestep.step(); }
@@ -99,6 +109,8 @@ protected:
     virtual void onShutdown() {}
 
 private:
+    // Declared first, so it is destroyed last: the window holds a pointer to it.
+    EventDispatcher m_events;
     std::unique_ptr<Window> m_window;
     FixedTimestep m_timestep;
 };

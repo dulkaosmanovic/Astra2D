@@ -26,7 +26,7 @@ The project emphasizes clean architecture, modularity, testability and measurabl
 | Purpose | Library / tool |
 |---|---|
 | Language | C++20 |
-| Graphics | OpenGL 3.3 core, GLAD |
+| Graphics | OpenGL 3.3 core, GLAD, stb_image (texture loading) |
 | Window and input | GLFW |
 | Math | GLM |
 | Logging | spdlog |
@@ -54,8 +54,19 @@ See [PLAN.md](PLAN.md) for the full list and the current status.
 
 ## Current State
 
-The engine is in early development. The build system, dependencies, documentation setup and the
-application/window layer (OpenGL 3.3 core context) are in place. Progress is tracked in [PLAN.md](PLAN.md).
+The engine is in development. Done so far:
+
+- **core**: application and main loop with a fixed timestep, window, keyboard, mouse and gamepad
+  input, action mapping (`"jump" -> Space / A`), type-safe event dispatcher, logging and
+  assertions;
+- **renderer**: batched 2D renderer (coloured and textured quads, sprites, tiled backgrounds, text,
+  debug lines, rectangles and circles), orthographic camera with rotation, parallax and trauma-based
+  shake, sprite sheets and frame animation, render targets and post-processing effects, RAII
+  OpenGL wrappers, render statistics;
+- **assets**: texture, shader, effect and font loading with a cache and hot reloading;
+- tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
+
+Next: the entity component system. Progress is tracked in [PLAN.md](PLAN.md).
 
 ---
 
@@ -65,13 +76,14 @@ application/window layer (OpenGL 3.3 core context) are in place. Progress is tra
 Astra2D/
 ├── include/astra2d/  # Public engine API
 ├── src/              # Engine implementation
-├── examples/         # Sandbox, demos and the example game
+├── examples/         # Example programs, from hello_window to a small game, and their assets/
+├── templates/game/   # Starting point for a game in its own repository
 ├── tests/            # Unit tests (GoogleTest)
 ├── docs/             # Doxygen configuration and documentation pages
 ├── scripts/          # Development and setup scripts
 ├── external/         # Vendored code
 ├── subprojects/      # Meson wrap files for dependencies
-├── assets/           # Textures, shaders, fonts and other resources
+├── benchmarks/       # Benchmark results (CSV) for the evaluation
 ├── PLAN.md           # Development plan
 ├── meson.options     # Build options (tests, examples)
 ├── .clang-format     # Code formatting rules
@@ -128,10 +140,24 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 
 ## Running
 
+`ninja -C build` builds the engine, the tests and every example. Each example is one commented
+`main.cpp` in `examples/`; read them in this order:
+
+| Example | Shows |
+|---|---|
+| `./build/examples/hello_window` | The smallest program: the application loop |
+| `./build/examples/shapes` | Quads, lines, rectangles and circles; camera pan (drag) and zoom (wheel) |
+| `./build/examples/sprites` | Textures, sprite sheets and frame animation (A/D walk) |
+| `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
+| `./build/examples/input` | Action mapping, gamepads, rebinding at run time, game events |
+| `./build/examples/post_processing` | Render targets and effects (1-4 switch, Tab low resolution) |
+| `./build/examples/coin_collector` | A small complete game: states, score, lives, shake, events |
+| `./build/examples/Sandbox` | Everything at once: parallax, rotation, CRT effect, hot reloading |
+| `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
+
 ```bash
-./build/examples/Sandbox      # sandbox application
-meson test -C build           # unit tests
-ninja -C build docs           # generate documentation into build/docs/html
+meson test -C build      # unit tests
+ninja -C build docs      # documentation into build/docs/html
 ```
 
 ### Code style and static analysis
@@ -168,8 +194,9 @@ docker run --rm astra2d                             # build with ASan + UBSan an
 docker run --rm astra2d valgrind                    # unit tests under Valgrind (build without sanitizers)
 docker run --rm astra2d release                     # optimized build
 docker run --rm astra2d lint                        # clang-format + clang-tidy
-docker run --rm astra2d sandbox 10                  # run the sandbox for 10 s on a virtual display (default 5)
-docker run --rm astra2d all                         # lint, tests, Valgrind, release build, docs, sandbox smoke test
+docker run --rm astra2d sandbox 10                  # run the sandbox for 10 s and every example briefly (default 5)
+docker run --rm astra2d template                    # build and run templates/game as a separate project
+docker run --rm astra2d all                         # all of the above
 docker run --rm -v "$PWD/site:/out" astra2d docs    # generate the documentation into ./site
 docker run --rm -it astra2d shell                   # interactive shell
 ```
@@ -184,8 +211,10 @@ GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on 
 and on every pull request:
 
 - GCC and Clang with ASan + UBSan, and a GCC release build, all with `-Dwerror=true`;
-- the unit tests in each of them, plus the sandbox smoke test (`scripts/docker-entrypoint.sh sandbox`)
-  on Xvfb with Mesa's software renderer, which exercises the real window, OpenGL context and main loop;
+- the unit tests in each of them, plus smoke tests of every example (`scripts/docker-entrypoint.sh sandbox`)
+  on Xvfb with Mesa's software renderer, which exercise the real window, OpenGL context and main loop;
+- `templates/game` built and run as a separate project with the engine as its subproject
+  (`scripts/docker-entrypoint.sh template`), the way games use Astra2D;
 - the unit tests under Valgrind;
 - `clang-format` and `clang-tidy` (`scripts/docker-entrypoint.sh lint`) in an Arch Linux container
   pinned to the same package snapshot as the Dockerfile.
@@ -222,28 +251,86 @@ int main()
 `ApplicationSettings` also sets the simulation rate (`fixedTimestep`, default 1/60 s) and the
 longest frame time passed to the game (`maxFrameTime`, default 0.25 s).
 
-### Adding Astra2D to your own project
+Drawing goes through a camera and the batched `Renderer2D`:
 
-Astra2D is a Meson project and exports the dependency `astra2d`. Put it in your project's
-`subprojects/` directory, for example as a git submodule:
+```cpp
+#include <astra2d/assets/asset_cache.hpp>
+#include <astra2d/renderer/camera.hpp>
+#include <astra2d/renderer/renderer2d.hpp>
+#include <astra2d/renderer/sprite.hpp>
 
-```bash
-git submodule add <repository-url> subprojects/astra2d
+class MyGame : public astra2d::Application {
+    astra2d::AssetCache m_assets{"assets"};
+    astra2d::SpriteSheet m_sheet{m_assets.texture("textures/sprites.png"), {16, 16},
+                                 /*margin*/ {1, 1}, /*spacing*/ {2, 2}};
+    astra2d::OrthographicCamera m_camera{360.0F};   // 360 world units visible vertically
+    astra2d::Renderer2D m_renderer;
+
+    void onResize(int width, int height) override { m_camera.setViewportSize(width, height); }
+
+    void onRender() override
+    {
+        m_renderer.begin(m_camera);
+        m_renderer.drawQuad({0, 0}, {64, 64}, {0.2F, 0.6F, 1.0F, 1.0F});
+        m_renderer.drawSprite({100, 0}, {32, 32}, m_sheet.frame(0));
+        m_renderer.end();
+    }
+};
 ```
 
-and use it from your `meson.build`:
+See the [renderer guide](https://dulkaosmanovic.github.io/Astra2D/renderer_guide.html) for the
+camera, sprite animation and how batching works.
+
+### Benchmarks
+
+`scripts/bench_renderer.sh` runs evaluation E1 (batched vs. one draw call per sprite at 1k to 100k
+sprites) in a release build and writes `benchmarks/results/e1_renderer.csv` plus a description of
+the machine. Run it on an otherwise idle machine with the window visible.
+
+### Making a game with Astra2D
+
+A game lives in its own repository and uses the engine as a library. The engine is not copied into
+the game. [`templates/game/`](templates/game/) is a ready-made starting point: copy the directory
+and build it.
+
+```text
+mygame/
+├── meson.build              # dependency('astra2d'), the game executable, its assets
+├── subprojects/astra2d.wrap # where Meson gets the engine (or a git submodule in subprojects/astra2d)
+├── src/main.cpp             # class MyGame : public astra2d::Application
+└── assets/                  # the game's own textures, shaders, fonts
+```
 
 ```meson
 project('mygame', 'cpp', default_options : ['cpp_std=c++20'])
 
-astra2d_dep = dependency('astra2d')   # found in subprojects/astra2d
-executable('mygame', 'main.cpp', dependencies : astra2d_dep)
+astra2d_dep = dependency('astra2d')   # from subprojects/
+executable('mygame', 'src/main.cpp', dependencies : astra2d_dep, install : true)
+install_subdir('assets', install_dir : get_option('bindir'))
 ```
 
 The dependency brings the engine library, its headers (`#include <astra2d/...>`), GLFW, GLM,
 spdlog and the GLAD OpenGL loader. Your project must use C++20, because the public headers do.
 When Astra2D is a subproject, its tests, examples and docs target are not built, so GoogleTest is
-not needed; enable them with `-Dastra2d:tests=enabled` or `-Dastra2d:examples=enabled`.
+not needed. Enable them with `-Dastra2d:tests=enabled` or `-Dastra2d:examples=enabled`.
+
+**Assets belong to the game, not to the engine.** The engine only loads files. Its own shaders are
+compiled into the library, so a game needs no files from the engine at run time. The textures and
+fonts in `examples/assets/` are there only for the examples. A shipped game finds its `assets/`
+next to its executable with `astra2d::executableDirectory()`, and falls back to the source tree
+during development:
+
+```cpp
+#include <astra2d/core/paths.hpp>
+
+astra2d::AssetCache assets(astra2d::findDirectory(
+    {astra2d::executableDirectory() / "assets", GAME_SOURCE_ASSETS_DIR}));
+```
+
+`meson install` places the executable and `assets/` side by side, ready to copy to another
+machine. The [template README](templates/game/README.md) covers shipping, including a fully static
+build. CI builds and runs the template as a separate project on every push, so this setup keeps
+working.
 
 Inside this repository, examples use `engine_dep` directly, as `examples/meson.build` does.
 
@@ -261,7 +348,11 @@ It contains a getting-started guide, the architecture overview, a guide per modu
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. Vendored third-party code keeps its own license:
+GLAD (MIT/Apache-2.0 generated code), stb_image and stb_truetype (public domain / MIT). The example
+font in `examples/assets/fonts/` is *Press Start 2P* by CodeMan38, licensed under the SIL Open Font
+License 1.1 (`examples/assets/fonts/OFL.txt`); the other example assets are generated by
+`scripts/generate_assets.py`.
 
 ---
 

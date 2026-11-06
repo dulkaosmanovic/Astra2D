@@ -7,10 +7,13 @@
 #   release           optimized build (as used for benchmarks)
 #   docs [DIR]        generate the documentation; fails on Doxygen warnings.
 #                     Copies the HTML to DIR (default /out) if that directory exists.
-#   sandbox [SECONDS] run the sandbox example for a few seconds (default 5) as a smoke test,
-#                     on an Xvfb virtual display when no display is available
+#   sandbox [SECONDS] smoke tests: run the sandbox for a few seconds (default 5), every other
+#                     example for 2 seconds and renderer_stress for a few frames, on an Xvfb
+#                     virtual display when no display is available
+#   template          build templates/game as a separate project that uses this checkout of
+#                     the engine (as a game in its own repository would), and run it briefly
 #   lint              check formatting (clang-format) and run static analysis (clang-tidy)
-#   all               lint, test, valgrind, release, docs and sandbox
+#   all               lint, test, valgrind, release, docs, sandbox and template
 #   shell             start an interactive shell
 
 set -euo pipefail
@@ -23,6 +26,30 @@ setup() {
     local dir=$1
     shift
     [[ -f "$dir/build.ninja" ]] || meson setup "$dir" "$@"
+}
+
+# Runs "$@" on the real display, or on an Xvfb virtual display when there is none.
+on_display() {
+    if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+        xvfb-run -a -s "-screen 0 1280x720x24" "$@"
+    else
+        "$@"
+    fi
+}
+
+# Runs an interactive program for $1 seconds. It must still be running when it is stopped (exit
+# code 124 from timeout); an earlier exit is an error. Leak checking is off: the process is killed,
+# and GL drivers keep allocations alive until exit.
+run_for() {
+    local seconds=$1
+    shift
+    local status=0
+    ASAN_OPTIONS=detect_leaks=0 on_display timeout "$seconds" "$@" || status=$?
+    if [[ $status -ne 124 ]]; then
+        echo "$* exited early with status $status" >&2
+        exit 1
+    fi
+    echo "$* ran for ${seconds}s without errors"
 }
 
 cmd_test() {
@@ -45,7 +72,7 @@ cmd_valgrind() {
 cmd_lint() {
     section "Formatting (clang-format)"
     local files
-    mapfile -t files < <(find include src examples tests -name '*.cpp' -o -name '*.hpp' | sort)
+    mapfile -t files < <(find include src examples tests templates -name '*.cpp' -o -name '*.hpp' | sort)
     clang-format --version
     clang-format --dry-run --Werror "${files[@]}"
     echo "All ${#files[@]} files are formatted"
@@ -87,22 +114,40 @@ cmd_docs() {
 
 cmd_sandbox() {
     local seconds=${1:-5}
-    section "Sandbox smoke test (${seconds}s)"
     setup build -Db_sanitize=address,undefined
     ninja -C build
-    local run=(timeout "$seconds" ./build/examples/Sandbox)
-    if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
-        run=(xvfb-run -a -s "-screen 0 1280x720x24" "${run[@]}")
-    fi
-    # The sandbox runs until it is stopped, so exit code 124 (stopped by timeout) means success.
-    # Leak checking is off: the process is killed, and GL drivers keep allocations alive until exit.
-    local status=0
-    ASAN_OPTIONS=detect_leaks=0 "${run[@]}" || status=$?
-    if [[ $status -ne 124 ]]; then
-        echo "Sandbox exited early with status $status" >&2
-        exit 1
-    fi
-    echo "Sandbox ran for ${seconds}s without errors"
+
+    section "Sandbox smoke test (${seconds}s)"
+    run_for "$seconds" ./build/examples/Sandbox
+
+    section "Example smoke tests"
+    local example
+    for example in hello_window shapes sprites text input post_processing coin_collector; do
+        run_for 2 "./build/examples/$example"
+    done
+
+    # renderer_stress in benchmark mode exits by itself after the given frames; both rendering
+    # paths (batched and one draw call per quad) are exercised. It must exit with status 0.
+    local mode
+    for mode in "" --naive; do
+        section "renderer_stress smoke test ${mode:---batched}"
+        ASAN_OPTIONS=detect_leaks=0 on_display timeout 120 \
+            ./build/examples/renderer_stress --sprites 2000 --frames 30 --warmup 5 $mode
+    done
+}
+
+cmd_template() {
+    section "Game template as a separate project"
+    # A copy outside the repository, with this checkout as its subprojects/astra2d (what a git
+    # submodule gives), so the template is built exactly as a game's own repository builds it.
+    local dir
+    dir=$(mktemp -d)
+    cp -r templates/game/. "$dir/"
+    ln -s "$PWD" "$dir/subprojects/astra2d"
+    meson setup "$dir/build" "$dir" -Dwerror=true
+    ninja -C "$dir/build"
+    run_for 2 "$dir/build/mygame"
+    rm -rf "$dir"
 }
 
 case ${1:-test} in
@@ -112,10 +157,11 @@ case ${1:-test} in
     lint)     cmd_lint ;;
     docs)     cmd_docs "${2:-}" ;;
     sandbox)  cmd_sandbox "${2:-}" ;;
-    all)      cmd_lint; cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox ;;
+    template) cmd_template ;;
+    all)      cmd_lint; cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox; cmd_template ;;
     shell)    exec bash ;;
     *)
-        sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac
