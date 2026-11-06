@@ -10,38 +10,46 @@ bool hasBit(const Array& states, int index, std::uint8_t bit)
     if (index < 0 || index >= static_cast<int>(states.size())) {
         return false;
     }
-    return (states[static_cast<std::size_t>(index)] & bit) != 0;
+    return (states[static_cast<std::size_t>(index)] & bit) != 0U;
 }
 
 } // namespace
 
-bool Input::isPressed(Key key) const { return hasBit(m_keys, static_cast<int>(key), Pressed); }
-bool Input::isHeld(Key key) const { return hasBit(m_keys, static_cast<int>(key), Down); }
-bool Input::isReleased(Key key) const { return hasBit(m_keys, static_cast<int>(key), Released); }
+bool Input::isPressed(Key key) const
+{
+    return hasBit(m_keys, static_cast<int>(key), kPressed);
+}
+bool Input::isHeld(Key key) const
+{
+    return hasBit(m_keys, static_cast<int>(key), kDown);
+}
+bool Input::isReleased(Key key) const
+{
+    return hasBit(m_keys, static_cast<int>(key), kReleased);
+}
 
 bool Input::isPressed(MouseButton button) const
 {
-    return hasBit(m_mouseButtons, static_cast<int>(button), Pressed);
+    return hasBit(m_mouseButtons, static_cast<int>(button), kPressed);
 }
 
 bool Input::isHeld(MouseButton button) const
 {
-    return hasBit(m_mouseButtons, static_cast<int>(button), Down);
+    return hasBit(m_mouseButtons, static_cast<int>(button), kDown);
 }
 
 bool Input::isReleased(MouseButton button) const
 {
-    return hasBit(m_mouseButtons, static_cast<int>(button), Released);
+    return hasBit(m_mouseButtons, static_cast<int>(button), kReleased);
 }
 
 void Input::beginFrame()
 {
-    constexpr auto kKeepDown = static_cast<std::uint8_t>(Down);
     for (auto& state : m_keys) {
-        state &= kKeepDown;
+        state &= kDown;
     }
     for (auto& state : m_mouseButtons) {
-        state &= kKeepDown;
+        state &= kDown;
     }
     m_previousMousePosition = m_mousePosition;
     m_scrollDelta = glm::vec2(0.0F);
@@ -49,11 +57,13 @@ void Input::beginFrame()
 
 void Input::apply(std::uint8_t& state, bool down)
 {
-    const bool wasDown = (state & Down) != 0;
+    const bool wasDown = (state & kDown) != 0U;
     if (down && !wasDown) {
-        state |= Down | Pressed;
+        state |= static_cast<std::uint8_t>(kDown | kPressed);
     } else if (!down && wasDown) {
-        state = static_cast<std::uint8_t>((state & ~Down) | Released);
+        // Clear kDown, keep kPressed (a tap within one frame reports both), set kReleased.
+        state &= kPressed;
+        state |= kReleased;
     }
     // Repeated events with the same state (e.g. key repeat) change nothing.
 }

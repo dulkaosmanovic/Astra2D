@@ -11,6 +11,7 @@
 namespace astra2d {
 
 /// Keyboard keys. Values match GLFW key codes, so no translation table is needed.
+// clang-format off: consecutive codes are kept on one line.
 enum class Key : int {
     Space = 32,
     Apostrophe = 39,
@@ -26,6 +27,8 @@ enum class Key : int {
     Backslash = 92,
     RightBracket = 93,
     GraveAccent = 96,
+    World1 = 161, ///< Non-US key #1.
+    World2 = 162, ///< Non-US key #2.
     Escape = 256,
     Enter = 257,
     Tab = 258,
@@ -40,7 +43,21 @@ enum class Key : int {
     PageDown = 267,
     Home = 268,
     End = 269,
+    CapsLock = 280,
+    ScrollLock = 281,
+    NumLock = 282,
+    PrintScreen = 283,
+    Pause = 284,
     F1 = 290, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24, F25,
+    Keypad0 = 320, Keypad1, Keypad2, Keypad3, Keypad4, Keypad5, Keypad6, Keypad7, Keypad8, Keypad9,
+    KeypadDecimal = 330,
+    KeypadDivide = 331,
+    KeypadMultiply = 332,
+    KeypadSubtract = 333,
+    KeypadAdd = 334,
+    KeypadEnter = 335,
+    KeypadEqual = 336,
     LeftShift = 340,
     LeftControl = 341,
     LeftAlt = 342,
@@ -51,6 +68,7 @@ enum class Key : int {
     RightSuper = 347,
     Menu = 348,
 };
+// clang-format on
 
 /// Mouse buttons. Values match GLFW mouse button codes.
 enum class MouseButton : int {
@@ -59,6 +77,9 @@ enum class MouseButton : int {
     Middle = 2,
     Button4 = 3,
     Button5 = 4,
+    Button6 = 5,
+    Button7 = 6,
+    Button8 = 7,
 };
 
 /// Per-frame keyboard and mouse state.
@@ -71,12 +92,12 @@ enum class MouseButton : int {
 /// Pressed/released are tracked from events rather than by comparing two snapshots, so a tap that
 /// is pressed and released between two frames still reports both isPressed() and isReleased().
 ///
-/// The class does not depend on GLFW: the Window forwards events to the on*() methods, and the
-/// Application calls beginFrame() before polling events. This keeps it unit-testable.
+/// The class does not depend on GLFW: the Window forwards events to the on*() methods and calls
+/// beginFrame() before polling events. This keeps it unit-testable.
 ///
 /// @note Pressed/released last one *frame*, not one fixed step. Read them in
-///       Application::onUpdate(), not in Application::onFixedUpdate(), which may run zero or several
-///       times per frame.
+///       Application::onUpdate(), not in Application::onFixedUpdate(), which may run zero or
+///       several times per frame.
 class Input {
 public:
     /// True if @p key went down during the current frame.
@@ -93,7 +114,8 @@ public:
     /// True if @p button went up during the current frame.
     [[nodiscard]] bool isReleased(MouseButton button) const;
 
-    /// Cursor position in window coordinates (pixels, origin top-left).
+    /// Cursor position in framebuffer pixels (origin top-left), the same units as the viewport and
+    /// Application::onResize(), also on HiDPI displays.
     [[nodiscard]] glm::vec2 mousePosition() const { return m_mousePosition; }
 
     /// Cursor movement since the previous frame.
@@ -105,7 +127,8 @@ public:
     /// @name Event interface (called by the platform layer)
     /// @{
 
-    /// Starts a new frame: clears pressed/released flags and the scroll delta.
+    /// Starts a new frame: clears pressed/released flags and the scroll delta. Called by
+    /// Window::pollEvents().
     void beginFrame();
 
     /// Records a key event. @p key is a GLFW key code; unknown codes are ignored.
@@ -117,20 +140,21 @@ public:
     /// Adds a scroll wheel offset to this frame's scrollDelta().
     void onScroll(glm::vec2 offset);
 
-    /// Releases all held keys and buttons (e.g. when the window loses focus).
+    /// Releases all held keys and buttons (e.g. when the window loses focus). Keys still down when
+    /// focus returns are not reported as held until they are pressed again.
     void releaseAll();
 
     /// @}
 
 private:
-    static constexpr int kKeyCount = 349;        // GLFW_KEY_LAST + 1
-    static constexpr int kMouseButtonCount = 8;  // GLFW_MOUSE_BUTTON_LAST + 1
+    // The last enumerators equal GLFW_KEY_LAST and GLFW_MOUSE_BUTTON_LAST (checked in window.cpp).
+    static constexpr int kKeyCount = static_cast<int>(Key::Menu) + 1;
+    static constexpr int kMouseButtonCount = static_cast<int>(MouseButton::Button8) + 1;
 
-    enum StateBits : std::uint8_t {
-        Down = 1U << 0U,
-        Pressed = 1U << 1U,
-        Released = 1U << 2U,
-    };
+    // Per key/button state bits.
+    static constexpr std::uint8_t kDown = 1U << 0U;
+    static constexpr std::uint8_t kPressed = 1U << 1U;
+    static constexpr std::uint8_t kReleased = 1U << 2U;
 
     static void apply(std::uint8_t& state, bool down);
 

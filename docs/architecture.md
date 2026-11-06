@@ -85,6 +85,12 @@ subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
 
 Meson uses system packages when they are installed and falls back to the wraps in
 `subprojects/` otherwise, so the project builds on a machine with only a compiler, Meson and Ninja.
+Third-party headers are included as system headers, so their warnings do not affect the engine's
+`-Dwerror=true` build.
+
+The engine is exported as the Meson dependency `astra2d` (`meson.override_dependency`), so a game
+can use the repository as a subproject with `dependency('astra2d')`. GoogleTest is only needed for
+the unit tests, which, like the examples, are skipped when Astra2D is a subproject.
 
 ## Conventions
 
@@ -93,3 +99,6 @@ Meson uses system packages when they are installed and falls back to the wraps i
 - Logging goes to stderr, so stdout stays free for program output such as benchmark CSV.
 - `ASTRA_ASSERT` checks programmer errors in debug builds; recoverable errors (missing files, failed
   context creation) throw exceptions.
+- Formatting follows `.clang-format` (4 spaces, 100 columns, function braces on their own line) and
+  the code passes the `.clang-tidy` checks (bugprone, cppcoreguidelines, modernize, performance,
+  readability, the clang static analyzer, and more). Both are enforced in CI.

@@ -21,7 +21,7 @@ digraph frame {
           fontcolor="#5a7b91"];
 
     start  [label="onStart()", shape=ellipse, width=1.2];
-    begin  [label="Input::beginFrame()  ·  poll events"];
+    begin  [label="poll events  (starts a new Input frame)"];
     resize [label="onResize(w, h)  if the size changed", style="rounded,dashed"];
     fixed  [label="onFixedUpdate(step)", fillcolor="#2a7fae", fontcolor="white"];
     update [label="onUpdate(frameTime)"];
@@ -46,7 +46,12 @@ digraph frame {
 | `onShutdown()` | once, after the last frame | releasing resources |
 
 While the window is minimized, the loop sleeps until the next event instead of spinning, and the
-time spent minimized is not passed to the simulation.
+time spent minimized is not passed to the simulation. Input received while minimized (such as the
+click that restores the window) is kept and reported in the first frame afterwards.
+
+`onUpdate()` receives the same clamped frame time as the simulation (at most
+`ApplicationSettings::maxFrameTime`, 0.25 s by default), so a stall or a breakpoint does not make
+animations and timers jump.
 
 ## Fixed timestep
 
@@ -78,7 +83,8 @@ frame, so over time the simulation advances by exactly as much time as really pa
   A 2-second freeze (e.g. dragging the window) would ask for 120 steps at once. That would make the
   next frame slow too, and the one after it slower (the "spiral of death"). To prevent this, the
   frame time is clamped to \f$\Delta t_{max}\f$ = 0.25 s, so at most 15 steps run and the game
-  briefly runs slower than real time instead.
+  briefly runs slower than real time instead. \f$\Delta t_{max}\f$ is set with
+  `ApplicationSettings::maxFrameTime` and is never shorter than one step.
 
 </div>
 
@@ -123,11 +129,14 @@ zero or more times per frame. Read them in `onUpdate()` and store the intent (fo
 `m_jumpRequested = true`) for the next fixed update. Reading them in `onFixedUpdate()` would miss
 presses on frames with zero steps and repeat them on frames with two. `isHeld()` is safe in both.
 
-Mouse position is in window pixels with the origin in the top-left corner. `mouseDelta()` and
-`scrollDelta()` hold the movement since the previous frame.
+Mouse position is in framebuffer pixels with the origin in the top-left corner, the same units as
+the viewport and `onResize()`. On HiDPI displays GLFW reports the cursor in smaller screen
+coordinates; `Window` scales it, so a click can be compared with the framebuffer size directly.
+`mouseDelta()` and `scrollDelta()` hold the movement since the previous frame.
 
 When the window loses focus, all keys and buttons are released, so a key held while switching
-windows does not stay stuck.
+windows does not stay stuck. A key that is still down when focus returns is reported again only
+once it is pressed again.
 
 ### Why Input does not depend on GLFW
 
@@ -148,17 +157,21 @@ ASTRA_WARN("Level {} has no exit", name); // game code     -> [GAME] [warning] .
 
 Both use the `{}` format syntax, are created on first use (no setup call, also in tests), and write
 to stderr so stdout stays free for program output such as benchmark CSV. Messages at error level
-and above are flushed immediately. Use @ref astra2d::log::setLevel to hide lower levels.
+and above are flushed immediately. The default level is `trace` in debug builds and `info` in
+release builds; use @ref astra2d::log::setLevel to change it. The loggers are not registered in
+spdlog's global registry, so user code may create its own spdlog loggers (even one named `GAME`)
+or call `spdlog::drop_all()` without affecting them.
 
 ## Assertions
 
 `ASTRA_ASSERT` checks for programmer errors:
 
 ```cpp
-ASTRA_ASSERT(step > 0.0, "Fixed step must be positive, got {}", step);
+ASTRA_ASSERT(index < size, "index {} out of range ({})", index, size);
 ```
 
 On failure it logs the condition, file, line and message, then aborts, so a debugger stops at the
 failing line. Assertions are compiled out in release builds (`NDEBUG`) unless `ASTRA_ENABLE_ASSERTS`
-is defined, so the condition must not have side effects. Errors the program can recover from, such
-as a missing file, throw exceptions instead.
+is defined, so the condition must not have side effects (it is still type-checked). The message uses
+the same formatter as the log macros. Errors the program can recover from, such as a missing file
+or invalid settings like a non-positive fixed step, throw exceptions instead.

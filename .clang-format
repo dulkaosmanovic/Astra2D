@@ -1,0 +1,44 @@
+# Code style for Astra2D. Check:  clang-format --dry-run --Werror <files>
+#                          Apply:  clang-format -i <files>
+# Use `// clang-format off` / `// clang-format on` sparingly for hand-aligned tables (enums, vertex data).
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+ColumnLimit: 100
+IndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: None
+FixNamespaceComments: true
+
+# Braces: on a new line after functions, attached everywhere else.
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  SplitEmptyFunction: true
+AllowShortFunctionsOnASingleLine: Inline   # one-line accessors inside classes only
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortBlocksOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+
+# Constructor initializers: one per line, comma first.
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: Never
+ConstructorInitializerIndentWidth: 4
+
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
+AlignTrailingComments: true
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+IndentPPDirectives: None
+LambdaBodyIndentation: OuterScope
+
+# Includes are grouped and ordered by hand (own header, project, third-party, standard library).
+# Not sorted: <glad/gl.h> must come before <GLFW/glfw3.h>.
+IncludeBlocks: Preserve
+SortIncludes: Never

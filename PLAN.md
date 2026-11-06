@@ -70,8 +70,9 @@ Required
 
 Stretch
 - [x] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
-- [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind), publish Doxygen docs to GitHub Pages
-- [ ] `.clang-format` / `.clang-tidy`
+- [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind, `-Dwerror=true`), sandbox smoke test on Xvfb, publish Doxygen docs to GitHub Pages
+- [x] Usable as a Meson subproject: `dependency('astra2d')`, tests/examples skipped as a subproject
+- [x] `.clang-format` / `.clang-tidy`, enforced by a CI lint job (`scripts/docker-entrypoint.sh lint`)
 
 ## 2. Core
 

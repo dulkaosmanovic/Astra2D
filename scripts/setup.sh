@@ -1,10 +1,13 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
+cd "$(dirname "$0")/.."
 
 echo "Installing dependencies..."
 
-sudo pacman -Syu --needed \
+# -S --needed only installs what is missing; it does not upgrade the whole system.
+# The clang package also provides clang-format, clang-tidy and run-clang-tidy.
+sudo pacman -S --needed \
     base-devel \
     gcc \
     meson \
@@ -18,8 +21,7 @@ sudo pacman -Syu --needed \
     doxygen \
     graphviz \
     valgrind \
-    clang \
-    clang-tools-extra
+    clang
 
 echo "Fetching git submodules..."
 
@@ -27,6 +29,10 @@ git submodule update --init --recursive
 
 echo "Setting up Meson build..."
 
-meson setup build -Db_sanitize=address,undefined || true
+if [[ -f build/build.ninja ]]; then
+    echo "build/ is already configured, skipping."
+else
+    meson setup build -Db_sanitize=address,undefined
+fi
 
 echo "Done!"

@@ -27,3 +27,6 @@ engine_dep = declare_dependency(
   link_with : engine_lib,
   dependencies : engine_deps
 )
+
+# Lets other Meson projects use Astra2D as a subproject: dependency('astra2d').
+meson.override_dependency('astra2d', engine_dep)

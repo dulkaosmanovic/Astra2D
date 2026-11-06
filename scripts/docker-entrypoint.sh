@@ -9,7 +9,8 @@
 #                     Copies the HTML to DIR (default /out) if that directory exists.
 #   sandbox [SECONDS] run the sandbox example for a few seconds (default 5) as a smoke test,
 #                     on an Xvfb virtual display when no display is available
-#   all               test, valgrind, release, docs and sandbox
+#   lint              check formatting (clang-format) and run static analysis (clang-tidy)
+#   all               lint, test, valgrind, release, docs and sandbox
 #   shell             start an interactive shell
 
 set -euo pipefail
@@ -39,6 +40,21 @@ cmd_valgrind() {
     valgrind --leak-check=full --show-leak-kinds=definite,indirect \
         --errors-for-leak-kinds=definite,indirect --error-exitcode=1 --quiet \
         ./build-valgrind/tests/engine_tests --gtest_filter='-*DeathTest*'
+}
+
+cmd_lint() {
+    section "Formatting (clang-format)"
+    local files
+    mapfile -t files < <(find include src examples tests -name '*.cpp' -o -name '*.hpp' | sort)
+    clang-format --version
+    clang-format --dry-run --Werror "${files[@]}"
+    echo "All ${#files[@]} files are formatted"
+
+    section "Static analysis (clang-tidy)"
+    # A plain build directory, so the compile database has no sanitizer flags. Only the project's
+    # own sources are checked, not wraps (subprojects/) or vendored code (external/).
+    setup build-lint
+    run-clang-tidy -quiet -p build-lint '^(?!.*/(subprojects|external)/).*/(src|examples|tests)/'
 }
 
 cmd_release() {
@@ -93,12 +109,13 @@ case ${1:-test} in
     test)     cmd_test ;;
     valgrind) cmd_valgrind ;;
     release)  cmd_release ;;
+    lint)     cmd_lint ;;
     docs)     cmd_docs "${2:-}" ;;
     sandbox)  cmd_sandbox "${2:-}" ;;
-    all)      cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox ;;
+    all)      cmd_lint; cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox ;;
     shell)    exec bash ;;
     *)
-        sed -n '3,14p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

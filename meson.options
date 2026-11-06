@@ -1,0 +1,4 @@
+# 'auto' builds the tests and examples when Astra2D is the main project and skips them when it is
+# used as a subproject (so a game does not need GoogleTest). Override with -Dastra2d:tests=enabled.
+option('tests', type : 'feature', value : 'auto', description : 'Build the unit tests (needs GoogleTest)')
+option('examples', type : 'feature', value : 'auto', description : 'Build the sandbox and example programs')

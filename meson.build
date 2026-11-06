@@ -30,9 +30,11 @@ project(
 # System packages are used when available; otherwise Meson falls back to
 # the wraps in subprojects/ (use --wrap-mode=forcefallback to always use them).
 
-glfw_dep = dependency('glfw3')
-glm_dep = dependency('glm')
-spdlog_dep = dependency('spdlog')
+# Third-party headers are system includes, so their warnings don't show up in (or, with
+# -Dwerror=true, break) the engine build, also when they come from a wrap fallback.
+glfw_dep = dependency('glfw3', include_type : 'system')
+glm_dep = dependency('glm', include_type : 'system')
+spdlog_dep = dependency('spdlog', include_type : 'system')
 opengl_dep = dependency('opengl')
 
 subdir('external')
@@ -48,8 +50,13 @@ engine_inc = include_directories('include')
 # ==========================================
 
 subdir('src')
-subdir('examples')
-subdir('tests')
+
+if get_option('examples').disable_auto_if(meson.is_subproject()).allowed()
+  subdir('examples')
+endif
+if get_option('tests').disable_auto_if(meson.is_subproject()).allowed()
+  subdir('tests')
+endif
 
 # ==========================================
 # Doxygen
@@ -68,13 +75,15 @@ doxygen_conf = configure_file(
   }
 )
 
+# The docs target is only defined for the main project, not when Astra2D is a subproject.
 doxygen = find_program('doxygen', required : false)
+build_docs = doxygen.found() and not meson.is_subproject()
 doxygen_theme = 'external/doxygen-awesome-css/doxygen-awesome.css'
-if doxygen.found() and not fs.exists(doxygen_theme)
+if build_docs and not fs.exists(doxygen_theme)
   warning('Docs theme missing (' + doxygen_theme + '); the docs will be unstyled. ' +
           'Run: git submodule update --init')
 endif
-if doxygen.found()
+if build_docs
   run_target('docs',
     command : [doxygen, doxygen_conf]
   )

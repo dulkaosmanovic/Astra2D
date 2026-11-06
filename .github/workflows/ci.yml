@@ -18,6 +18,8 @@ env:
   APT_PACKAGES: >-
     build-essential clang meson ninja-build pkg-config cmake
     libglfw3-dev libglm-dev libspdlog-dev libgtest-dev libgl-dev
+  # Software OpenGL on a virtual display, for the sandbox smoke test.
+  SMOKE_PACKAGES: xvfb xauth libgl1-mesa-dri
 
 jobs:
   build-test:
@@ -30,15 +32,15 @@ jobs:
           - name: GCC, ASan + UBSan
             cc: gcc
             cxx: g++
-            setup: -Db_sanitize=address,undefined
+            setup: -Db_sanitize=address,undefined -Dwerror=true
           - name: Clang, ASan + UBSan
             cc: clang
             cxx: clang++
-            setup: -Db_sanitize=address,undefined
+            setup: -Db_sanitize=address,undefined -Dwerror=true
           - name: GCC, release
             cc: gcc
             cxx: g++
-            setup: --buildtype=release
+            setup: --buildtype=release -Dwerror=true
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
@@ -51,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends $APT_PACKAGES
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES $SMOKE_PACKAGES
 
       # Ubuntu 24.04 runners use 32 bits of mmap randomness, which older sanitizer runtimes
       # cannot handle ("AddressSanitizer:DEADLYSIGNAL"). 28 bits is the usual workaround.
@@ -67,12 +69,39 @@ jobs:
       - name: Test
         run: meson test -C build --print-errorlogs
 
+      # Runs the real window, OpenGL context and main loop for a few seconds (Mesa llvmpipe on
+      # Xvfb), which the unit tests cannot cover. Reuses the build directory configured above.
+      - name: Sandbox smoke test
+        env:
+          LIBGL_ALWAYS_SOFTWARE: 1
+        run: scripts/docker-entrypoint.sh sandbox 5
+
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: testlog-${{ matrix.cc }}-${{ strategy.job-index }}
           path: build/meson-logs/
+
+  # clang-format output changes between versions, so the lint job uses the same Arch Linux package
+  # snapshot as the Dockerfile (keep ARCH_SNAPSHOT in sync) instead of Ubuntu's older LLVM.
+  lint:
+    name: clang-format + clang-tidy
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    env:
+      ARCH_SNAPSHOT: 2026/11/02
+    steps:
+      - name: Install dependencies
+        run: |
+          echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" \
+            > /etc/pacman.d/mirrorlist
+          pacman -Syyuu --noconfirm --needed clang meson ninja pkgconf glfw glm spdlog gtest mesa
+
+      - uses: actions/checkout@v7
+
+      - name: Check formatting and run clang-tidy
+        run: scripts/docker-entrypoint.sh lint
 
   valgrind:
     name: Valgrind

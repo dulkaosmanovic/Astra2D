@@ -8,8 +8,14 @@ using astra2d::MouseButton;
 
 namespace {
 
-void press(Input& input, Key key) { input.onKey(static_cast<int>(key), true); }
-void release(Input& input, Key key) { input.onKey(static_cast<int>(key), false); }
+void press(Input& input, Key key)
+{
+    input.onKey(static_cast<int>(key), true);
+}
+void release(Input& input, Key key)
+{
+    input.onKey(static_cast<int>(key), false);
+}
 
 } // namespace
 
@@ -113,8 +119,27 @@ TEST(InputTests, OutOfRangeCodesAreIgnored)
     input.onKey(100000, true);
     input.onMouseButton(-1, true);
     input.onMouseButton(100, true);
+    // Out-of-range values are what this test checks, so the analyzer's enum range check is
+    // silenced. NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange): invalid on purpose
     EXPECT_FALSE(input.isHeld(static_cast<Key>(-1)));
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange): invalid on purpose
     EXPECT_FALSE(input.isHeld(static_cast<Key>(100000)));
+}
+
+TEST(InputTests, HighestCodesAreTracked)
+{
+    // Key::Menu is GLFW_KEY_LAST and Button8 is GLFW_MOUSE_BUTTON_LAST: the last valid indices.
+    Input input;
+    input.beginFrame();
+    press(input, Key::Menu);
+    input.onMouseButton(static_cast<int>(MouseButton::Button8), true);
+    EXPECT_TRUE(input.isPressed(Key::Menu));
+    EXPECT_TRUE(input.isHeld(MouseButton::Button8));
+
+    // One past the end is ignored.
+    input.onKey(static_cast<int>(Key::Menu) + 1, true);
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange): invalid on purpose
+    EXPECT_FALSE(input.isHeld(static_cast<Key>(static_cast<int>(Key::Menu) + 1)));
 }
 
 TEST(InputTests, MouseDeltaIsRelativeToPreviousFrame)

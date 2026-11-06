@@ -45,7 +45,8 @@ Each build variant lives in its own directory, so they can exist side by side.
   ```bash
   meson setup build-valgrind -Db_sanitize=none
   ninja -C build-valgrind
-  valgrind --leak-check=full ./build-valgrind/tests/engine_tests
+  # Death tests abort on purpose, which Valgrind would report as errors.
+  valgrind --leak-check=full ./build-valgrind/tests/engine_tests --gtest_filter='-*DeathTest*'
   ```
 - <b class="tab-title">Wraps only</b>
   Ignore system libraries and build every dependency from `subprojects/`.
@@ -53,8 +54,22 @@ Each build variant lives in its own directory, so they can exist side by side.
   meson setup build-wraps --wrap-mode=forcefallback
   ninja -C build-wraps
   ```
+- <b class="tab-title">Docker</b>
+  No local dependencies or GPU needed: Arch Linux pinned to a dated package snapshot, OpenGL through
+  Mesa's software renderer on a virtual display.
+  ```bash
+  git submodule update --init      # docs theme, needed inside the image
+  docker build -t astra2d .
+  docker run --rm astra2d          # build with ASan + UBSan and run the tests
+  docker run --rm astra2d all      # lint, tests, Valgrind, release build, docs, sandbox smoke test
+  ```
+  `lint`, `valgrind`, `release`, `sandbox [SECONDS]`, `docs` and `shell` run single steps; see
+  `scripts/docker-entrypoint.sh`. The same script also works directly on a Linux host.
 
 </div>
+
+Add `-Dwerror=true` to any variant to treat warnings as errors, as CI does. `-Dtests=disabled` and
+`-Dexamples=disabled` skip the unit tests and the examples.
 
 ## Run
 
@@ -63,6 +78,19 @@ Each build variant lives in its own directory, so they can exist side by side.
 | `./build/examples/Sandbox` | Opens the sandbox: arrow keys or WASD move the triangle, Space resets, Escape quits |
 | `meson test -C build` | Runs the unit tests |
 | `ninja -C build docs` | Generates this documentation into `build/docs/html` |
+
+## Code style
+
+The code is formatted with clang-format ([`.clang-format`](https://github.com/dulkaosmanovic/Astra2D/blob/main/.clang-format))
+and checked with clang-tidy ([`.clang-tidy`](https://github.com/dulkaosmanovic/Astra2D/blob/main/.clang-tidy)).
+CI rejects unformatted code and any clang-tidy finding. Before pushing, run:
+
+```bash
+scripts/docker-entrypoint.sh lint
+```
+
+Reformat a file with `clang-format -i <file>`, or let the editor format on save (VS Code, CLion and
+others pick up `.clang-format` automatically).
 
 ## Your first application
 
@@ -100,11 +128,28 @@ int main()
 }
 ```
 
-To build it with Meson, add an executable that depends on `engine_dep`, as
-`examples/meson.build` does for the sandbox:
+## Building your application
 
-```meson
-executable('hello', 'hello.cpp', dependencies : engine_dep)
-```
+<div class="tabbed">
+
+- <b class="tab-title">In your own project</b>
+  Astra2D exports the Meson dependency `astra2d`. Place the repository in your project's
+  `subprojects/` directory (for example `git submodule add <repository-url> subprojects/astra2d`):
+  ```meson
+  project('hello', 'cpp', default_options : ['cpp_std=c++20'])
+
+  astra2d_dep = dependency('astra2d')
+  executable('hello', 'hello.cpp', dependencies : astra2d_dep)
+  ```
+  The dependency carries the engine library and headers, GLFW, GLM, spdlog and GLAD. The public
+  headers need C++20. As a subproject, Astra2D does not build its tests, examples or docs, so
+  GoogleTest is not required (`-Dastra2d:tests=enabled` turns the tests back on).
+- <b class="tab-title">Inside this repository</b>
+  Add an executable that depends on `engine_dep`, as `examples/meson.build` does for the sandbox:
+  ```meson
+  executable('hello', 'hello.cpp', dependencies : engine_dep)
+  ```
+
+</div>
 
 Continue with @ref core_guide to see which hook runs when, and why there are two update hooks.

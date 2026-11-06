@@ -16,8 +16,13 @@ struct ApplicationSettings {
     /// Settings for the main window.
     WindowSettings window{};
 
-    /// Length of one fixed update step in seconds (physics, deterministic gameplay).
+    /// Length of one fixed update step in seconds (physics, deterministic gameplay). Must be > 0.
     double fixedTimestep = 1.0 / 60.0;
+
+    /// Longest frame time in seconds passed to the simulation and to onUpdate(). Longer frames
+    /// (a stall, a breakpoint) are clamped to this, so the game slows down instead of jumping.
+    /// Values below fixedTimestep are raised to fixedTimestep.
+    double maxFrameTime = 0.25;
 };
 
 /// Base class for games and tools built on Astra2D.
@@ -29,17 +34,20 @@ struct ApplicationSettings {
 /// @endcode
 ///
 /// Each frame of the main loop:
-/// 1. Input::beginFrame(), then window events are polled;
+/// 1. window events are polled (Window::pollEvents() also starts a new Input frame);
 /// 2. if the framebuffer was resized, the viewport is updated and onResize() is called;
 /// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep);
-/// 4. onUpdate() runs once with the real frame time;
+/// 4. onUpdate() runs once with the real frame time, clamped to ApplicationSettings::maxFrameTime;
 /// 5. onRender() runs once, then buffers are swapped.
 ///
-/// While the window is minimized the loop sleeps until the next event and no updates run.
+/// While the window is minimized the loop sleeps until the next event and no updates run. Input
+/// events received while minimized (e.g. the click that restores the window) are kept and reported
+/// in the first frame after the window is restored.
 class Application {
 public:
     /// Creates the main window. Nothing else happens until run() is called.
     /// @throws std::runtime_error if the window or OpenGL context cannot be created.
+    /// @throws std::invalid_argument if the timestep settings are out of range.
     explicit Application(const ApplicationSettings& settings = {});
     virtual ~Application();
 
@@ -65,7 +73,10 @@ public:
 
     /// How far the current frame is between the last two fixed updates, in [0, 1).
     /// Can be used in onRender() to interpolate positions for smooth movement.
-    [[nodiscard]] float interpolationAlpha() const { return static_cast<float>(m_timestep.alpha()); }
+    [[nodiscard]] float interpolationAlpha() const
+    {
+        return static_cast<float>(m_timestep.alpha());
+    }
 
 protected:
     /// Called once before the first frame.
@@ -74,7 +85,8 @@ protected:
     /// Called at a fixed rate with fixedTimestep() seconds; use for physics and simulation.
     virtual void onFixedUpdate(float /*fixedDeltaTime*/) {}
 
-    /// Called once per frame with the real elapsed time in seconds; use for input and animation.
+    /// Called once per frame with the elapsed time in seconds (clamped to the maximum frame time);
+    /// use for input and animation.
     virtual void onUpdate(float /*deltaTime*/) {}
 
     /// Called once per frame after onUpdate().
