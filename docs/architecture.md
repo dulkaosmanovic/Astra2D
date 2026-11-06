@@ -29,8 +29,8 @@ digraph layers {
         style="rounded,dashed"; color="#9fbfd3";
         ecs      [label="ecs"];
         physics  [label="physics"];
-        renderer [label="renderer"];
-        assets   [label="assets"];
+        renderer [label="renderer", fillcolor="#1a2f55", fontcolor="white", URL="\ref renderer"];
+        assets   [label="assets", fillcolor="#1a2f55", fontcolor="white", URL="\ref assets"];
     }
     subgraph cluster_base {
         label="Foundation"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
@@ -42,7 +42,7 @@ digraph layers {
     game -> scene; game -> debug;
     scene -> ecs; scene -> physics; scene -> renderer;
     debug -> renderer; debug -> physics;
-    renderer -> assets;
+    assets -> renderer;
     renderer -> core; assets -> core; ecs -> math; physics -> math; renderer -> math;
 }
 @enddot
@@ -51,8 +51,8 @@ digraph layers {
 |---|---|---|---|
 | @ref core "core" | Application, main loop, window, input, timestep, logging, assertions | yes | ready |
 | math | GLM, rectangles, transform helpers | no | planned |
-| assets | Load each texture and shader file once | yes | planned |
-| renderer | Shaders, textures, batched quads, camera, debug lines | yes | planned |
+| @ref assets "assets" | Load each texture and shader file once | yes | ready |
+| @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, debug lines | yes | ready |
 | ecs | Entities, sparse-set component storage, views | no | planned |
 | physics | Bodies, shapes, broad and narrow phase, impulse solver | no | planned |
 | scene | Owns a registry and runs systems in a fixed order | — | planned |
@@ -67,9 +67,12 @@ headless, which is what the evaluation chapter relies on.
 include/astra2d/<module>/   public headers: the engine API
 src/<module>/               implementation
 tests/                      one GoogleTest file per module
-examples/                   sandbox, demos and the showcase platformer
+examples/                   example programs, from hello_window to a small game
+examples/assets/            textures, shaders and fonts used by the examples
+templates/game/             starting point for a game in its own repository
 docs/                       Doxygen configuration, these pages and the theme
-external/                   vendored code (GLAD, doxygen-awesome-css)
+external/                   vendored code (GLAD, stb_image, doxygen-awesome-css)
+benchmarks/results/         benchmark CSV files and machine descriptions
 subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
 ```
 
@@ -81,6 +84,8 @@ subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
 | GLAD | Loading OpenGL 3.3 core functions |
 | GLM | Vectors and matrices |
 | spdlog | Logging (wrapped by @ref astra2d::log) |
+| stb_image | Decoding PNG/JPEG/BMP/TGA textures (vendored, private to the engine library) |
+| stb_truetype | Baking TrueType fonts into atlases (vendored, private to the engine library) |
 | GoogleTest | Unit tests |
 
 Meson uses system packages when they are installed and falls back to the wraps in

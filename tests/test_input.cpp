@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 using astra2d::Input;
 using astra2d::Key;
 using astra2d::MouseButton;
@@ -185,4 +187,117 @@ TEST(InputTests, ReleaseAllReleasesHeldKeys)
     EXPECT_TRUE(input.isReleased(MouseButton::Left));
     // Keys that were never down are not reported as released.
     EXPECT_FALSE(input.isReleased(Key::W));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Gamepads
+
+namespace {
+
+struct PadState {
+    std::array<bool, Input::kGamepadButtonCount> buttons{};
+    // GLFW conventions: stick y down positive, triggers -1 (released) to 1.
+    std::array<float, Input::kGamepadAxisCount> axes{0, 0, 0, 0, -1, -1};
+};
+
+void send(Input& input, const PadState& pad, int index = 0)
+{
+    input.onGamepadState(index, pad.buttons, pad.axes);
+}
+
+} // namespace
+
+using astra2d::GamepadAxis;
+using astra2d::GamepadButton;
+
+TEST(GamepadTests, DisconnectedByDefault)
+{
+    const Input input;
+    EXPECT_FALSE(input.isGamepadConnected(0));
+    EXPECT_FALSE(input.isHeld(GamepadButton::A));
+    EXPECT_FLOAT_EQ(input.axis(GamepadAxis::LeftX), 0.0F);
+}
+
+TEST(GamepadTests, PressedAndReleasedComeFromComparingPolls)
+{
+    Input input;
+    PadState pad;
+    input.beginFrame();
+    send(input, pad);
+    EXPECT_TRUE(input.isGamepadConnected(0));
+
+    pad.buttons[static_cast<int>(GamepadButton::A)] = true;
+    input.beginFrame();
+    send(input, pad);
+    EXPECT_TRUE(input.isPressed(GamepadButton::A));
+
+    input.beginFrame();
+    send(input, pad); // still down
+    EXPECT_FALSE(input.isPressed(GamepadButton::A));
+    EXPECT_TRUE(input.isHeld(GamepadButton::A));
+
+    pad.buttons[static_cast<int>(GamepadButton::A)] = false;
+    input.beginFrame();
+    send(input, pad);
+    EXPECT_TRUE(input.isReleased(GamepadButton::A));
+}
+
+TEST(GamepadTests, StickYIsFlippedToUpAndTriggersStartAtZero)
+{
+    Input input;
+    input.setDeadZone(0.0F);
+    PadState pad;
+    pad.axes[static_cast<int>(GamepadAxis::LeftY)] = -1.0F; // GLFW: pushed up
+    pad.axes[static_cast<int>(GamepadAxis::RightTrigger)] = 1.0F;
+    input.beginFrame();
+    send(input, pad);
+    EXPECT_FLOAT_EQ(input.axis(GamepadAxis::LeftY), 1.0F);
+    EXPECT_FLOAT_EQ(input.axis(GamepadAxis::LeftTrigger), 0.0F);
+    EXPECT_FLOAT_EQ(input.axis(GamepadAxis::RightTrigger), 1.0F);
+}
+
+TEST(GamepadTests, RadialDeadZoneIgnoresDriftAndRescales)
+{
+    Input input;
+    input.setDeadZone(0.2F);
+    PadState pad;
+    pad.axes[0] = 0.1F;
+    pad.axes[1] = -0.1F; // length 0.14 < 0.2
+    input.beginFrame();
+    send(input, pad);
+    EXPECT_EQ(input.leftStick(), glm::vec2(0.0F));
+
+    pad.axes[0] = 0.6F; // length 0.6 -> (0.6 - 0.2) / 0.8 = 0.5
+    pad.axes[1] = 0.0F;
+    send(input, pad);
+    EXPECT_NEAR(input.axis(GamepadAxis::LeftX), 0.5F, 1e-6F);
+
+    pad.axes[0] = 1.0F;
+    send(input, pad);
+    EXPECT_NEAR(input.axis(GamepadAxis::LeftX), 1.0F, 1e-6F);
+}
+
+TEST(GamepadTests, DisconnectReleasesHeldButtons)
+{
+    Input input;
+    PadState pad;
+    pad.buttons[static_cast<int>(GamepadButton::Start)] = true;
+    input.beginFrame();
+    send(input, pad);
+    input.beginFrame();
+    input.onGamepadDisconnected(0);
+    EXPECT_FALSE(input.isGamepadConnected(0));
+    EXPECT_FALSE(input.isHeld(GamepadButton::Start));
+    EXPECT_TRUE(input.isReleased(GamepadButton::Start));
+}
+
+TEST(GamepadTests, InvalidIndicesAreIgnored)
+{
+    Input input;
+    const PadState pad;
+    send(input, pad, -1);
+    send(input, pad, Input::kMaxGamepads);
+    EXPECT_FALSE(input.isGamepadConnected(-1));
+    EXPECT_FALSE(input.isGamepadConnected(Input::kMaxGamepads));
+    EXPECT_FALSE(input.isHeld(GamepadButton::A, 99));
 }

@@ -11,12 +11,15 @@ Application::Application(const ApplicationSettings& settings)
     : m_window(std::make_unique<Window>(settings.window))
     , m_timestep(settings.fixedTimestep, std::max(settings.maxFrameTime, settings.fixedTimestep))
 {
+    m_window->setEventDispatcher(&m_events);
 }
 
 Application::~Application() = default;
 
 void Application::run()
 {
+    // Another Window created after this one would have made its own context current.
+    m_window->makeContextCurrent();
     glViewport(0, 0, m_window->framebufferWidth(), m_window->framebufferHeight());
     onStart();
 
@@ -39,6 +42,10 @@ void Application::run()
             lastTime = glfwGetTime();
         }
 
+        // Window events queued while polling (focus, gamepads) reach their handlers here, at a
+        // fixed point of the frame instead of in the middle of GLFW's callbacks.
+        m_events.dispatchQueued();
+
         const double now = glfwGetTime();
         const double frameTime = std::clamp(now - lastTime, 0.0, m_timestep.maxFrameTime());
         lastTime = now;
@@ -48,6 +55,7 @@ void Application::run()
             const int height = m_window->framebufferHeight();
             glViewport(0, 0, width, height);
             onResize(width, height);
+            m_events.publish(WindowResizeEvent{.width = width, .height = height});
         }
 
         const int steps = m_timestep.advance(frameTime);

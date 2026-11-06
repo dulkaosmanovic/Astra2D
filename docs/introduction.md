@@ -53,11 +53,11 @@ int main()
 <div class="astra-cards">
 <div class="astra-card">
 <span class="astra-card-title">Core <span class="astra-status done">ready</span></span>
-<div class="astra-card-text">Application and main loop with a fixed timestep, window, keyboard and mouse input, logging and assertions. @ref core_guide "Guide" · @ref core "API"</div>
+<div class="astra-card-text">Application and main loop with a fixed timestep, window, keyboard, mouse and gamepad input, action mapping, events, logging and assertions. @ref core_guide "Guide" · @ref core "API"</div>
 </div>
 <div class="astra-card">
-<span class="astra-card-title">Renderer <span class="astra-status">planned</span></span>
-<div class="astra-card-text">Batched sprite renderer, textures, sprite sheets and animation, orthographic camera, debug lines.</div>
+<span class="astra-card-title">Renderer <span class="astra-status done">ready</span></span>
+<div class="astra-card-text">Batched sprite and text renderer, sprite sheets and animation, camera with rotation, parallax and shake, post-processing, asset cache with hot reloading. @ref renderer_guide "Guide" · @ref renderer "API"</div>
 </div>
 <div class="astra-card">
 <span class="astra-card-title">ECS <span class="astra-status">planned</span></span>
@@ -94,4 +94,5 @@ int main()
 | build the engine and run the examples | @ref getting-started |
 | understand how the engine is structured | @ref architecture |
 | learn how the main loop, timestep and input work | @ref core_guide |
+| draw sprites, use the camera and understand batching | @ref renderer_guide |
 | look up a class or function | [Modules](topics.html) or [Classes](annotated.html) |

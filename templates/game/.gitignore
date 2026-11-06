@@ -1,0 +1,5 @@
+build*/
+# Downloaded by Meson from the .wrap files (keep the .wrap files themselves)
+subprojects/*/
+subprojects/packagecache/
+subprojects/.wraplock

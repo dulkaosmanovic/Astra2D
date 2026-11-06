@@ -5,6 +5,7 @@ build-*/
 # Meson subprojects downloaded from wraps (keep the .wrap files)
 subprojects/*/
 subprojects/packagecache/
+subprojects/.wraplock
 
 # Editor / tooling
 .cache/
