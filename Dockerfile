@@ -5,7 +5,7 @@
 #   docker build -t astra2d .
 #   docker run --rm astra2d                 # build with ASan + UBSan and run the tests (default)
 #   docker run --rm astra2d all             # everything: lint, tests, Valgrind, release, docs,
-#                                           # example smoke tests, game template
+#                                           # example smoke tests
 #   docker run --rm -v "$PWD/site:/out" astra2d docs   # generate the docs into ./site
 #
 # See scripts/docker-entrypoint.sh for all commands. OpenGL works without a GPU through Mesa's

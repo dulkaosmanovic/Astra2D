@@ -234,8 +234,9 @@ const auto assets = astra2d::findDirectory({
 });
 ```
 
-If none exists, the exception lists every place that was tried. `templates/game` uses exactly
-this, and its `meson install` puts `assets/` next to the executable.
+If none exists, the exception lists every place that was tried. Installing the assets next to the
+executable (`install_subdir('assets', install_dir : get_option('bindir'))` in Meson) makes the
+first candidate work for a shipped game.
 
 ## Logging
 

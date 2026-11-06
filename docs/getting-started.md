@@ -61,9 +61,9 @@ Each build variant lives in its own directory, so they can exist side by side.
   git submodule update --init      # docs theme, needed inside the image
   docker build -t astra2d .
   docker run --rm astra2d          # build with ASan + UBSan and run the tests
-  docker run --rm astra2d all      # lint, tests, Valgrind, release, docs, smoke tests, template
+  docker run --rm astra2d all      # lint, tests, Valgrind, release, docs, smoke tests
   ```
-  `lint`, `valgrind`, `release`, `sandbox [SECONDS]`, `template`, `docs` and `shell` run single steps; see
+  `lint`, `valgrind`, `release`, `sandbox [SECONDS]`, `docs` and `shell` run single steps; see
   `scripts/docker-entrypoint.sh`. The same script also works directly on a Linux host.
 
 </div>
@@ -142,11 +142,8 @@ int main()
 
 - <b class="tab-title">In your own project</b>
   This is how a game uses Astra2D: in its own repository, with the engine as a library.
-  [`templates/game/`](https://github.com/dulkaosmanovic/Astra2D/tree/main/templates/game) is a
-  complete starting point. Astra2D exports the Meson dependency `astra2d`. Place the repository in
-  your project's `subprojects/` directory (for example
-  `git submodule add <repository-url> subprojects/astra2d`), or let Meson download it with a
-  `subprojects/astra2d.wrap` file as the template does:
+  Astra2D exports the Meson dependency `astra2d`. Place the repository in your project's
+  `subprojects/` directory (for example `git submodule add <repository-url> subprojects/astra2d`):
   ```meson
   project('hello', 'cpp', default_options : ['cpp_std=c++20'])
 

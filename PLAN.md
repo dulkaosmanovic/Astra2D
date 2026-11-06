@@ -72,7 +72,7 @@ Stretch
 - [x] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
 - [x] GitHub Actions: build + test (GCC/Clang with ASan+UBSan, release, Valgrind, `-Dwerror=true`), sandbox smoke test on Xvfb, publish Doxygen docs to GitHub Pages
 - [x] Usable as a Meson subproject: `dependency('astra2d')`, tests/examples skipped as a subproject
-- [x] `templates/game`: a game in its own repository using the engine as a subproject, with its own assets found via `executableDirectory()`; built and run in CI
+- [x] `executableDirectory()` / `findDirectory()` so a game finds its own assets when installed
 - [x] Feature examples (`hello_window`, `shapes`, `sprites`, `text`, `input`, `post_processing`, `coin_collector`), all smoke-tested in CI; example assets moved to `examples/assets/`
 - [ ] `.clang-format` / `.clang-tidy`
 
