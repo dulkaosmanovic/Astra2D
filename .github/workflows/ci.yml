@@ -76,13 +76,6 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: 1
         run: scripts/docker-entrypoint.sh sandbox 5
 
-      # Builds templates/game as its own project with the engine in subprojects/, the way games
-      # use Astra2D, so dependency('astra2d') and the public API keep working for outside projects.
-      - name: Game template as a separate project
-        env:
-          LIBGL_ALWAYS_SOFTWARE: 1
-        run: scripts/docker-entrypoint.sh template
-
       - name: Upload test log
         if: failure()
         uses: actions/upload-artifact@v7

@@ -69,7 +69,6 @@ src/<module>/               implementation
 tests/                      one GoogleTest file per module
 examples/                   example programs, from hello_window to a small game
 examples/assets/            textures, shaders and fonts used by the examples
-templates/game/             starting point for a game in its own repository
 docs/                       Doxygen configuration, these pages and the theme
 external/                   vendored code (GLAD, stb_image, doxygen-awesome-css)
 benchmarks/results/         benchmark CSV files and machine descriptions

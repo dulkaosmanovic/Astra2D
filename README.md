@@ -77,7 +77,6 @@ Astra2D/
 ├── include/astra2d/  # Public engine API
 ├── src/              # Engine implementation
 ├── examples/         # Example programs, from hello_window to a small game, and their assets/
-├── templates/game/   # Starting point for a game in its own repository
 ├── tests/            # Unit tests (GoogleTest)
 ├── docs/             # Doxygen configuration and documentation pages
 ├── scripts/          # Development and setup scripts
@@ -195,7 +194,6 @@ docker run --rm astra2d valgrind                    # unit tests under Valgrind 
 docker run --rm astra2d release                     # optimized build
 docker run --rm astra2d lint                        # clang-format + clang-tidy
 docker run --rm astra2d sandbox 10                  # run the sandbox for 10 s and every example briefly (default 5)
-docker run --rm astra2d template                    # build and run templates/game as a separate project
 docker run --rm astra2d all                         # all of the above
 docker run --rm -v "$PWD/site:/out" astra2d docs    # generate the documentation into ./site
 docker run --rm -it astra2d shell                   # interactive shell
@@ -213,8 +211,6 @@ and on every pull request:
 - GCC and Clang with ASan + UBSan, and a GCC release build, all with `-Dwerror=true`;
 - the unit tests in each of them, plus smoke tests of every example (`scripts/docker-entrypoint.sh sandbox`)
   on Xvfb with Mesa's software renderer, which exercise the real window, OpenGL context and main loop;
-- `templates/game` built and run as a separate project with the engine as its subproject
-  (`scripts/docker-entrypoint.sh template`), the way games use Astra2D;
 - the unit tests under Valgrind;
 - `clang-format` and `clang-tidy` (`scripts/docker-entrypoint.sh lint`) in an Arch Linux container
   pinned to the same package snapshot as the Dockerfile.
@@ -290,8 +286,7 @@ the machine. Run it on an otherwise idle machine with the window visible.
 ### Making a game with Astra2D
 
 A game lives in its own repository and uses the engine as a library. The engine is not copied into
-the game. [`templates/game/`](templates/game/) is a ready-made starting point: copy the directory
-and build it.
+the game. A typical layout:
 
 ```text
 mygame/
@@ -327,10 +322,11 @@ astra2d::AssetCache assets(astra2d::findDirectory(
     {astra2d::executableDirectory() / "assets", GAME_SOURCE_ASSETS_DIR}));
 ```
 
+In `meson.build`, pass the development path with
+`cpp_args : ['-DGAME_SOURCE_ASSETS_DIR="' + meson.current_source_dir() / 'assets' + '"']`.
 `meson install` places the executable and `assets/` side by side, ready to copy to another
-machine. The [template README](templates/game/README.md) covers shipping, including a fully static
-build. CI builds and runs the template as a separate project on every push, so this setup keeps
-working.
+machine. That machine needs GLFW, spdlog and fmt, unless the game is configured with
+`--wrap-mode=forcefallback -Ddefault_library=static`, which links them into the executable.
 
 Inside this repository, examples use `engine_dep` directly, as `examples/meson.build` does.
 

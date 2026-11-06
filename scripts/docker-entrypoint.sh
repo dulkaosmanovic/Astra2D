@@ -10,10 +10,8 @@
 #   sandbox [SECONDS] smoke tests: run the sandbox for a few seconds (default 5), every other
 #                     example for 2 seconds and renderer_stress for a few frames, on an Xvfb
 #                     virtual display when no display is available
-#   template          build templates/game as a separate project that uses this checkout of
-#                     the engine (as a game in its own repository would), and run it briefly
 #   lint              check formatting (clang-format) and run static analysis (clang-tidy)
-#   all               lint, test, valgrind, release, docs, sandbox and template
+#   all               lint, test, valgrind, release, docs and sandbox
 #   shell             start an interactive shell
 
 set -euo pipefail
@@ -72,7 +70,7 @@ cmd_valgrind() {
 cmd_lint() {
     section "Formatting (clang-format)"
     local files
-    mapfile -t files < <(find include src examples tests templates -name '*.cpp' -o -name '*.hpp' | sort)
+    mapfile -t files < <(find include src examples tests -name '*.cpp' -o -name '*.hpp' | sort)
     clang-format --version
     clang-format --dry-run --Werror "${files[@]}"
     echo "All ${#files[@]} files are formatted"
@@ -136,23 +134,6 @@ cmd_sandbox() {
     done
 }
 
-cmd_template() {
-    section "Game template as a separate project"
-    # A copy outside the repository, with this checkout as its subprojects/astra2d (what a git
-    # submodule gives), so the template is built exactly as a game's own repository builds it.
-    local dir
-    dir=$(mktemp -d)
-    cp -r templates/game/. "$dir/"
-    ln -s "$PWD" "$dir/subprojects/astra2d"
-    # Warnings are errors in the template's own code. The engine is already built with -Werror
-    # by the other jobs; here it is compiled the way a game compiles it, where false positives in
-    # third-party headers (e.g. GCC 13's -Warray-bounds inside fmt) must not break the game.
-    meson setup "$dir/build" "$dir" -Dwerror=true -Dastra2d:werror=false
-    ninja -C "$dir/build"
-    run_for 2 "$dir/build/mygame"
-    rm -rf "$dir"
-}
-
 case ${1:-test} in
     test)     cmd_test ;;
     valgrind) cmd_valgrind ;;
@@ -160,11 +141,10 @@ case ${1:-test} in
     lint)     cmd_lint ;;
     docs)     cmd_docs "${2:-}" ;;
     sandbox)  cmd_sandbox "${2:-}" ;;
-    template) cmd_template ;;
-    all)      cmd_lint; cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox; cmd_template ;;
+    all)      cmd_lint; cmd_test; cmd_valgrind; cmd_release; cmd_docs; cmd_sandbox ;;
     shell)    exec bash ;;
     *)
-        sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '3,15p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac
