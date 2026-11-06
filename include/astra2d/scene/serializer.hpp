@@ -38,9 +38,9 @@ class Scene;
 /// @endcode
 ///
 /// Built in: Name, Transform, SpriteRenderer (textures are stored by path, so an AssetCache is
-/// needed), RigidBody, Collider; the hierarchy (Relationship) is stored as `parent`. Components of
-/// the game, or ones that refer to run-time data the engine cannot name (Animator points at
-/// animations), are added with registerComponent():
+/// needed), RigidBody, Collider, TilemapCollider; the hierarchy (Relationship) is stored as
+/// `parent`. Components of the game, or ones that refer to run-time data the engine cannot name
+/// (Animator points at animations), are added with registerComponent():
 ///
 /// @code
 /// struct Health { int value; };

@@ -115,14 +115,169 @@ Enum enumFromJson(const json& j, const EnumName<Enum> (&names)[N]) // NOLINT(*-a
 constexpr EnumName<BodyType> kBodyTypes[] = {{.value = BodyType::Static, .name = "static"},
                                              {.value = BodyType::Dynamic, .name = "dynamic"},
                                              {.value = BodyType::Kinematic, .name = "kinematic"}};
-constexpr EnumName<ColliderShape> kShapes[] = {{.value = ColliderShape::Box, .name = "box"},
-                                               {.value = ColliderShape::Circle, .name = "circle"}};
+constexpr EnumName<ColliderShape> kShapes[] = {
+    {.value = ColliderShape::Box, .name = "box"},
+    {.value = ColliderShape::Circle, .name = "circle"},
+    {.value = ColliderShape::Polygon, .name = "polygon"}};
 constexpr EnumName<TextureFilter> kFilters[] = {
     {.value = TextureFilter::Nearest, .name = "nearest"},
     {.value = TextureFilter::Linear, .name = "linear"}};
 constexpr EnumName<TextureWrap> kWraps[] = {{.value = TextureWrap::ClampToEdge, .name = "clamp"},
                                             {.value = TextureWrap::Repeat, .name = "repeat"}};
 // NOLINTEND(*-avoid-c-arrays)
+
+// ---------------------------------------------------------------------------------------------
+// Physics components
+
+json saveRigidBody(const RigidBody& b, const SceneSerializer::SaveContext& /*context*/)
+{
+    return json{{"type", enumToString(b.type, kBodyTypes)},
+                {"velocity", toJson(b.velocity)},
+                {"mass", number(b.mass)},
+                {"gravityScale", number(b.gravityScale)},
+                {"linearDamping", number(b.linearDamping)},
+                {"angularVelocity", number(b.angularVelocity)},
+                {"angularDamping", number(b.angularDamping)},
+                {"fixedRotation", b.fixedRotation},
+                {"bullet", b.bullet},
+                {"allowSleep", b.allowSleep}};
+}
+
+RigidBody loadRigidBody(const json& j, const SceneSerializer::LoadContext& /*context*/)
+{
+    RigidBody b;
+    if (const auto type = j.find("type"); type != j.end()) {
+        b.type = enumFromJson(*type, kBodyTypes);
+    }
+    read(j, "velocity", b.velocity);
+    read(j, "mass", b.mass);
+    read(j, "gravityScale", b.gravityScale);
+    read(j, "linearDamping", b.linearDamping);
+    read(j, "angularVelocity", b.angularVelocity);
+    read(j, "angularDamping", b.angularDamping);
+    read(j, "fixedRotation", b.fixedRotation);
+    read(j, "bullet", b.bullet);
+    read(j, "allowSleep", b.allowSleep);
+    if (!(b.mass > 0.0F)) {
+        throw std::runtime_error("mass must be positive");
+    }
+    return b;
+}
+
+json saveCollider(const Collider& c, const SceneSerializer::SaveContext& /*context*/)
+{
+    json points = json::array();
+    for (const glm::vec2 p : c.points) {
+        points.push_back(toJson(p));
+    }
+    return json{{"shape", enumToString(c.shape, kShapes)},
+                {"halfExtents", toJson(c.halfExtents)},
+                {"radius", number(c.radius)},
+                {"offset", toJson(c.offset)},
+                {"restitution", number(c.restitution)},
+                {"friction", number(c.friction)},
+                {"isTrigger", c.isTrigger},
+                {"points", points},
+                {"oneWay", c.oneWay},
+                {"category", c.category},
+                {"mask", c.mask}};
+}
+
+Collider loadCollider(const json& j, const SceneSerializer::LoadContext& /*context*/)
+{
+    Collider c;
+    if (const auto shape = j.find("shape"); shape != j.end()) {
+        c.shape = enumFromJson(*shape, kShapes);
+    }
+    read(j, "halfExtents", c.halfExtents);
+    read(j, "radius", c.radius);
+    read(j, "offset", c.offset);
+    read(j, "restitution", c.restitution);
+    read(j, "friction", c.friction);
+    read(j, "isTrigger", c.isTrigger);
+    if (const auto points = j.find("points"); points != j.end()) {
+        for (const json& p : *points) {
+            c.points.push_back(vec2From(p));
+        }
+    }
+    read(j, "oneWay", c.oneWay);
+    read(j, "category", c.category);
+    read(j, "mask", c.mask);
+    return c;
+}
+
+// Tiles as text rows, top row first, like the level looks: '#' solid, '-' one-way, '.' empty.
+char tileChar(TileCollision tile)
+{
+    switch (tile) {
+    case TileCollision::Solid:
+        return '#';
+    case TileCollision::OneWay:
+        return '-';
+    case TileCollision::Empty:
+        break;
+    }
+    return '.';
+}
+
+TileCollision tileFromChar(char c)
+{
+    switch (c) {
+    case '#':
+        return TileCollision::Solid;
+    case '-':
+        return TileCollision::OneWay;
+    case '.':
+        return TileCollision::Empty;
+    default:
+        throw std::runtime_error(std::format("unknown tile '{}'", c));
+    }
+}
+
+json saveTilemap(const TilemapCollider& t, const SceneSerializer::SaveContext& /*context*/)
+{
+    json rows = json::array();
+    for (int y = t.grid.height - 1; y >= 0; --y) {
+        std::string row;
+        for (int x = 0; x < t.grid.width; ++x) {
+            row += tileChar(t.grid.at(x, y));
+        }
+        rows.push_back(row);
+    }
+    return json{{"tileSize", number(t.grid.tileSize)},
+                {"origin", toJson(t.grid.origin)},
+                {"rows", rows},
+                {"friction", number(t.friction)},
+                {"restitution", number(t.restitution)},
+                {"category", t.category},
+                {"mask", t.mask}};
+}
+
+TilemapCollider loadTilemap(const json& j, const SceneSerializer::LoadContext& /*context*/)
+{
+    TilemapCollider t;
+    read(j, "tileSize", t.grid.tileSize);
+    read(j, "origin", t.grid.origin);
+    read(j, "friction", t.friction);
+    read(j, "restitution", t.restitution);
+    read(j, "category", t.category);
+    read(j, "mask", t.mask);
+    const auto rows = j.at("rows").get<std::vector<std::string>>();
+    const std::size_t width = rows.empty() ? 0 : rows.front().size();
+    t.grid.height = static_cast<int>(rows.size());
+    t.grid.width = static_cast<int>(width);
+    t.grid.cells.assign(rows.size() * width, TileCollision::Empty);
+    for (std::size_t r = 0; r < rows.size(); ++r) {
+        if (rows[r].size() != width) {
+            throw std::runtime_error("tile rows must all have the same length");
+        }
+        const int y = t.grid.height - 1 - static_cast<int>(r); // the first row is the top one
+        for (std::size_t x = 0; x < width; ++x) {
+            t.grid.set(static_cast<int>(x), y, tileFromChar(rows[r][x]));
+        }
+    }
+    return t;
+}
 
 } // namespace
 
@@ -235,45 +390,9 @@ void SceneSerializer::registerBuiltIns()
         return s;
     });
 
-    registerComponent<RigidBody>("RigidBody", [](const RigidBody& b, const SaveContext&) {
-        return json{{"type", enumToString(b.type, kBodyTypes)},
-                    {"velocity", toJson(b.velocity)},
-                    {"mass", number(b.mass)},
-                    {"gravityScale", number(b.gravityScale)},
-                    {"linearDamping", number(b.linearDamping)}};
-    }, [](const json& j, const LoadContext&) {
-        RigidBody b;
-        if (const auto type = j.find("type"); type != j.end()) {
-            b.type = enumFromJson(*type, kBodyTypes);
-        }
-        read(j, "velocity", b.velocity);
-        read(j, "mass", b.mass);
-        read(j, "gravityScale", b.gravityScale);
-        read(j, "linearDamping", b.linearDamping);
-        return b;
-    });
-
-    registerComponent<Collider>("Collider", [](const Collider& c, const SaveContext&) {
-        return json{{"shape", enumToString(c.shape, kShapes)},
-                    {"halfExtents", toJson(c.halfExtents)},
-                    {"radius", number(c.radius)},
-                    {"offset", toJson(c.offset)},
-                    {"restitution", number(c.restitution)},
-                    {"friction", number(c.friction)},
-                    {"isTrigger", c.isTrigger}};
-    }, [](const json& j, const LoadContext&) {
-        Collider c;
-        if (const auto shape = j.find("shape"); shape != j.end()) {
-            c.shape = enumFromJson(*shape, kShapes);
-        }
-        read(j, "halfExtents", c.halfExtents);
-        read(j, "radius", c.radius);
-        read(j, "offset", c.offset);
-        read(j, "restitution", c.restitution);
-        read(j, "friction", c.friction);
-        read(j, "isTrigger", c.isTrigger);
-        return c;
-    });
+    registerComponent<RigidBody>("RigidBody", saveRigidBody, loadRigidBody);
+    registerComponent<Collider>("Collider", saveCollider, loadCollider);
+    registerComponent<TilemapCollider>("TilemapCollider", saveTilemap, loadTilemap);
 }
 
 // ---------------------------------------------------------------------------------------------

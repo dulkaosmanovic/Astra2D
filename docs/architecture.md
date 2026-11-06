@@ -54,7 +54,7 @@ digraph layers {
 | @ref assets "assets" | Load each texture and shader file once | yes | ready |
 | @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, debug lines | yes | ready |
 | @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | no | ready |
-| physics | Bodies, shapes, broad and narrow phase, impulse solver | no | planned |
+| @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | no | ready |
 | @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files | rendering only | ready |
 | debug | Debug drawing and statistics | yes | planned |
 

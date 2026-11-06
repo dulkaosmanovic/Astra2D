@@ -43,11 +43,25 @@ Public headers live in `include/astra2d/ecs/`.
 */
 
 /**
+@defgroup physics Physics
+@brief Rigid bodies, circle/box/polygon shapes, broad phases (brute force, sort and sweep, uniform
+grid), narrow phase with contact manifolds, an impulse solver with friction and restitution,
+triggers, one-way platforms, sleeping, continuous collision and tile map collision.
+
+Depends only on @ref core (assertions) and GLM; no OpenGL and no ECS, so all of it is unit-tested.
+See @ref physics_guide for how a step works and why.
+
+Public headers live in `include/astra2d/physics/`.
+*/
+
+/**
 @defgroup scene Scene
 @brief Scene with systems in a fixed order, built-in components (Transform, SpriteRenderer,
-Animator, RigidBody, Collider), parent/child hierarchy, rendering and JSON scene files.
+Animator, RigidBody, Collider, TilemapCollider), parent/child hierarchy, rendering, physics
+integration (PhysicsSystem) and JSON scene files.
 
-Builds on @ref ecs, @ref renderer and @ref assets. See @ref ecs_guide.
+Builds on @ref ecs, @ref physics, @ref renderer and @ref assets. See @ref ecs_guide and
+@ref physics_guide.
 
 Public headers live in `include/astra2d/scene/`.
 */

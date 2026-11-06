@@ -127,21 +127,21 @@ Stretch
 ## 5. Physics & collision
 
 Required
-- [ ] Shapes: AABB and circle; all pair tests (AABB–AABB, circle–circle, AABB–circle)
-- [ ] Contact manifold: normal, penetration depth
-- [ ] Impulse resolution with restitution and friction; positional correction
-- [ ] Body types: static, dynamic, kinematic; gravity; mass / material
-- [ ] Broad phase: uniform grid **or** sort-and-sweep, plus brute force O(n²) for comparison
-- [ ] Triggers (overlap without response) and collision callbacks
-- [ ] Tilemap collision and ground detection (needed for the platformer)
-- [ ] ECS integration: physics system syncs `RigidBody` ↔ `Transform`
-- [ ] Tests for every shape pair and resolution edge cases; deterministic stepping
-- [ ] Demo `examples/physics_playground` (spawn bodies with the mouse, stacking)
+- [x] Shapes: AABB and circle; all pair tests (AABB–AABB, circle–circle, AABB–circle)
+- [x] Contact manifold: normal, penetration depth
+- [x] Impulse resolution with restitution and friction; positional correction (split impulses)
+- [x] Body types: static, dynamic, kinematic; gravity; mass / material
+- [x] Broad phase: uniform grid **and** sort-and-sweep, plus brute force O(n²) for comparison; `scripts/bench_physics.sh` runs E3
+- [x] Triggers (overlap without response) and collision callbacks (world events, `PhysicsSystem` signals)
+- [x] Tilemap collision and ground detection (needed for the platformer): merged tiles, internal edges disabled, `isGrounded()`, ray casts
+- [x] ECS integration: physics system syncs `RigidBody` ↔ `Transform` (`PhysicsSystem`, `TilemapCollider`)
+- [x] Tests for every shape pair and resolution edge cases; deterministic stepping (also across broad phases)
+- [x] Demo `examples/physics_playground` (spawn bodies with the mouse, stacking); `coin_collector` uses triggers and collisions
 
 Stretch
-- [ ] Oriented boxes and polygons (SAT), contact points for rotation
-- [ ] Iterative solver with warm starting (more stable stacking)
-- [ ] One-way platforms, sleeping bodies, continuous collision (fast bullets)
+- [x] Oriented boxes and polygons (SAT), contact points for rotation
+- [x] Iterative solver with warm starting (more stable stacking), plus a 2-point block solver; E4 in `scripts/bench_physics.sh`
+- [x] One-way platforms, sleeping bodies (islands), continuous collision (fast bullets, speculative contacts)
 
 ## 6. Debug tools
 

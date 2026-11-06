@@ -18,7 +18,10 @@ test_sources = files(
   'test_paths.cpp',
   'test_ecs.cpp',
   'test_scene.cpp',
-  'test_serializer.cpp'
+  'test_serializer.cpp',
+  'test_collision.cpp',
+  'test_physics.cpp',
+  'test_physics_system.cpp'
 )
 
 test_exe = executable(

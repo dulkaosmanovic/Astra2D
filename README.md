@@ -44,7 +44,7 @@ Core features (required scope of the project):
 - keyboard and mouse input
 - batched 2D sprite renderer, textures, sprite animation, orthographic camera
 - sparse-set entity component system
-- impulse-based 2D physics: AABB and circle colliders, broad phase, triggers, tilemap collision
+- impulse-based 2D physics: box, circle and polygon colliders, broad phase, triggers, tilemap collision
 - debug drawing of colliders and contacts, performance statistics
 - example platformer game and per-system demo applications
 
@@ -67,11 +67,18 @@ The engine is in development. Done so far:
 - **assets**: texture, shader, effect and font loading with a cache and hot reloading;
 - **ecs**: entities with generations, sparse-set component storage, registry, views iterating the
   smallest pool, component add/remove signals; benchmarked against OOP game objects (E2);
+- **physics**: rigid bodies (static, dynamic, kinematic) with circle, box and convex polygon
+  shapes; brute force, sort-and-sweep and uniform grid broad phases (E3); SAT narrow phase with
+  two-point manifolds; sequential impulse solver with warm starting, a block solver for stable
+  stacks, friction, restitution and split-impulse overlap removal (E4); triggers, contact events,
+  collision filtering, one-way platforms, island sleeping, continuous collision for bullets, tile
+  map collision without ghost edges, ray casts; deterministic;
 - **scene**: scene with systems in a fixed order, Transform / SpriteRenderer / Animator / RigidBody /
-  Collider components, parent/child hierarchy, sprite rendering by layer, JSON scene files;
+  Collider / TilemapCollider components, parent/child hierarchy, sprite rendering by layer, JSON
+  scene files, PhysicsSystem connecting components to the physics world;
 - tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
-Next: physics and collision. Progress is tracked in [PLAN.md](PLAN.md).
+Next: debug tools. Progress is tracked in [PLAN.md](PLAN.md).
 
 ---
 
@@ -155,8 +162,9 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 | `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
 | `./build/examples/input` | Action mapping, gamepads, rebinding at run time, game events |
 | `./build/examples/post_processing` | Render targets and effects (1-4 switch, Tab low resolution) |
-| `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, states, score, lives, shake, events |
+| `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, physics triggers and collisions, states, score, lives, shake, events |
 | `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
+| `./build/examples/physics_playground` | Physics: spawn and drag bodies, stacks, bullets, one-way platforms, tile map, trigger zone; switch broad phase (B), debug draw (D) |
 | `./build/examples/Sandbox` | Everything at once: a Scene with interpolated movement, parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 
@@ -313,6 +321,21 @@ void onRender() override { m_renderer.begin(m_camera); m_scene.render(m_renderer
 The [ECS guide](https://dulkaosmanovic.github.io/Astra2D/ecs_guide.html) explains sparse sets,
 views, signals, the hierarchy and scene files.
 
+Physics is added to a scene with a `PhysicsSystem`; entities get a `Collider` and, if they move, a
+`RigidBody`:
+
+```cpp
+astra2d::PhysicsSystem m_physics{m_scene}; // a member after the scene
+
+const auto crate = m_scene.createEntity("crate", {0.0F, 5.0F});
+m_scene.registry().emplace<astra2d::RigidBody>(crate);
+m_scene.registry().emplace<astra2d::Collider>(crate); // a 1x1 box; without RigidBody: static
+m_physics.onCollisionBegin().connect([](const astra2d::CollisionEvent& e) { /* e.a hit e.b */ });
+```
+
+The [physics guide](https://dulkaosmanovic.github.io/Astra2D/physics_guide.html) explains the
+broad and narrow phase, the solver, one-way platforms, tile maps and bullets.
+
 ### Benchmarks
 
 `scripts/bench_renderer.sh` runs evaluation E1 (batched vs. one draw call per sprite at 1k to 100k
@@ -322,6 +345,10 @@ the machine. Run it on an otherwise idle machine with the window visible.
 `scripts/bench_ecs.sh` runs evaluation E2 (ECS vs. OOP game objects with a virtual `update()` at
 10k to 1M objects) and writes `benchmarks/results/e2_ecs.csv`. See
 [benchmarks/README.md](benchmarks/README.md) for the method and the CSV columns.
+
+`scripts/bench_physics.sh` runs evaluations E3 (brute force vs. sort-and-sweep vs. uniform grid
+broad phase at 100 to 5000 bodies) and E4 (drift of box towers, energy of a bouncing ball) headless
+and writes `benchmarks/results/e3_broadphase.csv`, `e4_stack.csv` and `e4_bounce.csv`.
 
 ### Making a game with Astra2D
 
@@ -370,7 +397,7 @@ machine. That machine needs GLFW, spdlog and fmt, unless the game is configured 
 
 Inside this repository, examples use `engine_dep` directly, as `examples/meson.build` does.
 
-More documentation on rendering, entities, physics and scenes will be added as these systems are implemented.
+Guides for every module (core, renderer, ECS and scenes, physics) are part of the documentation below.
 
 ---
 
