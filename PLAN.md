@@ -110,19 +110,19 @@ Stretch
 ## 4. ECS
 
 Required
-- [ ] `Entity` = 32-bit id with index + generation (detects stale handles)
-- [ ] Sparse-set storage per component type
-- [ ] `Registry`: create/destroy entity; add/get/remove/has component
-- [ ] `View<A, B, ...>` iterating the smallest set
-- [ ] `Scene` owning a registry and running systems in a fixed order
-- [ ] Components: `Transform`, `Sprite`, `Animator`, `RigidBody`, `Collider`
-- [ ] Tests: lifetime, generation reuse, views, removal during iteration
-- [ ] Benchmark vs. a naive OOP `GameObject` with virtual `update()` (used in evaluation)
+- [x] `Entity` = 32-bit id with index + generation (detects stale handles)
+- [x] Sparse-set storage per component type
+- [x] `Registry`: create/destroy entity; add/get/remove/has component
+- [x] `View<A, B, ...>` iterating the smallest set
+- [x] `Scene` owning a registry and running systems in a fixed order
+- [x] Components: `Transform`, `Sprite`, `Animator`, `RigidBody`, `Collider` (`SpriteRenderer`; `RigidBody` and `Collider` are data until module 5)
+- [x] Tests: lifetime, generation reuse, views, removal during iteration
+- [x] Benchmark vs. a naive OOP `GameObject` with virtual `update()` (used in evaluation): `benchmarks/ecs_benchmark`, `scripts/bench_ecs.sh` runs E2
 
 Stretch
-- [ ] Entity hierarchy (parent/child transforms)
-- [ ] Component add/remove signals
-- [ ] Scene serialization (JSON)
+- [x] Entity hierarchy (parent/child transforms)
+- [x] Component add/remove signals
+- [x] Scene serialization (JSON)
 
 ## 5. Physics & collision
 

@@ -30,6 +30,7 @@ The project emphasizes clean architecture, modularity, testability and measurabl
 | Window and input | GLFW |
 | Math | GLM |
 | Logging | spdlog |
+| Scene files | nlohmann/json |
 | Build system | Meson + Ninja (dependencies via system packages or Meson wraps) |
 | Testing | GoogleTest, AddressSanitizer, UndefinedBehaviorSanitizer, Valgrind |
 | Documentation | Doxygen + doxygen-awesome-css |
@@ -64,9 +65,13 @@ The engine is in development. Done so far:
   shake, sprite sheets and frame animation, render targets and post-processing effects, RAII
   OpenGL wrappers, render statistics;
 - **assets**: texture, shader, effect and font loading with a cache and hot reloading;
+- **ecs**: entities with generations, sparse-set component storage, registry, views iterating the
+  smallest pool, component add/remove signals; benchmarked against OOP game objects (E2);
+- **scene**: scene with systems in a fixed order, Transform / SpriteRenderer / Animator / RigidBody /
+  Collider components, parent/child hierarchy, sprite rendering by layer, JSON scene files;
 - tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
-Next: the entity component system. Progress is tracked in [PLAN.md](PLAN.md).
+Next: physics and collision. Progress is tracked in [PLAN.md](PLAN.md).
 
 ---
 
@@ -82,7 +87,7 @@ Astra2D/
 ├── scripts/          # Development and setup scripts
 ├── external/         # Vendored code
 ├── subprojects/      # Meson wrap files for dependencies
-├── benchmarks/       # Benchmark results (CSV) for the evaluation
+├── benchmarks/       # Headless benchmark programs and their results (CSV)
 ├── PLAN.md           # Development plan
 ├── meson.options     # Build options (tests, examples)
 ├── .clang-format     # Code formatting rules
@@ -151,6 +156,7 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 | `./build/examples/input` | Action mapping, gamepads, rebinding at run time, game events |
 | `./build/examples/post_processing` | Render targets and effects (1-4 switch, Tab low resolution) |
 | `./build/examples/coin_collector` | A small complete game: states, score, lives, shake, events |
+| `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
 | `./build/examples/Sandbox` | Everything at once: parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 
@@ -277,11 +283,45 @@ class MyGame : public astra2d::Application {
 See the [renderer guide](https://dulkaosmanovic.github.io/Astra2D/renderer_guide.html) for the
 camera, sprite animation and how batching works.
 
+Larger games keep their objects as entities in a `Scene` and their logic in systems:
+
+```cpp
+#include <astra2d/scene/scene.hpp>
+
+struct Spin { float speed; };   // a component: plain data
+
+astra2d::Scene m_scene;
+
+// In the constructor:
+const astra2d::Entity sun = m_scene.createEntity("sun");            // has a Transform
+m_scene.registry().emplace<astra2d::SpriteRenderer>(sun, astra2d::SpriteRenderer{.size = {64, 64}});
+m_scene.registry().emplace<Spin>(sun, 0.5F);
+const astra2d::Entity planet = m_scene.createEntity("planet", {150, 0});
+m_scene.setParent(planet, sun);                                      // orbits with the sun
+
+m_scene.addSystem(astra2d::SystemPhase::FixedUpdate, "spin", [](astra2d::Scene& scene, float dt) {
+    scene.registry().view<astra2d::Transform, Spin>().each(
+        [dt](astra2d::Transform& t, const Spin& s) { t.rotation += s.speed * dt; });
+});
+
+// In the hooks:
+void onFixedUpdate(float dt) override { m_scene.fixedUpdate(dt); }
+void onUpdate(float dt) override { m_scene.update(dt); }
+void onRender() override { m_renderer.begin(m_camera); m_scene.render(m_renderer); m_renderer.end(); }
+```
+
+The [ECS guide](https://dulkaosmanovic.github.io/Astra2D/ecs_guide.html) explains sparse sets,
+views, signals, the hierarchy and scene files.
+
 ### Benchmarks
 
 `scripts/bench_renderer.sh` runs evaluation E1 (batched vs. one draw call per sprite at 1k to 100k
 sprites) in a release build and writes `benchmarks/results/e1_renderer.csv` plus a description of
 the machine. Run it on an otherwise idle machine with the window visible.
+
+`scripts/bench_ecs.sh` runs evaluation E2 (ECS vs. OOP game objects with a virtual `update()` at
+10k to 1M objects) and writes `benchmarks/results/e2_ecs.csv`. See
+[benchmarks/README.md](benchmarks/README.md) for the method and the CSV columns.
 
 ### Making a game with Astra2D
 

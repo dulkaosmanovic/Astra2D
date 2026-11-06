@@ -60,16 +60,16 @@ int main()
 <div class="astra-card-text">Batched sprite and text renderer, sprite sheets and animation, camera with rotation, parallax and shake, post-processing, asset cache with hot reloading. @ref renderer_guide "Guide" · @ref renderer "API"</div>
 </div>
 <div class="astra-card">
-<span class="astra-card-title">ECS <span class="astra-status">planned</span></span>
-<div class="astra-card-text">Sparse-set entity component system with generational entity handles and views.</div>
+<span class="astra-card-title">ECS <span class="astra-status done">ready</span></span>
+<div class="astra-card-text">Sparse-set entity component system with generational entity handles, views and component signals. @ref ecs_guide "Guide" · @ref ecs "API"</div>
 </div>
 <div class="astra-card">
 <span class="astra-card-title">Physics <span class="astra-status">planned</span></span>
 <div class="astra-card-text">AABB and circle colliders, broad phase, impulse resolution with friction and restitution, triggers.</div>
 </div>
 <div class="astra-card">
-<span class="astra-card-title">Scene <span class="astra-status">planned</span></span>
-<div class="astra-card-text">Scenes owning a registry, systems run in a fixed order, level loading from text maps.</div>
+<span class="astra-card-title">Scene <span class="astra-status done">ready</span></span>
+<div class="astra-card-text">Scenes with systems in a fixed order, built-in components, parent/child hierarchy and JSON scene files. @ref ecs_guide "Guide" · @ref scene "API"</div>
 </div>
 <div class="astra-card">
 <span class="astra-card-title">Debug tools <span class="astra-status">planned</span></span>
@@ -95,4 +95,5 @@ int main()
 | understand how the engine is structured | @ref architecture |
 | learn how the main loop, timestep and input work | @ref core_guide |
 | draw sprites, use the camera and understand batching | @ref renderer_guide |
+| organize a game as entities, components and systems | @ref ecs_guide |
 | look up a class or function | [Modules](topics.html) or [Classes](annotated.html) |

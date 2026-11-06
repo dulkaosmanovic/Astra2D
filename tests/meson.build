@@ -15,7 +15,10 @@ test_sources = files(
   'test_camera_shake.cpp',
   'test_file_watcher.cpp',
   'test_font.cpp',
-  'test_paths.cpp'
+  'test_paths.cpp',
+  'test_ecs.cpp',
+  'test_scene.cpp',
+  'test_serializer.cpp'
 )
 
 test_exe = executable(

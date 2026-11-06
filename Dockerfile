@@ -22,7 +22,7 @@ RUN echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/o
         > /etc/pacman.d/mirrorlist \
  && pacman -Syyuu --noconfirm --needed \
         gcc clang meson ninja pkgconf \
-        glfw glm spdlog gtest \
+        glfw glm spdlog nlohmann-json gtest \
         mesa xorg-server-xvfb xorg-xauth \
         doxygen graphviz valgrind \
  && pacman -Scc --noconfirm

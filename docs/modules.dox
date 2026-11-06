@@ -31,6 +31,28 @@ Public headers live in `include/astra2d/assets/`.
 */
 
 /**
+@defgroup ecs ECS
+@brief Entities with generations, sparse-set component storage, the Registry, views and
+component signals.
+
+Depends only on @ref core (assertions); no OpenGL, so all of it is unit-tested. See
+@ref ecs_guide for how sparse sets and views work and the rules for changing the registry while
+iterating.
+
+Public headers live in `include/astra2d/ecs/`.
+*/
+
+/**
+@defgroup scene Scene
+@brief Scene with systems in a fixed order, built-in components (Transform, SpriteRenderer,
+Animator, RigidBody, Collider), parent/child hierarchy, rendering and JSON scene files.
+
+Builds on @ref ecs, @ref renderer and @ref assets. See @ref ecs_guide.
+
+Public headers live in `include/astra2d/scene/`.
+*/
+
+/**
 @namespace astra2d
 @brief All public engine types and functions.
 

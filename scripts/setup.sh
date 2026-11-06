@@ -16,6 +16,7 @@ sudo pacman -S --needed \
     glfw \
     glm \
     spdlog \
+    nlohmann-json \
     gtest \
     mesa \
     doxygen \

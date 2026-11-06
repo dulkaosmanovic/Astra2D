@@ -44,6 +44,8 @@ add_project_arguments('-Wundef', language : ['c', 'cpp'])
 glfw_dep = dependency('glfw3', include_type : 'system')
 glm_dep = dependency('glm', include_type : 'system')
 spdlog_dep = dependency('spdlog', include_type : 'system')
+# Header-only; scene files (SceneSerializer exposes nlohmann::json in its API).
+json_dep = dependency('nlohmann_json', include_type : 'system')
 opengl_dep = dependency('opengl')
 
 subdir('external')
@@ -62,6 +64,9 @@ subdir('src')
 
 if get_option('examples').disable_auto_if(meson.is_subproject()).allowed()
   subdir('examples')
+endif
+if get_option('benchmarks').disable_auto_if(meson.is_subproject()).allowed()
+  subdir('benchmarks')
 endif
 if get_option('tests').disable_auto_if(meson.is_subproject()).allowed()
   subdir('tests')
