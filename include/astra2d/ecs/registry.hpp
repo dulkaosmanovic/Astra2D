@@ -78,6 +78,8 @@ public:
     [[nodiscard]] Entity create();
 
     /// Removes all components of @p entity (emitting their onDestroy signals) and frees its slot.
+    /// onDestroy handlers may read the entity's components and change other entities, but must
+    /// not add components to the entity being destroyed.
     /// @pre valid(entity).
     void destroy(Entity entity);
 
@@ -111,11 +113,14 @@ public:
     /// Adds a @p Component built from @p args to @p entity (aggregates use brace initialization,
     /// so `emplace<Position>(e, glm::vec2{1, 2})` works for `struct Position { glm::vec2 value;
     /// }`).
-    /// @pre valid(entity) and the entity does not have the component yet.
+    /// @pre valid(entity), the entity does not have the component yet and is not being destroyed.
+    /// @throws std::logic_error if an onConstruct handler removed the new component again.
     template <typename Component, typename... Args>
     Component& emplace(Entity entity, Args&&... args)
     {
         ASTRA_ASSERT(valid(entity), "emplace on an invalid entity");
+        ASTRA_ASSERT(!m_dying[entity.index()],
+                     "cannot add components to an entity that is being destroyed");
         ComponentPool<Component>& pool = assure<Component>();
         ASTRA_ASSERT(!pool.contains(entity), "entity already has this component");
         return pool.emplace(*this, entity, std::forward<Args>(args)...);
@@ -127,6 +132,8 @@ public:
     Component& emplaceOrReplace(Entity entity, Args&&... args)
     {
         ASTRA_ASSERT(valid(entity), "emplaceOrReplace on an invalid entity");
+        ASTRA_ASSERT(!m_dying[entity.index()],
+                     "cannot add components to an entity that is being destroyed");
         ComponentPool<Component>& pool = assure<Component>();
         pool.remove(*this, entity);
         return pool.emplace(*this, entity, std::forward<Args>(args)...);
@@ -285,6 +292,7 @@ private:
     std::vector<std::unique_ptr<SparseSet>> m_pools; // by detail::componentId
     std::vector<std::uint32_t> m_generations;        // current generation per index
     std::vector<bool> m_alive;                       // per index
+    std::vector<bool> m_dying;                       // per index: inside destroy()
     std::vector<std::uint32_t> m_free;               // destroyed indices to reuse
     std::size_t m_aliveCount = 0;
 };

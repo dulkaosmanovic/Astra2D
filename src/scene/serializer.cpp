@@ -9,6 +9,9 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
+#include <array>
+#include <charconv>
+#include <cstdint>
 #include <exception>
 #include <format>
 #include <fstream>
@@ -26,10 +29,15 @@ constexpr std::string_view kFormat = "astra2d-scene";
 
 // JSON numbers are doubles; a float such as 0.3F would be written as 0.30000001192092896. Going
 // through the shortest decimal text that reads back as the same float gives 0.3, which reads back
-// exactly.
+// exactly. to_chars/from_chars ignore the C locale, so a game that sets a comma-decimal locale
+// (setlocale(LC_ALL, "")) still writes 0.3 and not 0.
 json number(float value)
 {
-    return std::stod(std::format("{}", value));
+    std::array<char, 32> text{};
+    const auto written = std::to_chars(text.data(), text.data() + text.size(), value);
+    double result = 0.0;
+    std::from_chars(text.data(), written.ptr, result);
+    return result;
 }
 
 json toJson(glm::vec2 v)
@@ -325,12 +333,17 @@ namespace {
 // The "entities" array of a scene document, after checking format and version.
 const json& entitiesOf(const json& document)
 {
-    if (!document.is_object() || document.value("format", std::string{}) != kFormat) {
+    // Checked by type first: json::value() would throw json::type_error for a wrongly typed
+    // field, and load() promises std::runtime_error.
+    const auto format = document.is_object() ? document.find("format") : document.end();
+    if (format == document.end() || !format->is_string() || *format != kFormat) {
         throw std::runtime_error(R"(Not an Astra2D scene (missing "format": "astra2d-scene"))");
     }
-    const int version = document.value("version", 0);
-    if (version != SceneSerializer::kVersion) {
-        throw std::runtime_error(std::format("Unsupported scene version {} (expected {})", version,
+    const auto version = document.find("version");
+    if (version == document.end() || !version->is_number_integer() ||
+        version->get<std::int64_t>() != SceneSerializer::kVersion) {
+        throw std::runtime_error(std::format("Unsupported scene version {} (expected {})",
+                                             version == document.end() ? "(none)" : version->dump(),
                                              SceneSerializer::kVersion));
     }
     const auto entities = document.find("entities");

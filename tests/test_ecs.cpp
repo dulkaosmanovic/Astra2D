@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -558,4 +559,131 @@ TEST(ViewTests, PairsTheRightComponentsWhenPoolsAreInDifferentOrders)
     registry.view<Velocity, Position>().each(
         [&](const Velocity& v, const Position& p) { EXPECT_FLOAT_EQ(p.x, v.x); });
     EXPECT_EQ(visited, 50 - 8);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Handlers that change the entity or pool being processed (code review regressions)
+
+namespace {
+// Types used nowhere else, so their pools only come into existence inside the handler.
+template <int N>
+struct FirstUseInHandler {};
+struct Doomed {};
+
+template <int... N>
+void emplaceNewTypes(Registry& registry, Entity entity, std::integer_sequence<int, N...> /*types*/)
+{
+    (registry.emplace<FirstUseInHandler<N>>(entity), ...);
+}
+} // namespace
+
+TEST(RegistrySignalTests, DestroyHandlerMayUseNewComponentTypes)
+{
+    // The first handler that runs creates 32 new pools while destroy() is still walking the pool
+    // list, which reallocates it. Walking it by iterator then read freed memory (ASan reports it).
+    Registry registry;
+    bool spawned = false;
+    const auto spawn = [&](Registry& r, Entity) {
+        if (!spawned) {
+            spawned = true;
+            emplaceNewTypes(r, r.create(), std::make_integer_sequence<int, 32>{});
+        }
+    };
+    // Both pools get the handler, so it runs first whichever order destroy() visits them in, and
+    // the other pool is visited after the reallocation.
+    const Connection a = registry.onDestroy<Position>().connect(spawn);
+    const Connection b = registry.onDestroy<Velocity>().connect(spawn);
+    const Entity entity = registry.create();
+    registry.emplace<Position>(entity);
+    registry.emplace<Velocity>(entity);
+    registry.destroy(entity);
+    EXPECT_FALSE(registry.valid(entity));
+    EXPECT_EQ(registry.count<Position>(), 0U);
+    EXPECT_EQ(registry.count<Velocity>(), 0U);
+    EXPECT_EQ(registry.count<FirstUseInHandler<31>>(), 1U);
+}
+
+TEST(RegistrySignalTests, ConstructHandlerRemovingTheComponentMakesEmplaceThrow)
+{
+    // A "reject" handler: emplace() has no component to return any more.
+    Registry registry;
+    const Connection reject = registry.onConstruct<Position>().connect(
+        [](Registry& r, Entity e) { r.remove<Position>(e); });
+    const Entity entity = registry.create();
+    EXPECT_THROW((void)registry.emplace<Position>(entity), std::logic_error);
+    EXPECT_FALSE(registry.has<Position>(entity));
+}
+
+TEST(RegistrySignalTests, DestroyHandlerMayDestroyTheSameEntityAgain)
+{
+    Registry registry;
+    const Connection again =
+        registry.onDestroy<Position>().connect([](Registry& r, Entity e) { r.destroy(e); });
+    const Entity entity = registry.create();
+    registry.emplace<Position>(entity);
+    registry.emplace<Velocity>(entity);
+    registry.destroy(entity);
+    EXPECT_FALSE(registry.valid(entity));
+    EXPECT_EQ(registry.alive(), 0U);
+    EXPECT_EQ(registry.count<Velocity>(), 0U);
+}
+
+#if ASTRA_ASSERTS_ENABLED
+TEST(RegistrySignalDeathTest, AddingComponentsToAnEntityBeingDestroyedAsserts)
+{
+    Registry registry;
+    const Connection resurrect =
+        registry.onDestroy<Position>().connect([](Registry& r, Entity e) { r.emplace<Doomed>(e); });
+    const Entity entity = registry.create();
+    registry.emplace<Position>(entity);
+    EXPECT_DEATH(registry.destroy(entity), "being destroyed");
+}
+#else
+TEST(RegistrySignalTests, ComponentAddedToAnEntityBeingDestroyedIsDropped)
+{
+    // Without assertions the component is discarded, so no stale entry survives the slot reuse.
+    Registry registry;
+    const Connection resurrect =
+        registry.onDestroy<Position>().connect([](Registry& r, Entity e) { r.emplace<Doomed>(e); });
+    const Entity entity = registry.create();
+    registry.emplace<Position>(entity);
+    registry.destroy(entity);
+    EXPECT_EQ(registry.count<Doomed>(), 0U);
+    const Entity reused = registry.create();
+    EXPECT_EQ(reused.index(), entity.index());
+    EXPECT_EQ(registry.view<Doomed>().count(), 0U);
+}
+#endif
+
+TEST(SignalTests, NestedEmitAndDisconnectDuringEmit)
+{
+    // emit() no longer copies the handler list; nested emits must still see stable indices.
+    Signal<int> signal;
+    std::vector<int> log;
+    Connection second;
+    const Connection first = signal.connect([&](int depth) {
+        log.push_back(depth);
+        if (depth == 0) {
+            signal.emit(1); // nested
+            second.reset(); // disconnect a handler that has not run yet in the outer emit
+        }
+    });
+    second = signal.connect([&](int depth) { log.push_back(100 + depth); });
+    signal.emit(0);
+    // outer: first(0) -> nested: first(1), second(1) -> second disconnected before outer reaches it
+    EXPECT_EQ(log, (std::vector<int>{0, 1, 101}));
+    EXPECT_EQ(signal.size(), 1U);
+}
+
+TEST(SignalTests, ThrowingHandlerLeavesTheSignalUsable)
+{
+    Signal<> signal;
+    int calls = 0;
+    Connection throwing = signal.connect([] { throw std::runtime_error("handler failed"); });
+    EXPECT_THROW(signal.emit(), std::runtime_error);
+    throwing.reset();
+    const Connection counting = signal.connect([&] { ++calls; });
+    signal.emit(); // the disconnected handler is cleaned up and not called
+    EXPECT_EQ(calls, 1);
+    EXPECT_EQ(signal.size(), 1U);
 }

@@ -267,3 +267,41 @@ TEST(HierarchyDeathTest, CyclesAreRejected)
     EXPECT_DEATH(scene.setParent(a, a), "cycle");
 }
 #endif
+
+namespace {
+// When a ship's core is destroyed, the whole ship goes.
+struct Core {
+    Entity ship;
+};
+} // namespace
+
+TEST(HierarchyTests, HandlerDestroyingAnAncestorDuringDestroyEntity)
+{
+    // destroyEntity() lists the subtree first and destroys children before parents. A child's
+    // handler that destroys its parent meanwhile must not make destroyEntity() destroy the parent
+    // a second time (that hit the "invalid entity" assertion before).
+    Scene scene;
+    const Entity ship = scene.createEntity("ship");
+    const Entity core = scene.createEntity("core");
+    scene.setParent(core, ship);
+    scene.registry().emplace<Core>(core, Core{.ship = ship});
+    const astra2d::Connection connection =
+        scene.registry().onDestroy<Core>().connect([](astra2d::Registry& registry, Entity entity) {
+        const Entity owner = registry.get<Core>(entity).ship;
+        if (registry.valid(owner)) {
+            registry.destroy(owner);
+        }
+    });
+    scene.destroyEntity(ship);
+    EXPECT_EQ(scene.registry().alive(), 0U);
+}
+
+#if ASTRA_ASSERTS_ENABLED
+TEST(SceneDeathTest, RemovingASystemWhileSystemsRunAsserts)
+{
+    Scene scene;
+    scene.addSystem(SystemPhase::Update, "remover",
+                    [](Scene& s, float) { s.removeSystem("animation"); });
+    EXPECT_DEATH(scene.update(0.0F), "while systems are running");
+}
+#endif

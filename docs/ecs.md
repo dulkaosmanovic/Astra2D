@@ -123,6 +123,19 @@ astra2d::Connection connection = registry.onDestroy<Pickup>().connect(
 ```
 
 A @ref astra2d::Connection disconnects its handler when destroyed, like an event subscription.
+
+Handlers run in the middle of a change to the registry, so a few rules keep that change consistent.
+The tests in `tests/test_ecs.cpp` cover each of them:
+
+- Handlers may create and destroy entities, and add or remove components of other entities. That
+  includes component types used for the first time.
+- An `onDestroy` handler may read the dying entity's components, but must not add new ones to it
+  (an assertion). In release builds, any that are added anyway are dropped, so nothing outlives the
+  entity. Destroying the dying entity again is harmless.
+- An `onConstruct` handler may remove the component it was told about (to reject it). `emplace()`
+  then throws `std::logic_error`, because it has no component left to return.
+- Emitting does not copy the handler list. Handlers connected during an emit first run on the next
+  one, and disconnected ones are skipped at once.
 Signals let independent code react to changes without the code making them knowing about it; the
 Scene uses one itself to keep the hierarchy consistent (below).
 

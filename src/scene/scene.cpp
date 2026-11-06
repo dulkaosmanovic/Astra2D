@@ -84,7 +84,10 @@ void Scene::destroyEntity(Entity entity)
         }
     }
     for (const Entity doomed : std::views::reverse(subtree)) {
-        m_registry.destroy(doomed);
+        // An onDestroy handler of an earlier entity may have destroyed this one already.
+        if (m_registry.valid(doomed)) {
+            m_registry.destroy(doomed);
+        }
     }
 }
 
@@ -147,7 +150,8 @@ void Scene::setParent(Entity child, Entity parent, bool keepWorldTransform)
     ASTRA_ASSERT(parent != child && (parent.isNull() || !isAncestor(child, parent)),
                  "setParent would create a cycle");
 
-    const Transform world = worldTransform(child);
+    // Only computed when needed: O(depth) per call.
+    const Transform world = keepWorldTransform ? worldTransform(child) : Transform{};
     detach(child);
     if (!parent.isNull()) {
         if (!m_registry.has<Relationship>(parent)) {
@@ -267,6 +271,7 @@ void Scene::addSystem(SystemPhase phase, std::string name, System system)
 
 bool Scene::removeSystem(std::string_view name)
 {
+    ASTRA_ASSERT(m_runningSystems == 0, "removeSystem('{}') while systems are running", name);
     return std::erase_if(m_systems, [&](const RegisteredSystem& s) { return s.name == name; }) > 0;
 }
 
@@ -283,15 +288,22 @@ std::vector<std::string> Scene::systemNames(SystemPhase phase) const
 
 void Scene::runPhase(SystemPhase phase, float deltaTime)
 {
-    // By index: a system may add systems (they run from the next step on, after the current one).
+    // By index, up to the systems present now: a system may add systems, which run from the next
+    // step on. m_systems is a deque, so appending does not move the running one.
     const std::size_t count = m_systems.size();
-    for (std::size_t i = 0; i < count && i < m_systems.size(); ++i) {
-        if (m_systems[i].phase == phase) {
-            // A copy, so the system can add others without invalidating what is running.
-            const System run = m_systems[i].run;
-            run(*this, deltaTime);
+    ++m_runningSystems;
+    try {
+        for (std::size_t i = 0; i < count; ++i) {
+            const RegisteredSystem& system = m_systems[i];
+            if (system.phase == phase) {
+                system.run(*this, deltaTime);
+            }
         }
+    } catch (...) {
+        --m_runningSystems;
+        throw;
     }
+    --m_runningSystems;
 }
 
 void Scene::fixedUpdate(float fixedDeltaTime)
@@ -325,8 +337,7 @@ void Scene::collectDrawItems(Entity root)
             local != nullptr ? compose(current.parentWorld, *local) : current.parentWorld;
         if (const auto* sprite = m_registry.tryGet<SpriteRenderer>(current.entity);
             sprite != nullptr && sprite->visible) {
-            m_drawItems.push_back(
-                {.layer = sprite->layer, .world = world, .entity = current.entity});
+            m_drawItems.push_back({.layer = sprite->layer, .world = world, .sprite = sprite});
         }
         // Pushed in reverse, so the first child is popped first. The buffer keeps its capacity
         // between frames, so rendering does not allocate.
@@ -356,7 +367,7 @@ void Scene::render(Renderer2D& renderer)
     std::ranges::stable_sort(m_drawItems, {}, &DrawItem::layer);
 
     for (const DrawItem& item : m_drawItems) {
-        const SpriteRenderer& sprite = m_registry.get<SpriteRenderer>(item.entity);
+        const SpriteRenderer& sprite = *item.sprite;
         const glm::vec2 size = sprite.size * glm::abs(item.world.scale);
         if (sprite.sprite.texture != nullptr) {
             renderer.drawSprite(item.world.position, size, sprite.sprite, sprite.tint,

@@ -93,7 +93,7 @@ public:
     {
         const auto alive = std::make_shared<bool>(true);
         m_slots.push_back(
-            std::make_shared<Slot>(Slot{.alive = alive, .call = std::forward<Handler>(handler)}));
+            std::make_unique<Slot>(Slot{.alive = alive, .call = std::forward<Handler>(handler)}));
         return Connection{alive};
     }
 
@@ -103,19 +103,21 @@ public:
         if (m_slots.empty()) {
             return;
         }
-        // A snapshot: handlers that connect or disconnect others do not disturb this loop, and
-        // the shared_ptr keeps a running handler alive even if it is removed meanwhile.
-        const std::vector<std::shared_ptr<Slot>> slots = m_slots;
-        bool anyDead = false;
-        for (const auto& slot : slots) {
-            if (*slot->alive) {
-                slot->call(args...);
+        // No copy of the handler list (emit runs on every component add/remove): by index, up to
+        // the handlers present now, so handlers connected meanwhile wait for the next emit. Slots
+        // are heap objects, so they stay put when the vector grows, and disconnected ones are only
+        // erased once no emit is running, so indices stay valid in nested emits too.
+        const std::size_t count = m_slots.size();
+        {
+            const EmitGuard guard(m_emitting);
+            for (std::size_t i = 0; i < count; ++i) {
+                const Slot& slot = *m_slots[i];
+                if (*slot.alive) {
+                    slot.call(args...);
+                }
             }
         }
-        for (const auto& slot : m_slots) {
-            anyDead = anyDead || !*slot->alive;
-        }
-        if (anyDead) {
+        if (m_emitting == 0) {
             std::erase_if(m_slots, [](const auto& slot) { return !*slot->alive; });
         }
     }
@@ -139,7 +141,26 @@ private:
         std::function<void(Args...)> call;
     };
 
-    std::vector<std::shared_ptr<Slot>> m_slots;
+    // Counts running emits, also when a handler throws.
+    class EmitGuard {
+    public:
+        explicit EmitGuard(int& depth)
+            : m_depth(&depth)
+        {
+            ++*m_depth;
+        }
+        ~EmitGuard() { --*m_depth; }
+        EmitGuard(const EmitGuard&) = delete;
+        EmitGuard& operator=(const EmitGuard&) = delete;
+        EmitGuard(EmitGuard&&) = delete;
+        EmitGuard& operator=(EmitGuard&&) = delete;
+
+    private:
+        int* m_depth;
+    };
+
+    std::vector<std::unique_ptr<Slot>> m_slots;
+    int m_emitting = 0;
 };
 
 } // namespace astra2d

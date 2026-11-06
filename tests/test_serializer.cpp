@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <clocale>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
@@ -204,4 +206,51 @@ TEST(SerializerTests, FloatsAreWrittenShortAndReadBackExactly)
     EXPECT_EQ(position.x, 0.1F); // bit-exact round trip
     EXPECT_EQ(position.y, 1.0F / 3.0F);
     (void)entity;
+}
+
+TEST(SerializerTests, WronglyTypedHeaderFieldsThrowRuntimeError)
+{
+    // json::value() would have thrown json::type_error, which callers catching
+    // std::runtime_error (as documented) did not expect.
+    const SceneSerializer serializer;
+    Scene scene;
+    EXPECT_THROW(serializer.load(scene, json::parse(R"({"format": "astra2d-scene", "version": "1",
+                                                        "entities": []})")),
+                 std::runtime_error);
+    EXPECT_THROW(serializer.load(scene, json::parse(R"({"format": 5, "version": 1,
+                                                        "entities": []})")),
+                 std::runtime_error);
+    EXPECT_THROW(serializer.load(scene, json::parse("[1, 2]")), std::runtime_error);
+}
+
+TEST(SerializerTests, CommaDecimalLocaleDoesNotTruncateFloats)
+{
+    // A game may call setlocale(LC_ALL, ""), e.g. with a Bosnian, Croatian or German locale. The
+    // float conversion must not depend on it.
+    // setlocale() is process-wide; the tests run on one thread, and the old locale is restored.
+    const std::array<const char*, 4> locales{"de_DE.UTF-8", "hr_HR.UTF-8", "bs_BA.UTF-8",
+                                             "de_DE.utf8"};
+    const std::string previous =
+        std::setlocale(LC_NUMERIC, nullptr); // NOLINT(concurrency-mt-unsafe)
+    const char* chosen = nullptr;
+    for (const char* name : locales) {
+        if (std::setlocale(LC_NUMERIC, name) != nullptr) { // NOLINT(concurrency-mt-unsafe)
+            chosen = name;
+            break;
+        }
+    }
+    if (chosen == nullptr) {
+        GTEST_SKIP() << "no comma-decimal locale installed";
+    }
+    Scene scene;
+    scene.createEntity("e", {0.3F, 2.5F});
+    const SceneSerializer serializer;
+    const json saved = serializer.save(scene);
+    std::setlocale(LC_NUMERIC, previous.c_str()); // NOLINT(concurrency-mt-unsafe)
+
+    Scene loaded;
+    serializer.load(loaded, saved);
+    const glm::vec2 position = loaded.registry().get<Transform>(loaded.find("e")).position;
+    EXPECT_EQ(position.x, 0.3F) << "locale " << chosen;
+    EXPECT_EQ(position.y, 2.5F);
 }

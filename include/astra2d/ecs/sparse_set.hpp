@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -89,6 +90,14 @@ public:
         }
         erase(entity);
         return true;
+    }
+
+    /// Removes @p entity and its component if present, without emitting signals.
+    void discard(Entity entity)
+    {
+        if (contains(entity)) {
+            erase(entity);
+        }
     }
 
     /// Emitted after a component of this type was added: `(Registry&, Entity)`.
@@ -186,8 +195,14 @@ public:
         }
         insertEntity(entity);
         constructed(registry, entity);
-        // Looked up again: an onConstruct handler may have added components and grown the array.
-        return m_components[position(entity)];
+        // Looked up again: an onConstruct handler may have added components and grown the array,
+        // or even removed this one (or destroyed the entity), so there is nothing to return.
+        const std::size_t index = indexOf(entity);
+        if (index == npos) {
+            throw std::logic_error("an onConstruct handler removed the component it was notified "
+                                   "about, so emplace() has nothing to return");
+        }
+        return m_components[index];
     }
 
     /// The component of @p entity. @pre contains(entity).

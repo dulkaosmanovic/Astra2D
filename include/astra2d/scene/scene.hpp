@@ -7,6 +7,7 @@
 
 #include <glm/vec2.hpp>
 
+#include <deque>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -148,7 +149,8 @@ private:
     struct DrawItem {
         int layer = 0;
         Transform world;
-        Entity entity;
+        // Stable while render() runs: nothing adds or removes components meanwhile.
+        const SpriteRenderer* sprite = nullptr;
     };
 
     void runPhase(SystemPhase phase, float deltaTime);
@@ -158,7 +160,9 @@ private:
     [[nodiscard]] bool isAncestor(Entity ancestor, Entity entity) const;
 
     Registry m_registry;
-    std::vector<RegisteredSystem> m_systems;
+    // A deque: systems added while a phase runs do not move the running one (no copy needed).
+    std::deque<RegisteredSystem> m_systems;
+    int m_runningSystems = 0; // > 0 while a phase runs
     std::vector<Entity> m_destroyQueue;
     struct PendingDraw {
         Entity entity;
