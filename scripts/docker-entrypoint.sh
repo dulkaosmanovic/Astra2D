@@ -8,8 +8,8 @@
 #   docs [DIR]        generate the documentation; fails on Doxygen warnings.
 #                     Copies the HTML to DIR (default /out) if that directory exists.
 #   sandbox [SECONDS] smoke tests: run the sandbox for a few seconds (default 5), every other
-#                     example for 2 seconds and renderer_stress for a few frames, on an Xvfb
-#                     virtual display when no display is available
+#                     example for 2 seconds, and the benchmarks briefly, on an Xvfb virtual
+#                     display when no display is available
 #   lint              check formatting (clang-format) and run static analysis (clang-tidy)
 #   all               lint, test, valgrind, release, docs and sandbox
 #   shell             start an interactive shell
@@ -120,8 +120,15 @@ cmd_sandbox() {
 
     section "Example smoke tests"
     local example
-    for example in hello_window shapes sprites text input post_processing coin_collector; do
+    for example in hello_window shapes sprites text input post_processing coin_collector scene; do
         run_for 2 "./build/examples/$example"
+    done
+
+    section "ecs_benchmark smoke test"
+    local approach
+    for approach in ecs oop oop_shuffled; do
+        ./build/benchmarks/ecs_benchmark --approach "$approach" --entities 1000 --iterations 5 \
+            --warmup 1
     done
 
     # renderer_stress in benchmark mode exits by itself after the given frames; both rendering

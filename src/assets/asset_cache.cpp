@@ -42,6 +42,7 @@ Texture2D& AssetCache::texture(const std::filesystem::path& path, const TextureS
     const bool loaded = m_textures.contains(key);
     Texture2D& texture = m_textures.get(key, [&] { return Texture2D::fromFile(file, settings); });
     if (!loaded) {
+        m_textureSources[&texture] = {.path = path, .settings = settings};
         watch({file}, "texture " + file.string(), [this, key, file, settings] {
             *m_textures.find(key) = Texture2D::fromFile(file, settings);
         });
@@ -105,9 +106,19 @@ std::size_t AssetCache::reloadChanged()
 void AssetCache::clear()
 {
     m_textures.clear();
+    m_textureSources.clear();
     m_shaders.clear();
     m_watcher.clear();
     m_reloaders.clear();
+}
+
+std::optional<AssetCache::TextureSource> AssetCache::textureSource(const Texture2D& texture) const
+{
+    const auto it = m_textureSources.find(&texture);
+    if (it == m_textureSources.end()) {
+        return std::nullopt;
+    }
+    return it->second;
 }
 
 } // namespace astra2d

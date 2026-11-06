@@ -17,7 +17,7 @@ env:
   # Dependencies come from the system; Meson falls back to subprojects/*.wrap for anything missing.
   APT_PACKAGES: >-
     build-essential clang meson ninja-build pkg-config cmake
-    libglfw3-dev libglm-dev libspdlog-dev libgtest-dev libgl-dev
+    libglfw3-dev libglm-dev libspdlog-dev nlohmann-json3-dev libgtest-dev libgl-dev
   # Software OpenGL on a virtual display, for the example smoke tests.
   SMOKE_PACKAGES: xvfb xauth libgl1-mesa-dri
 
@@ -96,7 +96,7 @@ jobs:
         run: |
           echo "Server = https://archive.archlinux.org/repos/${ARCH_SNAPSHOT}/\$repo/os/\$arch" \
             > /etc/pacman.d/mirrorlist
-          pacman -Syyuu --noconfirm --needed clang meson ninja pkgconf glfw glm spdlog gtest mesa
+          pacman -Syyuu --noconfirm --needed clang meson ninja pkgconf glfw glm spdlog nlohmann-json gtest mesa
 
       - uses: actions/checkout@v7
 

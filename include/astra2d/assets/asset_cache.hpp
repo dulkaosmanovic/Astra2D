@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -83,6 +84,16 @@ public:
     /// Number of shaders currently loaded.
     [[nodiscard]] std::size_t shaderCount() const { return m_shaders.size(); }
 
+    /// Where a texture loaded by this cache came from.
+    struct TextureSource {
+        std::filesystem::path path; ///< The path as passed to texture() (relative to root()).
+        TextureSettings settings;   ///< The settings it was loaded with.
+    };
+
+    /// The path and settings @p texture was loaded with, or std::nullopt if it does not come from
+    /// this cache. Lets a scene file refer to textures by path (see SceneSerializer).
+    [[nodiscard]] std::optional<TextureSource> textureSource(const Texture2D& texture) const;
+
     /// Unloads everything. All references handed out become dangling.
     void clear();
 
@@ -101,6 +112,7 @@ private:
     ResourceCache<Shader> m_shaders;
     FileWatcher m_watcher;
     std::unordered_map<std::string, std::vector<Reloader>> m_reloaders; // by file path
+    std::unordered_map<const Texture2D*, TextureSource> m_textureSources;
 };
 
 } // namespace astra2d

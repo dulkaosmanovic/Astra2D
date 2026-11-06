@@ -34,7 +34,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential meson ninja-build pkg-config cmake graphviz \
-            libglfw3-dev libglm-dev libspdlog-dev libgtest-dev libgl-dev
+            libglfw3-dev libglm-dev libspdlog-dev nlohmann-json3-dev libgtest-dev libgl-dev
 
       - name: Install Doxygen ${{ env.DOXYGEN_VERSION }}
         run: |

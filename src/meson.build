@@ -18,6 +18,9 @@ engine_sources = files(
   'renderer/shader.cpp',
   'renderer/sprite.cpp',
   'renderer/texture.cpp',
+  'ecs/registry.cpp',
+  'scene/scene.cpp',
+  'scene/serializer.cpp',
   'assets/asset_cache.cpp',
   'assets/file_watcher.cpp'
 )
@@ -27,6 +30,7 @@ engine_deps = [
   glad_dep,
   glm_dep,
   spdlog_dep,
+  json_dep,
   opengl_dep
 ]
 

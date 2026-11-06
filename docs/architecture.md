@@ -21,13 +21,13 @@ digraph layers {
     subgraph cluster_high {
         label="High level"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
         style="rounded,dashed"; color="#9fbfd3";
-        scene [label="scene"];
+        scene [label="scene", fillcolor="#1a2f55", fontcolor="white", URL="\ref scene"];
         debug [label="debug"];
     }
     subgraph cluster_systems {
         label="Systems"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
         style="rounded,dashed"; color="#9fbfd3";
-        ecs      [label="ecs"];
+        ecs      [label="ecs", fillcolor="#1a2f55", fontcolor="white", URL="\ref ecs"];
         physics  [label="physics"];
         renderer [label="renderer", fillcolor="#1a2f55", fontcolor="white", URL="\ref renderer"];
         assets   [label="assets", fillcolor="#1a2f55", fontcolor="white", URL="\ref assets"];
@@ -40,10 +40,10 @@ digraph layers {
     }
 
     game -> scene; game -> debug;
-    scene -> ecs; scene -> physics; scene -> renderer;
+    scene -> ecs; scene -> physics; scene -> renderer; scene -> assets;
     debug -> renderer; debug -> physics;
     assets -> renderer;
-    renderer -> core; assets -> core; ecs -> math; physics -> math; renderer -> math;
+    renderer -> core; assets -> core; ecs -> core; physics -> math; renderer -> math;
 }
 @enddot
 
@@ -53,9 +53,9 @@ digraph layers {
 | math | GLM, rectangles, transform helpers | no | planned |
 | @ref assets "assets" | Load each texture and shader file once | yes | ready |
 | @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, debug lines | yes | ready |
-| ecs | Entities, sparse-set component storage, views | no | planned |
+| @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | no | ready |
 | physics | Bodies, shapes, broad and narrow phase, impulse solver | no | planned |
-| scene | Owns a registry and runs systems in a fixed order | — | planned |
+| @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files | rendering only | ready |
 | debug | Debug drawing and statistics | yes | planned |
 
 `ecs`, `physics` and `math` do not depend on OpenGL. They can be unit-tested and benchmarked
@@ -72,7 +72,7 @@ examples/assets/            textures, shaders and fonts used by the examples
 docs/                       Doxygen configuration, these pages and the theme
 external/                   vendored code (GLAD, stb_image, doxygen-awesome-css)
 benchmarks/results/         benchmark CSV files and machine descriptions
-subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
+subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and GoogleTest
 ```
 
 ## Dependencies
@@ -83,6 +83,7 @@ subprojects/                Meson wraps for GLFW, GLM, spdlog and GoogleTest
 | GLAD | Loading OpenGL 3.3 core functions |
 | GLM | Vectors and matrices |
 | spdlog | Logging (wrapped by @ref astra2d::log) |
+| nlohmann/json | Scene files (@ref astra2d::SceneSerializer); header-only |
 | stb_image | Decoding PNG/JPEG/BMP/TGA textures (vendored, private to the engine library) |
 | stb_truetype | Baking TrueType fonts into atlases (vendored, private to the engine library) |
 | GoogleTest | Unit tests |
