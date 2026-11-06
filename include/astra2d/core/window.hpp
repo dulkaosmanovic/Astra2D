@@ -2,6 +2,9 @@
 
 #include "astra2d/core/input.hpp"
 
+#include <glm/vec2.hpp>
+
+#include <memory>
 #include <string>
 
 struct GLFWwindow;
@@ -14,13 +17,17 @@ namespace astra2d {
 /// Settings used when creating a Window.
 struct WindowSettings {
     std::string title = "Astra2D"; ///< Text in the title bar.
-    int width = 1280;               ///< Initial width in screen coordinates.
-    int height = 720;               ///< Initial height in screen coordinates.
-    bool vsync = true;              ///< Synchronize buffer swaps with the display refresh rate.
-    bool resizable = true;          ///< Allow the user to resize the window.
+    int width = 1280;              ///< Initial width in screen coordinates.
+    int height = 720;              ///< Initial height in screen coordinates.
+    bool vsync = true;             ///< Synchronize buffer swaps with the display refresh rate.
+    bool resizable = true;         ///< Allow the user to resize the window.
 };
 
 /// Owns a GLFW window and its OpenGL 3.3 core context, and forwards its events to an Input.
+///
+/// GLFW is initialized by the first Window and terminated when the last one is destroyed, so
+/// several windows may exist at once. Like GLFW itself, Window must only be used from the main
+/// thread.
 class Window {
 public:
     /// Creates the window, makes its OpenGL context current and loads OpenGL functions.
@@ -33,10 +40,12 @@ public:
     Window(Window&&) = delete;
     Window& operator=(Window&&) = delete;
 
-    /// Processes pending window and input events.
+    /// Starts a new Input frame (Input::beginFrame()), then processes pending window and input
+    /// events. Call once per frame.
     void pollEvents();
 
-    /// Blocks until at least one event arrives, then processes it.
+    /// Blocks until at least one event arrives, then processes it. Unlike pollEvents(), it does
+    /// not start a new Input frame, so events received while waiting are added to the current one.
     void waitEvents();
 
     /// Presents the back buffer.
@@ -61,7 +70,10 @@ public:
     [[nodiscard]] float aspectRatio() const;
 
     /// True while the framebuffer has zero size (window minimized).
-    [[nodiscard]] bool isMinimized() const { return m_framebufferWidth == 0 || m_framebufferHeight == 0; }
+    [[nodiscard]] bool isMinimized() const
+    {
+        return m_framebufferWidth == 0 || m_framebufferHeight == 0;
+    }
 
     /// Returns true once after the framebuffer size changed, then false until the next change.
     [[nodiscard]] bool consumeResize();
@@ -73,15 +85,36 @@ public:
     [[nodiscard]] const Input& input() const { return m_input; }
 
     /// The underlying GLFW window, for integrations such as ImGui. Prefer the Window API.
-    [[nodiscard]] GLFWwindow* nativeHandle() const { return m_handle; }
+    [[nodiscard]] GLFWwindow* nativeHandle() const { return m_handle.get(); }
 
 private:
-    void installCallbacks();
+    // Keeps GLFW initialized while at least one Window exists.
+    class GlfwLibrary {
+    public:
+        GlfwLibrary();
+        ~GlfwLibrary();
+        GlfwLibrary(const GlfwLibrary&) = delete;
+        GlfwLibrary& operator=(const GlfwLibrary&) = delete;
+        GlfwLibrary(GlfwLibrary&&) = delete;
+        GlfwLibrary& operator=(GlfwLibrary&&) = delete;
+    };
 
-    GLFWwindow* m_handle = nullptr;
+    struct HandleDeleter {
+        void operator()(GLFWwindow* handle) const noexcept;
+    };
+
+    void installCallbacks();
+    void updateCursorScale();
+    [[nodiscard]] glm::vec2 toFramebuffer(double x, double y) const;
+
+    // Declaration order matters: the window is destroyed before GLFW is released, and if the
+    // constructor throws, the members already created are cleaned up automatically.
+    GlfwLibrary m_glfw;
+    std::unique_ptr<GLFWwindow, HandleDeleter> m_handle;
     Input m_input;
     int m_framebufferWidth = 0;
     int m_framebufferHeight = 0;
+    glm::vec2 m_cursorScale{1.0F}; // framebuffer pixels per screen coordinate (HiDPI)
     bool m_resized = false;
 };
 

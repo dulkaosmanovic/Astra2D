@@ -3,11 +3,13 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
+
 namespace astra2d {
 
 Application::Application(const ApplicationSettings& settings)
     : m_window(std::make_unique<Window>(settings.window))
-    , m_timestep(settings.fixedTimestep)
+    , m_timestep(settings.fixedTimestep, std::max(settings.maxFrameTime, settings.fixedTimestep))
 {
 }
 
@@ -21,20 +23,25 @@ void Application::run()
     double lastTime = glfwGetTime();
 
     while (!m_window->shouldClose()) {
-        const double now = glfwGetTime();
-        const double frameTime = now - lastTime;
-        lastTime = now;
-
-        m_window->input().beginFrame();
         m_window->pollEvents();
 
         if (m_window->isMinimized()) {
-            // Nothing is visible: sleep until an event arrives instead of spinning, and don't
-            // count the time spent minimized as simulation time.
-            m_window->waitEvents();
+            // Nothing is visible: sleep until the window is restored instead of spinning. Events
+            // that arrive meanwhile stay in the current input frame (waitEvents() does not start
+            // a new one), and this frame then runs normally, so they reach onUpdate(). The time
+            // spent minimized is not simulated.
+            while (m_window->isMinimized() && !m_window->shouldClose()) {
+                m_window->waitEvents();
+            }
+            if (m_window->shouldClose()) {
+                break;
+            }
             lastTime = glfwGetTime();
-            continue;
         }
+
+        const double now = glfwGetTime();
+        const double frameTime = std::clamp(now - lastTime, 0.0, m_timestep.maxFrameTime());
+        lastTime = now;
 
         if (m_window->consumeResize()) {
             const int width = m_window->framebufferWidth();

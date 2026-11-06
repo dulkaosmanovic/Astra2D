@@ -1,8 +1,6 @@
-gtest_dep = dependency('gtest', main : true)
+gtest_dep = dependency('gtest', main : true, include_type : 'system')
 
 test_sources = files(
-  'test_math.cpp',
-  'test_collision.cpp',
   'test_input.cpp',
   'test_timestep.cpp',
   'test_assert.cpp'

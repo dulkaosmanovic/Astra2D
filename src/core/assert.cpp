@@ -13,7 +13,7 @@ void assertFailed(const char* expression, const char* file, int line, std::strin
     } else {
         ASTRA_CORE_CRITICAL("Assertion failed: {} ({}:{}): {}", expression, file, line, message);
     }
-    spdlog::shutdown();
+    log::engine().flush();
     std::abort();
 }
 

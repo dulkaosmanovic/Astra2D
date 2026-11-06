@@ -22,11 +22,13 @@ namespace astra2d {
 class FixedTimestep {
 public:
     /// @param step         Length of one simulation step in seconds (must be > 0).
-    /// @param maxFrameTime Longest frame time accepted per advance() call, in seconds.
+    /// @param maxFrameTime Longest frame time accepted per advance() call, in seconds
+    ///                     (must be at least @p step).
+    /// @throws std::invalid_argument if either value is out of range or not finite.
     explicit FixedTimestep(double step = 1.0 / 60.0, double maxFrameTime = 0.25);
 
     /// Adds @p frameTime seconds and returns how many fixed steps should run this frame.
-    /// Negative frame times are treated as zero.
+    /// Negative and non-finite (NaN, infinite) frame times are treated as zero.
     int advance(double frameTime);
 
     /// Length of one simulation step in seconds.

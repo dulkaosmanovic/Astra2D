@@ -10,7 +10,8 @@
 /// - `GAME` for application code (`ASTRA_*` macros).
 ///
 /// The loggers are created on first use, so logging works without any explicit
-/// initialization (also in unit tests). Arguments use the `{}` format syntax:
+/// initialization (also in unit tests). The default level is `trace` in debug builds and `info` in
+/// release builds (`NDEBUG`); change it with setLevel(). Arguments use the `{}` format syntax:
 /// @code
 /// ASTRA_INFO("Loaded level {} with {} entities", name, count);
 /// @endcode

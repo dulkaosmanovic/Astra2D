@@ -1,8 +1,9 @@
 #include "astra2d/core/timestep.hpp"
 
-#include "astra2d/core/assert.hpp"
-
 #include <algorithm>
+#include <cmath>
+#include <format>
+#include <stdexcept>
 
 namespace astra2d {
 
@@ -10,13 +11,24 @@ FixedTimestep::FixedTimestep(double step, double maxFrameTime)
     : m_step(step)
     , m_maxFrameTime(maxFrameTime)
 {
-    ASTRA_ASSERT(step > 0.0, "Fixed step must be positive, got {}", step);
-    ASTRA_ASSERT(maxFrameTime >= step, "maxFrameTime ({}) must be at least one step ({})",
-                 maxFrameTime, step);
+    // Checked in every build, not only with asserts: a step of zero would make advance() loop
+    // forever.
+    if (!std::isfinite(step) || step <= 0.0) {
+        throw std::invalid_argument(
+            std::format("Fixed step must be positive and finite, got {}", step));
+    }
+    if (!std::isfinite(maxFrameTime) || maxFrameTime < step) {
+        throw std::invalid_argument(std::format(
+            "maxFrameTime ({}) must be finite and at least one step ({})", maxFrameTime, step));
+    }
 }
 
 int FixedTimestep::advance(double frameTime)
 {
+    // NaN would poison the accumulator and stop the simulation for good.
+    if (!std::isfinite(frameTime)) {
+        frameTime = 0.0;
+    }
     m_accumulator += std::clamp(frameTime, 0.0, m_maxFrameTime);
 
     int steps = 0;

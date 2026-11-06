@@ -1,0 +1,50 @@
+# Static analysis for Astra2D. Run with the compile database of a configured build:
+#   run-clang-tidy -p build 'Astra2D/(src|examples|tests)/'
+# Every enabled check is an error, so CI fails on new findings. Suppress a single line only with a
+# reason:  // NOLINT(check-name): why
+#
+# Disabled checks, and why:
+#   modernize-use-trailing-return-type            style; the code uses leading return types
+#   cppcoreguidelines-macro-usage                 ASTRA_ASSERT / ASTRA_* log macros are the API
+#   cppcoreguidelines-avoid-do-while              do { } while (false) is the macro idiom
+#   *-magic-numbers                               GL setup, vertex data and tests are full of literals
+#   readability-identifier-length                 x, y, dt, i are clear in a game engine
+#   portability-avoid-pragma-once                 #pragma once is the project convention
+#   misc-include-cleaner                          spdlog, glm and gtest are used via umbrella headers
+#   cppcoreguidelines-pro-bounds-*                indices are range-checked before use (Input)
+#   performance-enum-size, readability-enum-initial-value
+#                                                 Key/MouseButton mirror GLFW's int codes on purpose
+#   readability-convert-member-functions-to-static  Window methods wrap GLFW and stay members
+#   bugprone-easily-swappable-parameters          noisy for (width, height) / (x, y) pairs
+#   cppcoreguidelines-pro-type-union-access       glm vectors are unions internally
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -portability-avoid-pragma-once,
+  -misc-include-cleaner,
+  -cppcoreguidelines-pro-bounds-*,
+  -performance-enum-size,
+  -readability-enum-initial-value,
+  -readability-convert-member-functions-to-static,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-pro-type-union-access
+WarningsAsErrors: '*'
+# Only the project's own headers; third-party headers are system includes and are skipped anyway.
+HeaderFilterRegex: '(include/astra2d|src|examples|tests)/'
+CheckOptions:
+  # GoogleTest's EXPECT_* macros expand to branches; count only the test's own logic.
+  readability-function-cognitive-complexity.IgnoreMacros: true
