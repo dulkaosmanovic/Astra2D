@@ -89,6 +89,47 @@ TEST(SerializerTests, RoundTripKeepsComponentsAndHierarchy)
     EXPECT_EQ(serializer.save(loaded), saved);
 }
 
+TEST(SerializerTests, RoundTripKeepsPhysicsComponents)
+{
+    Scene original;
+    const Entity crate = original.createEntity("crate");
+    original.registry().emplace<astra2d::RigidBody>(crate,
+                                                    astra2d::RigidBody{.mass = 2.5F,
+                                                                       .angularVelocity = 1.5F,
+                                                                       .fixedRotation = true,
+                                                                       .bullet = true,
+                                                                       .allowSleep = false});
+    original.registry().emplace<astra2d::Collider>(
+        crate, astra2d::Collider{.shape = astra2d::ColliderShape::Polygon,
+                                 .points = {{0, 0}, {1, 0}, {0, 1}},
+                                 .oneWay = true,
+                                 .category = 0x0004,
+                                 .mask = 0x00F0});
+    const Entity level = original.createEntity("level");
+    astra2d::TilemapCollider tiles{.friction = 0.25F};
+    tiles.grid.width = 3;
+    tiles.grid.height = 2;
+    tiles.grid.tileSize = 16.0F;
+    tiles.grid.cells = {astra2d::TileCollision::Solid,  astra2d::TileCollision::Solid,
+                        astra2d::TileCollision::Solid,  astra2d::TileCollision::Empty,
+                        astra2d::TileCollision::OneWay, astra2d::TileCollision::Empty};
+    original.registry().emplace<astra2d::TilemapCollider>(level, tiles);
+
+    const SceneSerializer serializer;
+    const json saved = serializer.save(original);
+    // Rows as they look: top first.
+    EXPECT_EQ(saved["entities"][1]["components"]["TilemapCollider"]["rows"],
+              json::array({".-.", "###"}));
+
+    Scene loaded;
+    (void)serializer.load(loaded, saved);
+    EXPECT_EQ(loaded.registry().get<astra2d::RigidBody>(loaded.find("crate")),
+              original.registry().get<astra2d::RigidBody>(crate));
+    EXPECT_EQ(loaded.registry().get<astra2d::Collider>(loaded.find("crate")),
+              original.registry().get<astra2d::Collider>(crate));
+    EXPECT_EQ(loaded.registry().get<astra2d::TilemapCollider>(loaded.find("level")), tiles);
+}
+
 TEST(SerializerTests, GameComponentsWithEntityReferences)
 {
     Scene scene;

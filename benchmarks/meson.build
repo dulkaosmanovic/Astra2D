@@ -6,3 +6,9 @@ executable(
   files('ecs_benchmark.cpp'),
   dependencies : engine_dep
 )
+
+executable(
+  'physics_benchmark',
+  files('physics_benchmark.cpp'),
+  dependencies : engine_dep
+)

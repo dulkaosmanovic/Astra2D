@@ -1,0 +1,648 @@
+// PhysicsWorld: body types, gravity, resolution with restitution and friction, stacking,
+// determinism, events, triggers, one-way platforms, sleeping, bullets, queries and tile maps.
+
+#include <astra2d/physics/tilemap.hpp>
+#include <astra2d/physics/world.hpp>
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+#include <numbers>
+#include <vector>
+
+using astra2d::BodyDef;
+using astra2d::BodyId;
+using astra2d::BodyType;
+using astra2d::PhysicsWorld;
+using astra2d::ShapeDef;
+using astra2d::ShapeId;
+
+namespace {
+
+constexpr float kDt = 1.0F / 60.0F;
+
+void run(PhysicsWorld& world, float seconds)
+{
+    const int steps = static_cast<int>(std::lround(seconds / kDt));
+    for (int i = 0; i < steps; ++i) {
+        world.step(kDt);
+    }
+}
+
+// A static ground whose top is at y = 0.
+BodyId addGround(PhysicsWorld& world, float friction = 0.5F, float halfWidth = 50.0F)
+{
+    const BodyId ground = world.createBody({.type = BodyType::Static, .position = {0.0F, -0.5F}});
+    ShapeDef def = ShapeDef::makeBox({halfWidth, 0.5F});
+    def.friction = friction;
+    world.addShape(ground, def);
+    return ground;
+}
+
+BodyId addBox(PhysicsWorld& world, glm::vec2 position, glm::vec2 halfExtents = glm::vec2(0.5F),
+              BodyDef def = {}, float friction = 0.5F, float restitution = 0.0F)
+{
+    def.position = position;
+    const BodyId body = world.createBody(def);
+    ShapeDef shape = ShapeDef::makeBox(halfExtents);
+    shape.friction = friction;
+    shape.restitution = restitution;
+    world.addShape(body, shape);
+    return body;
+}
+
+BodyId addBall(PhysicsWorld& world, glm::vec2 position, float radius = 0.5F, BodyDef def = {},
+               float restitution = 0.0F)
+{
+    def.position = position;
+    const BodyId body = world.createBody(def);
+    ShapeDef shape = ShapeDef::makeCircle(radius);
+    shape.restitution = restitution;
+    world.addShape(body, shape);
+    return body;
+}
+
+// A pyramid-free tower of `count` unit boxes standing on the ground.
+std::vector<BodyId> addStack(PhysicsWorld& world, int count)
+{
+    std::vector<BodyId> boxes;
+    boxes.reserve(static_cast<std::size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        boxes.push_back(addBox(world, {0.0F, 0.5F + static_cast<float>(i)}));
+    }
+    return boxes;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------------------------
+// Bodies
+
+TEST(PhysicsWorldTests, HandlesBecomeInvalidAndSlotsAreReused)
+{
+    PhysicsWorld world;
+    const BodyId a = world.createBody();
+    const ShapeId shape = world.addShape(a, ShapeDef::makeCircle(1.0F));
+    EXPECT_TRUE(world.valid(a));
+    EXPECT_TRUE(world.valid(shape));
+    EXPECT_EQ(world.body(shape), a);
+    world.destroyBody(a);
+    EXPECT_FALSE(world.valid(a));
+    EXPECT_FALSE(world.valid(shape));
+    const BodyId b = world.createBody();
+    EXPECT_EQ(b.index, a.index);
+    EXPECT_FALSE(world.valid(a)); // stale handle to a reused slot
+    EXPECT_TRUE(world.valid(b));
+    EXPECT_EQ(world.bodyCount(), 1U);
+    EXPECT_TRUE(BodyId{}.isNull());
+}
+
+TEST(PhysicsWorldTests, DynamicBodiesFallStaticOnesStayAndKinematicOnesKeepTheirVelocity)
+{
+    PhysicsWorld world;
+    const BodyId falling = addBall(world, {0.0F, 100.0F});
+    const BodyId fixed = addBall(world, {5.0F, 100.0F}, 0.5F, {.type = BodyType::Static});
+    const BodyId kinematic = addBall(world, {10.0F, 100.0F}, 0.5F,
+                                     {.type = BodyType::Kinematic, .velocity = {1.0F, 0.0F}});
+    const BodyId floating = addBall(world, {15.0F, 100.0F}, 0.5F, {.gravityScale = 0.0F});
+    run(world, 1.0F);
+    // Semi-implicit Euler: the velocity is exact, the position slightly ahead.
+    EXPECT_NEAR(world.velocity(falling).y, -9.81F, 1e-3F);
+    EXPECT_NEAR(world.position(falling).y, 100.0F - (0.5F * 9.81F) - (0.5F * 9.81F * kDt), 1e-2F);
+    EXPECT_EQ(world.position(fixed), glm::vec2(5.0F, 100.0F));
+    EXPECT_NEAR(world.position(kinematic).x, 11.0F, 1e-4F);
+    EXPECT_NEAR(world.position(kinematic).y, 100.0F, 1e-6F);
+    EXPECT_EQ(world.position(floating), glm::vec2(15.0F, 100.0F));
+    EXPECT_EQ(world.mass(fixed), 0.0F);
+    EXPECT_EQ(world.mass(kinematic), 0.0F);
+}
+
+TEST(PhysicsWorldTests, MassAndInertiaComeFromTheShapes)
+{
+    PhysicsWorld world;
+    const BodyId box = addBox(world, {0, 0}, {1.0F, 0.5F}, {.mass = 3.0F});
+    EXPECT_FLOAT_EQ(world.mass(box), 3.0F);
+    EXPECT_NEAR(world.inertia(box), 3.0F * (4.0F + 1.0F) / 12.0F, 1e-4F);
+    world.setMass(box, 6.0F);
+    EXPECT_NEAR(world.inertia(box), 6.0F * (4.0F + 1.0F) / 12.0F, 1e-4F);
+
+    // A shape off the origin moves the centre of mass.
+    const BodyId lopsided = world.createBody({.position = {10.0F, 0.0F}, .gravityScale = 0.0F});
+    world.addShape(lopsided, ShapeDef::makeCircle(0.5F, {2.0F, 0.0F}));
+    EXPECT_NEAR(world.worldCenter(lopsided).x, 12.0F, 1e-5F);
+
+    const BodyId locked = addBox(world, {0, 5}, {0.5F, 0.5F}, {.fixedRotation = true});
+    world.applyImpulse(locked, {0.0F, 1.0F}, world.worldCenter(locked) + glm::vec2(0.5F, 0.0F));
+    EXPECT_EQ(world.angularVelocity(locked), 0.0F);
+}
+
+TEST(PhysicsWorldTests, ImpulsesAndForces)
+{
+    PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+    const BodyId body = addBox(world, {0, 0}, {0.5F, 0.5F}, {.mass = 2.0F});
+    world.applyImpulseToCenter(body, {4.0F, 0.0F});
+    EXPECT_NEAR(world.velocity(body).x, 2.0F, 1e-6F);
+    // An off-centre impulse also spins it.
+    world.applyImpulse(body, {0.0F, 1.0F}, {0.5F, 0.0F});
+    EXPECT_GT(world.angularVelocity(body), 0.0F);
+    world.setAngularVelocity(body, 0.0F);
+    world.applyForceToCenter(body, {0.0F, 120.0F}); // for one step: dv = F / m * dt
+    world.step(kDt);
+    EXPECT_NEAR(world.velocity(body).y, 0.5F + (120.0F / 2.0F * kDt), 1e-4F);
+    world.step(kDt);
+    EXPECT_NEAR(world.velocity(body).y, 0.5F + (120.0F / 2.0F * kDt), 1e-4F); // forces were cleared
+}
+
+// ---------------------------------------------------------------------------------------------
+// Resolution
+
+TEST(PhysicsWorldTests, BoxComesToRestOnTheGround)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId box = addBox(world, {0.0F, 3.0F});
+    run(world, 2.0F);
+    // Resting with at most the allowed overlap.
+    EXPECT_NEAR(world.position(box).y, 0.5F, 2.0F * world.settings().linearSlop);
+    EXPECT_NEAR(world.velocity(box).y, 0.0F, 1e-3F);
+    EXPECT_NEAR(world.angle(box), 0.0F, 1e-4F);
+    EXPECT_TRUE(world.isGrounded(box));
+}
+
+TEST(PhysicsWorldTests, RestitutionOneBouncesBackRestitutionZeroDoesNot)
+{
+    for (const float restitution : {0.0F, 1.0F}) {
+        PhysicsWorld world({.enableSleep = false});
+        addGround(world);
+        const BodyId ball = addBall(world, {0.0F, 5.0F}, 0.5F, {}, restitution);
+        // Highest point after the first bounce (from 1.2 s on: after the impact at about 0.95 s).
+        run(world, 1.2F);
+        float highest = world.position(ball).y;
+        for (int i = 0; i < 90; ++i) {
+            world.step(kDt);
+            highest = std::max(highest, world.position(ball).y);
+        }
+        if (restitution == 0.0F) {
+            EXPECT_LT(highest, 0.55F);
+        } else {
+            EXPECT_GT(highest, 4.7F); // almost the 5 m it fell from
+            EXPECT_LT(highest, 5.2F); // no energy gained
+        }
+    }
+}
+
+TEST(PhysicsWorldTests, FrictionStopsASlidingBox)
+{
+    for (const float friction : {0.0F, 0.5F}) {
+        PhysicsWorld world({.enableSleep = false});
+        addGround(world, friction);
+        const BodyId box = addBox(world, {0.0F, 0.5F}, glm::vec2(0.5F),
+                                  {.velocity = {5.0F, 0.0F}, .fixedRotation = true}, friction);
+        run(world, 2.0F);
+        if (friction == 0.0F) {
+            EXPECT_NEAR(world.velocity(box).x, 5.0F, 1e-3F);
+        } else {
+            // mu * g = 4.9 m/s² decelerates 5 m/s to rest in about 1 s, after 5 / (2 * 4.9) m.
+            EXPECT_NEAR(world.velocity(box).x, 0.0F, 1e-3F);
+            EXPECT_NEAR(world.position(box).x, 25.0F / (2.0F * 0.5F * 9.81F), 0.15F);
+        }
+    }
+}
+
+TEST(PhysicsWorldTests, KinematicBodyPushesDynamicBodies)
+{
+    PhysicsWorld world;
+    addGround(world, 0.0F);
+    const BodyId pusher = addBox(world, {-2.0F, 0.5F}, glm::vec2(0.5F),
+                                 {.type = BodyType::Kinematic, .velocity = {2.0F, 0.0F}});
+    const BodyId box = addBox(world, {0.0F, 0.5F}, glm::vec2(0.5F), {.fixedRotation = true}, 0.0F);
+    run(world, 2.0F);
+    EXPECT_NEAR(world.position(pusher).x, 2.0F, 1e-3F);
+    EXPECT_GT(world.position(box).x, world.position(pusher).x + 0.95F); // in front, not overlapped
+}
+
+TEST(PhysicsWorldTests, StackOfTenBoxesStaysStandingForTenSeconds)
+{
+    PhysicsWorld world({.enableSleep = false});
+    addGround(world);
+    const std::vector<BodyId> stack = addStack(world, 10);
+    run(world, 10.0F);
+    for (std::size_t i = 0; i < stack.size(); ++i) {
+        const glm::vec2 p = world.position(stack[i]);
+        EXPECT_NEAR(p.x, 0.0F, 0.01F) << "box " << i;
+        // Each contact may overlap by about the slop.
+        EXPECT_NEAR(p.y, 0.5F + static_cast<float>(i), 0.02F + (0.01F * static_cast<float>(i)))
+            << "box " << i;
+        EXPECT_NEAR(world.angle(stack[i]), 0.0F, 0.01F) << "box " << i;
+    }
+}
+
+TEST(PhysicsWorldTests, RotatedBoxFallsFlat)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId box = addBox(world, {0.0F, 2.0F}, glm::vec2(0.5F), {.angle = 0.3F});
+    run(world, 4.0F);
+    // Lands on a corner, tips over and lies on a side: a multiple of 90°.
+    const float quarter = std::numbers::pi_v<float> / 2.0F;
+    const float angle = world.angle(box);
+    EXPECT_NEAR(angle - (quarter * std::round(angle / quarter)), 0.0F, 0.01F);
+    EXPECT_NEAR(world.position(box).y, 0.5F, 0.02F);
+}
+
+TEST(PhysicsWorldTests, BallRollsDownASlope)
+{
+    PhysicsWorld world({.enableSleep = false});
+    const BodyId slope = world.createBody({.type = BodyType::Static, .angle = -0.3F});
+    world.addShape(slope, ShapeDef::makeBox({20.0F, 0.5F}));
+    const BodyId ball = addBall(world, {0.0F, 1.5F});
+    run(world, 2.0F);
+    EXPECT_GT(world.position(ball).x, 1.0F);
+    EXPECT_LT(world.angularVelocity(ball), -0.5F); // rolling clockwise, not sliding
+}
+
+// ---------------------------------------------------------------------------------------------
+// Determinism and broad phases
+
+namespace {
+
+std::vector<glm::vec2> simulatePile(astra2d::BroadPhaseType broadPhase)
+{
+    PhysicsWorld world({.broadPhase = broadPhase});
+    addGround(world);
+    std::vector<BodyId> bodies;
+    for (int i = 0; i < 60; ++i) {
+        const int column = i % 6;
+        const int row = i / 6;
+        const glm::vec2 p((static_cast<float>(column) * 1.1F) - 3.0F +
+                              (0.13F * static_cast<float>(i % 3)),
+                          1.0F + (static_cast<float>(row) * 1.2F));
+        bodies.push_back(
+            i % 2 == 0 ? addBox(world, p, {0.4F, 0.3F}, {.angle = 0.1F * static_cast<float>(i % 4)})
+                       : addBall(world, p, 0.35F));
+    }
+    run(world, 3.0F);
+    std::vector<glm::vec2> result;
+    for (const BodyId body : bodies) {
+        result.push_back(world.position(body));
+        result.emplace_back(world.angle(body), 0.0F);
+    }
+    return result;
+}
+
+} // namespace
+
+TEST(PhysicsWorldTests, SteppingIsDeterministicWhateverTheBroadPhase)
+{
+    const auto first = simulatePile(astra2d::BroadPhaseType::UniformGrid);
+    EXPECT_EQ(simulatePile(astra2d::BroadPhaseType::UniformGrid), first); // bit for bit
+    EXPECT_EQ(simulatePile(astra2d::BroadPhaseType::SortAndSweep), first);
+    EXPECT_EQ(simulatePile(astra2d::BroadPhaseType::BruteForce), first);
+}
+
+TEST(PhysicsWorldTests, StatsCountTheBroadPhaseWork)
+{
+    PhysicsWorld world({.broadPhase = astra2d::BroadPhaseType::BruteForce});
+    addGround(world);
+    for (int i = 0; i < 20; ++i) {
+        addBall(world, {static_cast<float>(i) * 2.0F, 0.4F});
+    }
+    world.step(kDt);
+    EXPECT_EQ(world.stats().bodies, 21);
+    EXPECT_EQ(world.stats().shapes, 21);
+    EXPECT_EQ(world.stats().pairTests, 21 * 20 / 2);
+    EXPECT_EQ(world.stats().candidatePairs, 20); // each ball with the ground
+    EXPECT_EQ(world.stats().touchingContacts, 20);
+    world.settings().broadPhase = astra2d::BroadPhaseType::SortAndSweep;
+    world.step(kDt);
+    EXPECT_LT(world.stats().pairTests, 21 * 20 / 2);
+    EXPECT_EQ(world.stats().candidatePairs, 20);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Events, triggers, filtering
+
+TEST(PhysicsWorldTests, ContactEventsBeginAndEnd)
+{
+    PhysicsWorld world({.enableSleep = false});
+    const BodyId ground = addGround(world);
+    const BodyId ball = addBall(world, {0.0F, 2.0F});
+    int begins = 0;
+    float speed = 0.0F;
+    for (int i = 0; i < 60 && begins == 0; ++i) {
+        world.step(kDt);
+        for (const auto& event : world.contactBeginEvents()) {
+            ++begins;
+            speed = event.approachSpeed;
+            EXPECT_TRUE((event.bodyA == ground && event.bodyB == ball) ||
+                        (event.bodyA == ball && event.bodyB == ground));
+            // The normal points from A to B: up if the ground is A.
+            EXPECT_NEAR(event.bodyA == ground ? event.normal.y : -event.normal.y, 1.0F, 1e-4F);
+        }
+    }
+    EXPECT_EQ(begins, 1);
+    EXPECT_NEAR(speed, std::sqrt(2.0F * 9.81F * 1.5F), 0.3F); // falling 1.5 m
+
+    world.applyImpulseToCenter(ball, {0.0F, 10.0F});
+    int ends = 0;
+    for (int i = 0; i < 10; ++i) {
+        world.step(kDt);
+        ends += static_cast<int>(world.contactEndEvents().size());
+    }
+    EXPECT_EQ(ends, 1);
+}
+
+TEST(PhysicsWorldTests, TriggersReportOverlapsWithoutColliding)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId zone = world.createBody({.type = BodyType::Static, .position = {0.0F, 3.0F}});
+    ShapeDef def = ShapeDef::makeBox({2.0F, 0.5F});
+    def.isTrigger = true;
+    const ShapeId trigger = world.addShape(zone, def);
+    const BodyId ball = addBall(world, {0.0F, 5.0F}, 0.25F);
+    int enters = 0;
+    int exits = 0;
+    for (int i = 0; i < 120; ++i) {
+        world.step(kDt);
+        for (const auto& event : world.triggerBeginEvents()) {
+            ++enters;
+            EXPECT_EQ(event.trigger, trigger);
+            EXPECT_EQ(event.otherBody, ball);
+        }
+        exits += static_cast<int>(world.triggerEndEvents().size());
+        EXPECT_TRUE(world.contactBeginEvents().empty() || world.position(ball).y < 1.0F);
+    }
+    EXPECT_EQ(enters, 1);
+    EXPECT_EQ(exits, 1);
+    EXPECT_NEAR(world.position(ball).y, 0.25F, 0.02F); // fell through the zone onto the ground
+}
+
+TEST(PhysicsWorldTests, CategoryAndMaskFilterPairs)
+{
+    PhysicsWorld world;
+    const BodyId ground = world.createBody({.type = BodyType::Static, .position = {0.0F, -0.5F}});
+    ShapeDef floor = ShapeDef::makeBox({10.0F, 0.5F});
+    floor.category = 0x0002;
+    world.addShape(ground, floor);
+    const BodyId ghost = world.createBody({.position = {0.0F, 1.0F}});
+    ShapeDef ghostShape = ShapeDef::makeCircle(0.5F);
+    ghostShape.mask = 0x0001; // ignores category 2
+    world.addShape(ghost, ghostShape);
+    run(world, 1.0F);
+    EXPECT_LT(world.position(ghost).y, -1.0F); // fell through
+}
+
+TEST(PhysicsWorldTests, DestroyingTheGroundEndsContactsAndWakesBodies)
+{
+    PhysicsWorld world;
+    const BodyId ground = addGround(world);
+    const BodyId box = addBox(world, {0.0F, 0.5F});
+    run(world, 2.0F);
+    ASSERT_FALSE(world.isAwake(box)); // at rest long enough
+    world.destroyBody(ground);
+    EXPECT_TRUE(world.isAwake(box));
+    world.step(kDt);
+    ASSERT_EQ(world.contactEndEvents().size(), 1U);
+    EXPECT_FALSE(world.valid(world.contactEndEvents()[0].bodyA)); // the destroyed ground
+    run(world, 0.5F);
+    EXPECT_LT(world.position(box).y, 0.0F);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sleeping
+
+TEST(PhysicsWorldTests, StackSleepsAsAnIslandAndWakesWhenHit)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const std::vector<BodyId> stack = addStack(world, 3);
+    run(world, 3.0F);
+    for (const BodyId box : stack) {
+        EXPECT_FALSE(world.isAwake(box));
+    }
+    EXPECT_EQ(world.stats().awakeBodies, 0);
+    // A ball dropped on top wakes the whole stack, not just the top box.
+    addBall(world, {0.0F, 4.0F}, 0.3F);
+    bool allAwake = false;
+    for (int i = 0; i < 60 && !allAwake; ++i) {
+        world.step(kDt);
+        allAwake = world.isAwake(stack[0]) && world.isAwake(stack[1]) && world.isAwake(stack[2]);
+    }
+    EXPECT_TRUE(allAwake);
+}
+
+TEST(PhysicsWorldTests, SettersWakeAndSleepCanBeDisabled)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId box = addBox(world, {0.0F, 0.5F});
+    const BodyId restless = addBox(world, {3.0F, 0.5F}, glm::vec2(0.5F), {.allowSleep = false});
+    run(world, 2.0F);
+    EXPECT_FALSE(world.isAwake(box));
+    EXPECT_TRUE(world.isAwake(restless));
+    world.setVelocity(box, {1.0F, 0.0F});
+    EXPECT_TRUE(world.isAwake(box));
+    world.setAwake(box, false);
+    EXPECT_FALSE(world.isAwake(box));
+    EXPECT_EQ(world.velocity(box), glm::vec2(0.0F));
+}
+
+// ---------------------------------------------------------------------------------------------
+// One-way platforms and bullets
+
+TEST(PhysicsWorldTests, OneWayPlatformLetsBodiesUpAndHoldsThemOnTop)
+{
+    PhysicsWorld world({.enableSleep = false});
+    const BodyId platform = world.createBody({.type = BodyType::Static, .position = {0.0F, 3.0F}});
+    ShapeDef def = ShapeDef::makeBox({2.0F, 0.1F});
+    def.oneWay = true;
+    world.addShape(platform, def);
+    // Thrown up from below: passes through, then lands on top.
+    const BodyId ball = addBall(world, {0.0F, 1.0F}, 0.25F, {.velocity = {0.0F, 9.0F}});
+    float highest = 0.0F;
+    run(world, 0.1F);
+    for (int i = 0; i < 180; ++i) {
+        world.step(kDt);
+        highest = std::max(highest, world.position(ball).y);
+    }
+    EXPECT_GT(highest, 3.5F);
+    EXPECT_NEAR(world.position(ball).y, 3.1F + 0.25F, 0.02F);
+    EXPECT_TRUE(world.isGrounded(ball));
+}
+
+TEST(PhysicsWorldTests, BulletsDoNotTunnelThroughThinWalls)
+{
+    for (const bool bullet : {false, true}) {
+        PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+        const BodyId wall = world.createBody({.type = BodyType::Static, .position = {5.0F, 0.0F}});
+        world.addShape(wall, ShapeDef::makeBox({0.05F, 2.0F}));
+        // 300 m/s: 5 m per step, far more than the wall is thick.
+        const BodyId shot =
+            addBall(world, {0.0F, 0.0F}, 0.1F, {.velocity = {300.0F, 0.0F}, .bullet = bullet});
+        run(world, 0.1F);
+        if (bullet) {
+            EXPECT_LT(world.position(shot).x, 5.0F);
+            EXPECT_GT(world.position(shot).x, 4.7F); // stopped at the wall
+        } else {
+            EXPECT_GT(world.position(shot).x, 10.0F); // tunnelled
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Queries
+
+TEST(PhysicsWorldTests, RayCastFindsTheClosestShapeAndSkipsTriggers)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId near = addBox(world, {3.0F, 0.5F}, glm::vec2(0.5F), {.type = BodyType::Static});
+    addBox(world, {6.0F, 0.5F}, glm::vec2(0.5F), {.type = BodyType::Static});
+    const BodyId zone = world.createBody({.type = BodyType::Static, .position = {1.0F, 0.5F}});
+    ShapeDef trigger = ShapeDef::makeBox(glm::vec2(0.5F));
+    trigger.isTrigger = true;
+    world.addShape(zone, trigger);
+
+    const auto hit = world.rayCast({0.0F, 0.5F}, {10.0F, 0.0F});
+    ASSERT_TRUE(hit.has_value());
+    const astra2d::WorldRayHit h = hit.value_or(astra2d::WorldRayHit{});
+    EXPECT_EQ(h.body, near);
+    EXPECT_NEAR(h.hit.point.x, 2.5F, 1e-4F);
+    EXPECT_FALSE(world.rayCast({0.0F, 5.0F}, {10.0F, 0.0F}).has_value());
+    EXPECT_FALSE(world.rayCast({0.0F, 0.5F}, {10.0F, 0.0F}, 0x0002).has_value()); // masked out
+
+    EXPECT_EQ(world.queryPoint({3.2F, 0.7F}).size(), 1U);
+    EXPECT_EQ(world.queryPoint({1.0F, 0.5F}).size(), 1U); // the trigger
+    EXPECT_TRUE(world.queryPoint({4.5F, 2.0F}).empty());
+    EXPECT_EQ(world.queryAabb({{2.0F, 0.2F}, {6.2F, 0.4F}}).size(),
+              2U); // both boxes, not the ground
+    EXPECT_EQ(world.queryAabb({{2.0F, -0.2F}, {6.2F, 0.4F}}).size(), 3U); // and the ground
+}
+
+TEST(PhysicsWorldTests, IsGroundedOnlyOnFloors)
+{
+    PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+    addGround(world);
+    const BodyId wall = world.createBody({.type = BodyType::Static, .position = {5.0F, 5.0F}});
+    world.addShape(wall, ShapeDef::makeBox({0.5F, 5.0F}));
+    const BodyId onFloor = addBox(world, {0.0F, 0.49F});
+    const BodyId atWall = addBox(world, {4.01F, 5.0F});
+    const BodyId flying = addBox(world, {0.0F, 3.0F});
+    world.step(kDt);
+    EXPECT_TRUE(world.isGrounded(onFloor));
+    EXPECT_FALSE(world.isGrounded(atWall));
+    EXPECT_FALSE(world.isGrounded(flying));
+    ASSERT_EQ(world.contacts(atWall).size(), 1U);
+    EXPECT_NEAR(world.contacts(atWall)[0].manifold.normal.x, 1.0F, 1e-5F); // away from the body
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tile maps
+
+namespace {
+
+astra2d::TileGrid parseGrid(const std::vector<std::string>& rows)
+{
+    // Rows are given top first, as they look; '#' solid, '-' one-way.
+    astra2d::TileGrid grid;
+    grid.height = static_cast<int>(rows.size());
+    grid.width = static_cast<int>(rows.front().size());
+    grid.cells.assign(rows.size() * rows.front().size(), astra2d::TileCollision::Empty);
+    for (int y = 0; y < grid.height; ++y) {
+        const std::string& row = rows[static_cast<std::size_t>(grid.height - 1 - y)];
+        for (int x = 0; x < grid.width; ++x) {
+            const char c = row[static_cast<std::size_t>(x)];
+            if (c == '#') {
+                grid.set(x, y, astra2d::TileCollision::Solid);
+            } else if (c == '-') {
+                grid.set(x, y, astra2d::TileCollision::OneWay);
+            }
+        }
+    }
+    return grid;
+}
+
+} // namespace
+
+TEST(TilemapTests, MergesRunsAndMasksInternalEdges)
+{
+    const astra2d::TileGrid grid = parseGrid({
+        "..---...",
+        "#......#",
+        "##.....#",
+        "########",
+    });
+    const auto rects = astra2d::mergeTiles(grid);
+    // Bottom row: one run. Left column: rows 1 and 2 differ in width, so 2 runs. Right: 1 run of
+    // height 2 (same column in rows 1-2). The platform: 1 run.
+    ASSERT_EQ(rects.size(), 5U);
+    const astra2d::TileRect& floor = rects[0];
+    EXPECT_EQ(floor.width, 8);
+    EXPECT_EQ(floor.height, 1);
+    // Its top is partly open (walls stand on it): it stays enabled; its bottom is the map border.
+    EXPECT_EQ(floor.edgeMask,
+              astra2d::kBoxBottom | astra2d::kBoxTop | astra2d::kBoxLeft | astra2d::kBoxRight);
+    const auto right =
+        std::ranges::find_if(rects, [](const auto& r) { return r.x == 7 && r.y == 1; });
+    ASSERT_NE(right, rects.end());
+    EXPECT_EQ(right->height, 2);
+    EXPECT_EQ(right->edgeMask & astra2d::kBoxBottom, 0U); // stands on the floor: internal
+    const auto platform = std::ranges::find_if(
+        rects, [](const auto& r) { return r.kind == astra2d::TileCollision::OneWay; });
+    ASSERT_NE(platform, rects.end());
+    EXPECT_EQ(platform->width, 3);
+    EXPECT_EQ(platform->edgeMask, astra2d::kBoxTop);
+}
+
+TEST(TilemapTests, BoxSlidesAlongATiledWallWithoutCatching)
+{
+    // A column of tiles is merged into one rectangle: no seams at all.
+    PhysicsWorld world;
+    const BodyId level = world.createBody({.type = BodyType::Static});
+    EXPECT_EQ(astra2d::addTileShapes(world, level, parseGrid({"#", "#", "#", "#"})).size(), 1U);
+
+    // One shape per tile, with the internal edges masked as mergeTiles() would, and a box pushed
+    // against the wall (gravity also points left) sliding down along it. Where it enters the next
+    // tile from above, the tile's top edge would be the axis of least overlap and stop it.
+    PhysicsWorld tiles({.gravity = {-5.0F, -9.81F}, .enableSleep = false});
+    const BodyId level2 = tiles.createBody({.type = BodyType::Static});
+    for (int y = 0; y < 8; ++y) {
+        ShapeDef tile = ShapeDef::makeBox(glm::vec2(0.5F), {0.5F, static_cast<float>(y) + 0.5F});
+        tile.friction = 0.0F;
+        unsigned mask = astra2d::kBoxRight;
+        mask |= y == 7 ? unsigned{astra2d::kBoxTop} : 0U;
+        mask |= y == 0 ? unsigned{astra2d::kBoxBottom} : 0U;
+        tile.edgeMask = static_cast<std::uint8_t>(mask);
+        tiles.addShape(level2, tile);
+    }
+    const BodyId box = addBox(tiles, {1.5F, 7.0F}, glm::vec2(0.5F),
+                              {.velocity = {0.0F, -1.0F}, .fixedRotation = true}, 0.0F);
+    float previous = tiles.velocity(box).y;
+    for (int i = 0; i < 40; ++i) {
+        tiles.step(kDt);
+        const float v = tiles.velocity(box).y;
+        EXPECT_LT(v, previous + 1e-4F) << "caught on a seam at step " << i; // keeps speeding up
+        previous = v;
+    }
+    EXPECT_NEAR(tiles.position(box).x, 1.5F, 0.02F); // still against the wall
+}
+
+TEST(TilemapTests, BodyLandsOnTilesAndOneWayTiles)
+{
+    PhysicsWorld world;
+    const astra2d::TileGrid grid = parseGrid({
+        "........",
+        "...---..",
+        "........",
+        "########",
+    });
+    const BodyId level = world.createBody({.type = BodyType::Static});
+    astra2d::addTileShapes(world, level, grid);
+    const BodyId onFloor = addBox(world, {1.0F, 3.0F}, glm::vec2(0.4F));
+    const BodyId onPlatform = addBox(world, {4.5F, 4.0F}, glm::vec2(0.4F));
+    run(world, 2.0F);
+    EXPECT_NEAR(world.position(onFloor).y, 1.4F, 0.02F);
+    EXPECT_NEAR(world.position(onPlatform).y, 3.4F, 0.02F);
+    EXPECT_TRUE(world.isGrounded(onPlatform));
+}

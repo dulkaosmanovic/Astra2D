@@ -120,16 +120,25 @@ cmd_sandbox() {
 
     section "Example smoke tests"
     local example
-    for example in hello_window shapes sprites text input post_processing coin_collector scene; do
+    for example in hello_window shapes sprites text input post_processing coin_collector scene \
+        physics_playground; do
         run_for 2 "./build/examples/$example"
     done
 
     section "ecs_benchmark smoke test"
-    local approach
+    local approach method
     for approach in ecs oop oop_shuffled; do
         ./build/benchmarks/ecs_benchmark --approach "$approach" --entities 1000 --iterations 5 \
             --warmup 1
     done
+
+    section "physics_benchmark smoke test"
+    for method in brute sap grid; do
+        ./build/benchmarks/physics_benchmark broadphase --method "$method" --bodies 200 --steps 5 \
+            --warmup 1
+    done
+    ./build/benchmarks/physics_benchmark stack --boxes 5 --seconds 1
+    ./build/benchmarks/physics_benchmark bounce --restitution 1 --seconds 1
 
     # renderer_stress in benchmark mode exits by itself after the given frames; both rendering
     # paths (batched and one draw call per quad) are exercised. It must exit with status 0.

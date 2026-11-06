@@ -7,6 +7,8 @@ a CSV file and a `*.machine.txt` file describing the machine, build and settings
 |---|---|---|
 | E1: batched vs. naive rendering | `scripts/bench_renderer.sh` | `results/e1_renderer.csv` |
 | E2: ECS vs. OOP game objects | `scripts/bench_ecs.sh` | `results/e2_ecs.csv` |
+| E3: broad phase cost | `scripts/bench_physics.sh` | `results/e3_broadphase.csv` |
+| E4: physics stability | `scripts/bench_physics.sh` | `results/e4_stack.csv`, `results/e4_bounce.csv` |
 
 Method: release build, vsync off, warm-up frames ignored, several runs per case. The scene is
 rendered into an off-screen framebuffer of a fixed 1280x720 pixels, so the results do not depend on
@@ -42,3 +44,29 @@ Every run is a separate process with warm-up updates first. CSV columns:
 | `run`, `approach`, `entities`, `iterations` | repetition, layout, object count, measured updates |
 | `mean_ms`, `stddev_ms`, `min_ms`, `max_ms` | time of one update of all objects |
 | `ns_per_entity` | `mean_ms` per object, in nanoseconds: **compare this** across counts and approaches |
+
+## E3 and E4: physics
+
+`benchmarks/physics_benchmark.cpp` runs the physics without a window.
+
+**E3** (`broadphase --method brute|sap|grid --bodies N`): N circles and boxes (0.5 to 1 units) move
+without gravity in a closed box with elastic walls, like a gas, so they stay spread out and every
+step costs about the same. All three methods find exactly the same pairs (the simulation is
+bit-identical), so only the cost differs. Warm-up steps are ignored. CSV columns (means per step):
+
+| Column | Meaning |
+|---|---|
+| `run`, `method`, `bodies`, `steps` | repetition, broad phase, body count, measured steps |
+| `step_ms`, `stddev_ms` | time of a whole physics step: **compare this** |
+| `broadphase_ms`, `narrowphase_ms`, `solver_ms` | the parts of the step |
+| `pair_tests` | bounding box tests done by the broad phase: the work it saves |
+| `candidate_pairs`, `touching` | pairs passed to the narrow phase, pairs actually touching |
+
+**E4** is deterministic, so every case runs once (10 simulated seconds, sleeping off):
+
+- `stack --boxes N`: a tower of N unit boxes. `max_drift_x` is the largest sideways offset of any
+  box, `top_error_y` how far the top box ends up below where it was placed (the allowed overlap of
+  all contacts added up), `max_angle` the largest rotation.
+- `bounce --restitution e`: a ball dropped from 5 units. `energy_start`, `energy_end`,
+  `energy_max` are kinetic plus potential energy per unit mass; with e = 1 it should stay
+  constant, with e = 0 the ball should stop at the first impact. `bounces` counts contact begins.

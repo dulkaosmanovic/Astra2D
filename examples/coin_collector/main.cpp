@@ -2,8 +2,11 @@
 //
 // Collect as many coins as possible in 30 seconds while avoiding the bouncing spikes; three hits
 // and the round is over. It shows how the pieces fit together in a real game:
-//   - game objects are entities with components (Transform, SpriteRenderer, Animator, Collider and
-//     the game's own Player, Coin, Spike, Burst); the gameplay is systems run by the Scene
+//   - game objects are entities with components (Transform, SpriteRenderer, Animator, RigidBody,
+//     Collider and the game's own Player, Coin, Spike, Burst); the gameplay is systems run by the
+//     Scene
+//   - the PhysicsSystem moves the player and the spikes (which bounce off the walls by
+//     themselves) and reports coins as trigger overlaps and spike hits as collisions
 //   - game states (title, playing, game over) switched in onUpdate()
 //   - gameplay at the fixed timestep, drawn smoothly with Interpolated
 //   - an ActionMap, so keyboard and gamepad both work
@@ -27,6 +30,7 @@
 #include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/renderer/sprite.hpp>
 #include <astra2d/scene/components.hpp>
+#include <astra2d/scene/physics_system.hpp>
 #include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
@@ -39,6 +43,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <exception>
 #include <format>
 #include <random>
@@ -88,9 +93,7 @@ struct Player {
 
 struct Coin {};
 
-struct Spike {
-    glm::vec2 velocity{0.0F};
-};
+struct Spike {};
 
 struct Burst {
     glm::vec4 color{1.0F};
@@ -111,19 +114,21 @@ struct PlayerHit {
 
 enum class State { Title, Playing, GameOver };
 
-astra2d::Collider circle(float radius)
-{
-    return {.shape = astra2d::ColliderShape::Circle, .radius = radius, .isTrigger = true};
-}
+// Collision groups (Collider::category / mask): what collides with what.
+constexpr unsigned kWallGroup = 1U << 0U;
+constexpr unsigned kPlayerGroup = 1U << 1U;
+constexpr unsigned kSpikeGroup = 1U << 2U;
+constexpr unsigned kCoinGroup = 1U << 3U;
 
-// Circle-circle overlap of two entities with a Transform and a circle Collider.
-bool overlaps(const astra2d::Registry& registry, Entity a, Entity b)
+astra2d::Collider circle(float radius, unsigned category, unsigned mask)
 {
-    const auto& colliderA = registry.get<astra2d::Collider>(a);
-    const auto& colliderB = registry.get<astra2d::Collider>(b);
-    const glm::vec2 centerA = registry.get<Transform>(a).position + colliderA.offset;
-    const glm::vec2 centerB = registry.get<Transform>(b).position + colliderB.offset;
-    return glm::distance(centerA, centerB) < colliderA.radius + colliderB.radius;
+    // No friction and fully elastic: spikes keep their speed when they bounce.
+    return {.shape = astra2d::ColliderShape::Circle,
+            .radius = radius,
+            .restitution = 1.0F,
+            .friction = 0.0F,
+            .category = static_cast<std::uint16_t>(category),
+            .mask = static_cast<std::uint16_t>(mask)};
 }
 
 class CoinCollector : public astra2d::Application {
@@ -139,11 +144,18 @@ public:
         , m_camera(2.0F * (kArenaHalf.y + 60.0F), framebufferSize())
         , m_shake({.maxOffset = {10.0F, 10.0F}, .maxAngle = 0.03F})
         , m_random(std::random_device{}())
+        // Measured in pixels, with 32 pixel sprites: this scales the physics' length tolerances.
+        , m_physics(m_scene, {.gravity = {0.0F, 0.0F}, .lengthUnitsPerMeter = 32.0F})
     {
         // The arena plus the HUD above it stay fully visible in any window shape.
         m_camera.fitArea(2.0F * (kArenaHalf + glm::vec2{30.0F, 60.0F}));
         bindControls();
         addSystems();
+        // Gameplay that reacts to the physics: the handlers run after each physics step.
+        m_onTrigger = m_physics.onTriggerEnter().connect(
+            [this](const astra2d::TriggerContact& contact) { collectCoin(contact.trigger); });
+        m_onCollision = m_physics.onCollisionBegin().connect(
+            [this](const astra2d::CollisionEvent& event) { spikeHit(event); });
         spawnArena(); // shown behind the title screen too
 
         // Each effect is its own subscriber; the gameplay systems only publish what happened.
@@ -255,25 +267,10 @@ private:
 
     void addSystems()
     {
+        // The "physics" system was added when m_physics was made, so it runs first: it moves the
+        // bodies with the velocities set in the step before (one step, 1/60 s, of input delay).
         m_scene.addSystem(SystemPhase::FixedUpdate, "player movement",
-                          [this](Scene& scene, float dt) { movePlayer(scene, dt); });
-        m_scene.addSystem(SystemPhase::FixedUpdate, "spike movement", [](Scene& scene, float dt) {
-            const glm::vec2 limit = kArenaHalf - glm::vec2{kSpikeRadius};
-            scene.registry().view<Spike, Transform>().each([&](Spike& spike, Transform& t) {
-                t.position += spike.velocity * dt;
-                t.rotation += 4.0F * dt;
-                for (int axis = 0; axis < 2; ++axis) { // bounce off the walls
-                    if (std::abs(t.position[axis]) > limit[axis]) {
-                        t.position[axis] = std::copysign(limit[axis], t.position[axis]);
-                        spike.velocity[axis] = -spike.velocity[axis];
-                    }
-                }
-            });
-        });
-        m_scene.addSystem(SystemPhase::FixedUpdate, "coin pickup",
-                          [this](Scene& scene, float) { collectCoins(scene); });
-        m_scene.addSystem(SystemPhase::FixedUpdate, "spike hits",
-                          [this](Scene& scene, float) { checkHits(scene); });
+                          [this](Scene& scene, float) { movePlayer(scene); });
 
         m_scene.addSystem(SystemPhase::Update, "player look", [this](Scene& scene, float dt) {
             scene.registry().view<Player, astra2d::Animator, astra2d::SpriteRenderer>().each(
@@ -296,15 +293,16 @@ private:
         // The built-in "animation" system (LateUpdate) then advances every Animator.
     }
 
-    void movePlayer(Scene& scene, float dt)
+    void movePlayer(Scene& scene)
     {
         glm::vec2 direction{m_actions.axis("move_x", input()), m_actions.axis("move_y", input())};
         if (glm::length(direction) > 1.0F) {
             direction = glm::normalize(direction);
         }
-        scene.registry().view<Player, Transform>().each([&](Player& player, Transform& t) {
-            const glm::vec2 limit = kArenaHalf - glm::vec2{kPlayerRadius};
-            t.position = glm::clamp(t.position + (direction * kPlayerSpeed * dt), -limit, limit);
+        // Setting the velocity is enough: the physics moves the player and the walls stop it.
+        scene.registry().view<Player, astra2d::RigidBody>().each(
+            [&](Player& player, astra2d::RigidBody& body) {
+            body.velocity = direction * kPlayerSpeed;
             player.moving = glm::length(direction) > 0.1F;
             if (direction.x != 0.0F) {
                 player.facingLeft = direction.x < 0.0F;
@@ -312,45 +310,38 @@ private:
         });
     }
 
-    void collectCoins(Scene& scene)
+    // A coin's trigger was entered (only the player can: coins are masked to the player group).
+    void collectCoin(Entity coin)
     {
-        // First find the coins, then react. Reacting creates entities (a burst, maybe a spike),
-        // and both get a Transform, a type this view iterates; doing that inside the loop could
-        // move the Transform storage under the reference the loop holds.
-        auto& registry = scene.registry();
-        m_collected.clear();
-        registry.view<Coin, Transform>().each([&](Entity coin, Coin&, Transform&) {
-            if (overlaps(registry, m_player, coin)) {
-                m_collected.push_back(coin);
-            }
-        });
-        for (const Entity coin : m_collected) {
-            const glm::vec2 position = registry.get<Transform>(coin).position; // a copy:
-            events().publish(CoinCollected{.position = position}); // the handlers add entities
-            registry.get<Transform>(coin).position = randomFreePosition(); // respawn elsewhere
-            // Every fifth coin makes the game a little harder.
-            if (m_score % 5 == 0) {
-                spawnSpike();
-            }
+        auto& registry = m_scene.registry();
+        if (!registry.has<Coin>(coin)) {
+            return;
+        }
+        // The handlers of the event count the score and create entities (safe here: outside any
+        // view).
+        events().publish(CoinCollected{.position = registry.get<Transform>(coin).position});
+        // Moving a static collider's Transform moves its body at the next physics step.
+        registry.get<Transform>(coin).position = randomFreePosition();
+        // Every fifth coin makes the game a little harder.
+        if (m_score % 5 == 0) {
+            spawnSpike();
         }
     }
 
-    void checkHits(Scene& scene)
+    void spikeHit(const astra2d::CollisionEvent& event)
     {
-        auto& registry = scene.registry();
+        if (event.a != m_player && event.b != m_player) {
+            return; // e.g. two spikes
+        }
+        auto& registry = m_scene.registry();
         auto& player = registry.get<Player>(m_player);
-        if (player.invulnerable > 0.0F) {
+        if (!registry.has<Spike>(event.other(m_player)) || player.invulnerable > 0.0F) {
             return;
         }
-        for (const Entity spike : registry.view<Spike>()) {
-            if (overlaps(registry, m_player, spike)) {
-                --m_lives;
-                player.invulnerable = kInvulnerableTime;
-                const glm::vec2 position = registry.get<Transform>(m_player).position;
-                events().publish(PlayerHit{.position = position, .livesLeft = m_lives});
-                return;
-            }
-        }
+        --m_lives;
+        player.invulnerable = kInvulnerableTime;
+        events().publish(PlayerHit{.position = registry.get<Transform>(m_player).position,
+                                   .livesLeft = m_lives});
     }
 
     // --- Creating entities -------------------------------------------------------------------
@@ -371,7 +362,10 @@ private:
             m_player, astra2d::SpriteRenderer{.size = glm::vec2{kSprite}, .layer = 2});
         registry.emplace<astra2d::Animator>(m_player, astra2d::Animator{.sheet = &m_sheet})
             .player.play(m_idle);
-        registry.emplace<astra2d::Collider>(m_player, circle(kPlayerRadius));
+        // A dynamic body without gravity that never turns; spikes bounce off it.
+        registry.emplace<astra2d::RigidBody>(m_player, astra2d::RigidBody{.fixedRotation = true});
+        registry.emplace<astra2d::Collider>(
+            m_player, circle(kPlayerRadius, kPlayerGroup, kWallGroup | kSpikeGroup | kCoinGroup));
         registry.emplace<astra2d::Interpolated>(m_player);
 
         for (int i = 0; i < kCoinsOnField; ++i) {
@@ -383,9 +377,25 @@ private:
 
     void spawnArena()
     {
+        auto& registry = m_scene.registry();
         const Entity arena = m_scene.createEntity("arena");
-        m_scene.registry().emplace<astra2d::SpriteRenderer>(
+        registry.emplace<astra2d::SpriteRenderer>(
             arena, astra2d::SpriteRenderer{.size = 2.0F * kArenaHalf, .tint = kArena, .layer = -1});
+        // Four walls just outside the field: colliders without a RigidBody are static.
+        constexpr float kThickness = 20.0F;
+        for (const glm::vec2 side :
+             {glm::vec2(1, 0), glm::vec2(-1, 0), glm::vec2(0, 1), glm::vec2(0, -1)}) {
+            const glm::vec2 center = side * (kArenaHalf + glm::vec2(kThickness));
+            const glm::vec2 half = side.x != 0.0F
+                                       ? glm::vec2(kThickness, kArenaHalf.y + (2.0F * kThickness))
+                                       : glm::vec2(kArenaHalf.x + (2.0F * kThickness), kThickness);
+            const Entity wall = m_scene.createEntity("wall", center);
+            registry.emplace<astra2d::Collider>(
+                wall, astra2d::Collider{.halfExtents = half,
+                                        .restitution = 1.0F,
+                                        .friction = 0.0F,
+                                        .category = static_cast<std::uint16_t>(kWallGroup)});
+        }
     }
 
     void endRound()
@@ -404,7 +414,10 @@ private:
             coin, astra2d::SpriteRenderer{.size = glm::vec2{kSprite}, .layer = 1});
         registry.emplace<astra2d::Animator>(coin, astra2d::Animator{.sheet = &m_sheet})
             .player.play(m_spin);
-        registry.emplace<astra2d::Collider>(coin, circle(kCoinRadius));
+        // A trigger: reports the player entering it, but nothing bounces off it.
+        astra2d::Collider trigger = circle(kCoinRadius, kCoinGroup, kPlayerGroup);
+        trigger.isTrigger = true;
+        registry.emplace<astra2d::Collider>(coin, trigger);
     }
 
     void spawnSpike()
@@ -414,12 +427,18 @@ private:
         const float a = angle(m_random);
         const Entity spike = m_scene.createEntity("spike", randomFreePosition());
         auto& registry = m_scene.registry();
-        registry.emplace<Spike>(spike,
-                                Spike{speed(m_random) * glm::vec2{std::cos(a), std::sin(a)}});
+        registry.emplace<Spike>(spike);
+        // Thrown in a random direction, spinning; walls, other spikes and the player bounce it.
+        registry.emplace<astra2d::RigidBody>(
+            spike,
+            astra2d::RigidBody{.velocity = speed(m_random) * glm::vec2{std::cos(a), std::sin(a)},
+                               .angularVelocity = 4.0F,
+                               .allowSleep = false});
         registry.emplace<astra2d::SpriteRenderer>(
             spike, astra2d::SpriteRenderer{
                        .size = glm::vec2{kSpikeRadius * 1.6F}, .tint = kSpikeColor, .layer = 1});
-        registry.emplace<astra2d::Collider>(spike, circle(kSpikeRadius));
+        registry.emplace<astra2d::Collider>(
+            spike, circle(kSpikeRadius, kSpikeGroup, kWallGroup | kSpikeGroup | kPlayerGroup));
         registry.emplace<astra2d::Interpolated>(spike);
     }
 
@@ -502,7 +521,9 @@ private:
     const astra2d::SpriteAnimation m_spin{.frames = {4, 5, 6, 7}, .frameDuration = 0.1F};
     Scene m_scene;
     Entity m_player;
-    std::vector<Entity> m_collected; // reused by collectCoins()
+    astra2d::PhysicsSystem m_physics; // after the scene: it must be destroyed first
+    astra2d::Connection m_onTrigger;
+    astra2d::Connection m_onCollision;
     astra2d::EventDispatcher::Subscription m_onCoin;
     astra2d::EventDispatcher::Subscription m_onHit;
 

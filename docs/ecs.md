@@ -146,7 +146,7 @@ in the order they were added.
 
 | Phase | Run by | Typical systems |
 |---|---|---|
-| `FixedUpdate` | `scene.fixedUpdate(dt)` from Application::onFixedUpdate() | movement, gameplay, physics (next module) |
+| `FixedUpdate` | `scene.fixedUpdate(dt)` from Application::onFixedUpdate() | movement, gameplay, physics (@ref astra2d::PhysicsSystem) |
 | `Update` | `scene.update(dt)` from Application::onUpdate() | input, AI |
 | `LateUpdate` | `scene.update(dt)`, after Update | animation (built in), camera follow |
 
@@ -169,8 +169,9 @@ the end of `fixedUpdate()` and `update()`.
 | @ref astra2d::Transform | position, rotation, scale, relative to the parent; `createEntity()` adds it |
 | @ref astra2d::SpriteRenderer | sprite (or solid quad), size, tint, layer, flip, visibility |
 | @ref astra2d::Animator | plays a sprite sheet animation into the SpriteRenderer |
-| @ref astra2d::RigidBody | velocity, mass, body type; moved by the physics module (next) |
-| @ref astra2d::Collider | box or circle shape, material, trigger flag; for the physics module |
+| @ref astra2d::RigidBody | body type, velocity, mass, gravity scale; simulated by @ref astra2d::PhysicsSystem |
+| @ref astra2d::Collider | box, circle or polygon shape, material, trigger / one-way flags, collision groups |
+| @ref astra2d::TilemapCollider | collision for a grid of solid and one-way tiles |
 | @ref astra2d::Relationship | hierarchy links, managed by `Scene::setParent()` |
 | @ref astra2d::Interpolated | opt-in smooth drawing of entities moved at the fixed timestep |
 
@@ -281,8 +282,9 @@ the update does not need.
 
 `./build/examples/coin_collector` is a small complete game on the Scene: the player, coins,
 spikes and effects are entities with engine components (Transform, SpriteRenderer, Animator,
-Collider, Interpolated) and the game's own (Player, Coin, Spike, Burst), and the gameplay is
-systems. The Sandbox keeps its world in a Scene too.
+RigidBody, Collider, Interpolated) and the game's own (Player, Coin, Spike, Burst), the gameplay is
+systems, and coin pickups and spike hits are physics events (see @ref physics_guide). The Sandbox
+keeps its world in a Scene too.
 
 `./build/examples/scene` shows all of it: the solar system hierarchy, animated coins with a
 `Pickup` component, an `onDestroy<Pickup>` signal that counts collected coins and spawns an effect,

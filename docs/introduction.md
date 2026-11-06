@@ -64,8 +64,8 @@ int main()
 <div class="astra-card-text">Sparse-set entity component system with generational entity handles, views and component signals. @ref ecs_guide "Guide" · @ref ecs "API"</div>
 </div>
 <div class="astra-card">
-<span class="astra-card-title">Physics <span class="astra-status">planned</span></span>
-<div class="astra-card-text">AABB and circle colliders, broad phase, impulse resolution with friction and restitution, triggers.</div>
+<span class="astra-card-title">Physics <span class="astra-status done">ready</span></span>
+<div class="astra-card-text">Circle, box and polygon colliders, three broad phases, impulse solver with friction, restitution and stable stacking, triggers, one-way platforms, sleeping, bullets, tile maps. @ref physics_guide "Guide" · @ref physics "API"</div>
 </div>
 <div class="astra-card">
 <span class="astra-card-title">Scene <span class="astra-status done">ready</span></span>

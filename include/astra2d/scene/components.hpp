@@ -1,6 +1,8 @@
 #pragma once
 
 #include "astra2d/ecs/entity.hpp"
+#include "astra2d/physics/tilemap.hpp"
+#include "astra2d/physics/world.hpp"
 #include "astra2d/renderer/animation.hpp"
 #include "astra2d/renderer/sprite.hpp"
 
@@ -8,7 +10,9 @@
 #include <glm/vec4.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 /// @addtogroup scene
 /// @{
@@ -78,39 +82,65 @@ struct Animator {
     AnimationPlayer player{};           ///< Which animation, current frame, speed.
 };
 
-/// How the physics treats a RigidBody.
-enum class BodyType {
-    Static,    ///< Never moves (ground, walls); infinite mass.
-    Dynamic,   ///< Moved by gravity, forces and collisions.
-    Kinematic, ///< Moved only by its velocity, set by the game (moving platforms); pushes others.
-};
-
-/// Physical motion of an entity. Data only for now; the physics module (next) moves bodies and
-/// writes the result to Transform.
+/// Physical motion of an entity, simulated by PhysicsSystem; it writes the result to Transform.
+///
+/// The game may change any field: the system applies it at the next step. Setting @ref velocity
+/// directly suits characters (`body.velocity.x = speed`); for pushes use
+/// PhysicsSystem::world() and applyImpulse(). An entity with a RigidBody but no Collider is a point
+/// mass without collisions.
 struct RigidBody {
     BodyType type = BodyType::Dynamic; ///< Static, dynamic or kinematic.
     glm::vec2 velocity{0.0F};          ///< World units per second.
     float mass = 1.0F;                 ///< Mass of a dynamic body (> 0).
     float gravityScale = 1.0F;         ///< Multiplies the world's gravity (0 = floats).
     float linearDamping = 0.0F;        ///< Fraction of velocity lost per second (air drag).
+    float angularVelocity = 0.0F;      ///< Radians per second, counter-clockwise.
+    float angularDamping = 0.0F;       ///< Fraction of angular velocity lost per second.
+    bool fixedRotation = false;        ///< Never rotates (e.g. a platformer character).
+    bool bullet = false;               ///< Continuous collision for fast projectiles.
+    bool allowSleep = true;            ///< May fall asleep when at rest.
+    /// Equal if all fields are equal.
+    friend bool operator==(const RigidBody&, const RigidBody&) = default;
 };
 
 /// The shape of a Collider.
 enum class ColliderShape {
-    Box,    ///< Axis-aligned box with Collider::halfExtents.
-    Circle, ///< Circle with Collider::radius.
+    Box,     ///< Box with Collider::halfExtents, rotated with the entity.
+    Circle,  ///< Circle with Collider::radius.
+    Polygon, ///< Convex hull of Collider::points (3 to 8 corners).
 };
 
-/// The collision shape of an entity, centred on its position plus @p offset. Data only for now;
-/// used by the physics module (next).
+/// The collision shape of an entity, centred on its position plus @p offset (rotated with it).
+/// Sizes are in world units; Transform::scale does not change them. Without a RigidBody the
+/// entity is a static collider (a wall). Changes are applied by PhysicsSystem at the next step.
 struct Collider {
-    ColliderShape shape = ColliderShape::Box; ///< Box or circle.
+    ColliderShape shape = ColliderShape::Box; ///< Box, circle or polygon.
     glm::vec2 halfExtents{0.5F};              ///< Half width and height of a box.
     float radius = 0.5F;                      ///< Radius of a circle.
     glm::vec2 offset{0.0F};                   ///< Centre relative to the entity's position.
     float restitution = 0.0F;                 ///< Bounciness: 0 = no bounce, 1 = elastic.
     float friction = 0.5F;                    ///< Friction coefficient.
     bool isTrigger = false;                   ///< Reports overlaps but does not collide.
+    /// Corners of a polygon, relative to offset.
+    // NOLINTNEXTLINE(readability-redundant-member-init): GCC's -Wmissing-field-initializers
+    std::vector<glm::vec2> points{};
+    bool oneWay = false;             ///< Collides only from above (one-way platform).
+    std::uint16_t category = 0x0001; ///< Collision groups this collider is in (bits).
+    std::uint16_t mask = 0xFFFF;     ///< Groups it collides with.
+    /// Equal if all fields are equal.
+    friend bool operator==(const Collider&, const Collider&) = default;
+};
+
+/// Static collision for a tile map: the solid and one-way tiles of @ref grid become a few box
+/// shapes (see mergeTiles()), placed relative to the entity's position. Handled by PhysicsSystem.
+struct TilemapCollider {
+    TileGrid grid{};          ///< Which tiles collide; TileGrid::origin is relative to the entity.
+    float friction = 0.5F;    ///< Friction of every tile.
+    float restitution = 0.0F; ///< Bounciness of every tile.
+    std::uint16_t category = 0x0001; ///< Collision groups of the tiles.
+    std::uint16_t mask = 0xFFFF;     ///< Groups the tiles collide with.
+    /// Equal if all fields are equal.
+    friend bool operator==(const TilemapCollider&, const TilemapCollider&) = default;
 };
 
 /// Links an entity into the scene hierarchy. Managed by Scene::setParent(); do not change it

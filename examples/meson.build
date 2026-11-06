@@ -16,6 +16,7 @@ examples = {
   'post_processing' : 'post_processing/main.cpp', # render targets and effects
   'coin_collector' : 'coin_collector/main.cpp',   # a small complete game
   'scene' : 'scene/main.cpp',                     # ECS, Scene, hierarchy, signals, scene files
+  'physics_playground' : 'physics_playground/main.cpp', # physics: bodies, stacking, tiles, bullets
   'Sandbox' : 'sandbox/main.cpp',                 # everything at once, hot reloading
   'renderer_stress' : 'renderer_stress/main.cpp', # benchmark E1: batching vs. naive
 }
