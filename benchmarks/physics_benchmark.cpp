@@ -106,6 +106,10 @@ Options parseOptions(std::span<char*> args)
             throw std::invalid_argument("unknown argument " + arg);
         }
     }
+    // 0 bodies makes an empty arena (invalid random range), 0 boxes an empty stack to measure.
+    if (options.bodies < 1 || options.boxes < 1) {
+        throw std::invalid_argument("--bodies and --boxes need at least 1");
+    }
     return options;
 }
 

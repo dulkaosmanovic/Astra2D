@@ -235,6 +235,8 @@ TEST(SerializerTests, FileRoundTrip)
     scene.createEntity("saved", {1.0F, 1.0F});
     const SceneSerializer serializer;
     serializer.saveFile(scene, path);
+    serializer.saveFile(scene, path);                              // replaces the existing file
+    EXPECT_FALSE(std::filesystem::exists(path.string() + ".tmp")); // renamed, not left behind
 
     Scene loaded;
     serializer.loadFile(loaded, path);

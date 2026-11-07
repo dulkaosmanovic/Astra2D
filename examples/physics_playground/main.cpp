@@ -14,7 +14,8 @@
 //   Space                  shoot a bullet towards the mouse
 //   P / T                  build a pyramid / a tower at the mouse
 //   B                      next broad phase (grid, sort and sweep, brute force)
-//   D                      debug draw: bounding boxes, contacts, normals, velocities
+//   D                      debug draw: outlines, bounding boxes, contacts, normals, velocities
+//   F2                     log FPS, frame times and render statistics every second
 //   Z                      sleeping on / off
 //   Enter / N              pause / one step while paused
 //   R                      reset, Escape quit
@@ -22,6 +23,8 @@
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/frame_stats.hpp>
+#include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/font.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
@@ -61,9 +64,6 @@ constexpr glm::vec4 kKinematic{0.35F, 0.55F, 0.95F, 1.0F};
 constexpr glm::vec4 kOneWay{0.95F, 0.6F, 0.2F, 1.0F};
 constexpr glm::vec4 kTrigger{0.3F, 0.9F, 0.5F, 0.18F};
 constexpr glm::vec4 kText{0.9F, 0.92F, 1.0F, 1.0F};
-constexpr glm::vec4 kContact{1.0F, 0.25F, 0.25F, 1.0F};
-constexpr glm::vec4 kAabb{1.0F, 1.0F, 1.0F, 0.25F};
-constexpr glm::vec4 kVelocity{0.3F, 1.0F, 0.9F, 0.8F};
 
 constexpr float kArenaHalfWidth = 20.0F;
 
@@ -198,6 +198,12 @@ protected:
         if (in.isPressed(astra2d::Key::D)) {
             m_debug = !m_debug;
         }
+        if (in.isPressed(astra2d::Key::F2)) {
+            m_logStats = !m_logStats;
+            m_frameStats.restart();
+            ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
+        }
+        m_frameTime = dt;
         if (in.isPressed(astra2d::Key::Z)) {
             auto& settings = m_physics.world().settings();
             settings.enableSleep = !settings.enableSleep;
@@ -238,6 +244,10 @@ protected:
         m_renderer.end();
 
         drawHud();
+        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+            ASTRA_INFO("{}", m_frameStats.summary());
+        }
+        m_renderer.resetStats();
     }
 
 private:
@@ -517,29 +527,11 @@ private:
         }
     }
 
+    // The engine's physics debug view, on top of the bodies: outlines coloured by body state,
+    // bounding boxes, contact points with normals, velocity arrows.
     void drawDebug()
     {
-        const auto& world = m_physics.world();
-        world.forEachBody([&](astra2d::BodyId body) {
-            for (const astra2d::ShapeId shape : world.shapes(body)) {
-                const astra2d::Aabb box = world.shapeAabb(shape);
-                m_renderer.drawRect(box.center(), box.max - box.min, kAabb, 0.03F);
-            }
-            if (world.type(body) == astra2d::BodyType::Dynamic && world.isAwake(body)) {
-                const glm::vec2 c = world.worldCenter(body);
-                m_renderer.drawLine(c, c + (0.1F * world.velocity(body)), kVelocity, 0.04F);
-            }
-        });
-        for (const astra2d::ContactInfo& contact : world.contacts()) {
-            if (!contact.touching) {
-                continue;
-            }
-            for (int i = 0; i < contact.manifold.count; ++i) {
-                const glm::vec2 p = contact.manifold.points[static_cast<std::size_t>(i)].point;
-                m_renderer.drawQuad(p, glm::vec2(0.12F), kContact);
-                m_renderer.drawLine(p, p + (0.4F * contact.manifold.normal), kContact, 0.03F);
-            }
-        }
+        astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), {.boundingBoxes = true});
     }
 
     void drawHud()
@@ -588,6 +580,9 @@ private:
     SpawnShape m_spawnShape = SpawnShape::Box;
     std::size_t m_broadPhase = 0;
     bool m_debug = false;
+    astra2d::FrameStats m_frameStats;
+    bool m_logStats = false;
+    float m_frameTime = 0.0F;
     bool m_paused = false;
     bool m_stepOnce = false;
     glm::vec2 m_mouse{0.0F};

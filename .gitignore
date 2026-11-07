@@ -12,3 +12,4 @@ subprojects/.wraplock
 .vscode/
 .idea/
 compile_commands.json
+__pycache__/

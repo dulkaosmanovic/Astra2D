@@ -24,6 +24,7 @@ test_sources = files(
   'test_physics_system.cpp',
   'test_audio.cpp',
   'test_tiled_map.cpp',
+  'test_debug.cpp',
   'test_platformer.cpp',
   # The platformer example's game logic (no OpenGL), tested in test_platformer.cpp.
   '../examples/platformer/level.cpp',

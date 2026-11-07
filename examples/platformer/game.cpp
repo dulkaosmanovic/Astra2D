@@ -9,6 +9,8 @@
 #include <astra2d/core/actions.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/frame_stats.hpp>
+#include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/animation.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/camera_shake.hpp>
@@ -214,6 +216,15 @@ protected:
         if (m_actions.isPressed("quit", in)) {
             quit();
         }
+        if (m_actions.isPressed("debug", in)) {
+            m_showPhysics = !m_showPhysics;
+        }
+        if (m_actions.isPressed("stats", in)) {
+            m_logStats = !m_logStats;
+            m_frameStats.restart();
+            ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
+        }
+        m_frameTime = dt;
         if (m_actions.isPressed("mute", in)) {
             m_audio.setMuted(!m_audio.muted());
         }
@@ -285,8 +296,21 @@ protected:
         drawTiles(m_level.decor);
         drawTiles(m_level.ground);
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
+        if (m_showPhysics) {
+            // Sizes in world units, where a tile is 16. Shows the merged tile boxes (inner edges
+            // faint), triggers, contacts and velocities.
+            astra2d::drawPhysicsDebug(m_renderer, m_physics.world(),
+                                      {.lineWidth = 0.75F,
+                                       .contactSize = 4.0F,
+                                       .normalLength = 8.0F,
+                                       .velocityScale = 0.1F});
+        }
         m_renderer.end();
         drawHud();
+        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+            ASTRA_INFO("{}", m_frameStats.summary());
+        }
+        m_renderer.resetStats();
     }
 
 private:
@@ -346,6 +370,8 @@ private:
         m_actions.bind("pause", Key::P).bind("pause", GamepadButton::Start);
         m_actions.bind("restart", Key::R).bind("restart", GamepadButton::Back);
         m_actions.bind("mute", Key::M);
+        m_actions.bind("debug", Key::F3); // physics debug view
+        m_actions.bind("stats", Key::F2); // FPS and render statistics in the log
         m_actions.bind("quit", Key::Escape);
     }
 
@@ -1041,6 +1067,10 @@ private:
     glm::vec2 m_respawn{0.0F};
     glm::vec2 m_cameraPosition{0.0F};
     int m_pixelScale = 1;
+    bool m_showPhysics = false;
+    bool m_logStats = false;
+    astra2d::FrameStats m_frameStats;
+    float m_frameTime = 0.0F;
 
     State m_state = State::Title;
     float m_stateTime = 0.0F;

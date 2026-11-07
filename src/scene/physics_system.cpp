@@ -156,12 +156,19 @@ void PhysicsSystem::syncEntity(Entity entity)
 void PhysicsSystem::createBody(Entity entity, Record& record, const RigidBody& wanted,
                                const Transform& world)
 {
+    // Checked for every type: a static or kinematic body may become dynamic later. Written so that
+    // NaN fails too; release builds have no assertion in createBody() to catch it.
+    float mass = wanted.mass;
+    if (!(mass > 0.0F)) {
+        ASTRA_CORE_ERROR("RigidBody mass {} must be positive; using 1", mass);
+        mass = 1.0F;
+    }
     record.body = m_world.createBody({.type = wanted.type,
                                       .position = world.position,
                                       .angle = world.rotation,
                                       .velocity = wanted.velocity,
                                       .angularVelocity = wanted.angularVelocity,
-                                      .mass = wanted.mass,
+                                      .mass = mass,
                                       .gravityScale = wanted.gravityScale,
                                       .linearDamping = wanted.linearDamping,
                                       .angularDamping = wanted.angularDamping,

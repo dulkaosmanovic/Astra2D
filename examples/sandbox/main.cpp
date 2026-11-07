@@ -20,6 +20,7 @@
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/events.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/renderer/animation.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/camera_shake.hpp>
@@ -349,14 +350,15 @@ private:
         // Captured before the HUD adds its own quads and draw call.
         const astra2d::RenderStats scene = m_renderer.stats();
         const std::string lines = std::format(
-            "{} FPS  {} draw calls  {} quads\n"
+            "{:.0f} FPS ({:.1f} ms)  {} draw calls  {} quads\n"
             "batching {} (B)  CRT {} (P)\n"
             "move WASD  rotate Q/E  zoom wheel\n"
             "click: shake  edit crt.frag live\n"
             "gamepad: {}\n"
             "{}",
-            m_fps, scene.drawCalls, scene.quads, m_renderer.batching() ? "on" : "off",
-            m_postProcessing ? "on" : "off", input().isGamepadConnected(0) ? "connected" : "none",
+            m_frameStats.report().fps, m_frameStats.report().averageMs, scene.drawCalls,
+            scene.quads, m_renderer.batching() ? "on" : "off", m_postProcessing ? "on" : "off",
+            input().isGamepadConnected(0) ? "connected" : "none",
             m_noticeTime > 0.0F ? m_notice : "");
 
         m_renderer.begin(astra2d::OrthographicCamera::screenSpace(size.x, size.y));
@@ -368,16 +370,8 @@ private:
         m_renderer.end();
     }
 
-    void updateFps(float dt)
-    {
-        m_fpsTimer += dt;
-        ++m_fpsFrames;
-        if (m_fpsTimer >= 0.5F) {
-            m_fps = static_cast<int>(std::lround(static_cast<float>(m_fpsFrames) / m_fpsTimer));
-            m_fpsTimer = 0.0F;
-            m_fpsFrames = 0;
-        }
-    }
+    // The HUD's numbers change twice a second (FrameStats averages over that time).
+    void updateFps(float dt) { m_frameStats.addFrame(dt); }
 
     astra2d::AssetCache m_assets;
     astra2d::SpriteSheet m_sheet;
@@ -407,9 +401,7 @@ private:
 
     std::string m_notice;
     float m_noticeTime = 0.0F;
-    float m_fpsTimer = 0.0F;
-    int m_fpsFrames = 0;
-    int m_fps = 0;
+    astra2d::FrameStats m_frameStats{0.5F};
 };
 
 } // namespace

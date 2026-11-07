@@ -22,7 +22,7 @@ digraph layers {
         label="High level"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
         style="rounded,dashed"; color="#9fbfd3";
         scene [label="scene", fillcolor="#1a2f55", fontcolor="white", URL="\ref scene"];
-        debug [label="debug"];
+        debug [label="debug", fillcolor="#1a2f55", fontcolor="white", URL="\ref debug"];
     }
     subgraph cluster_systems {
         label="Systems"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
@@ -58,7 +58,7 @@ digraph layers {
 | @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | no | ready |
 | @ref audio "audio" | Sound effects and music: decoding, voices, buses, headless mixing | no | ready |
 | @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files, Tiled maps | rendering only | ready |
-| debug | Debug drawing and statistics | yes | planned |
+| @ref debug "debug" | Physics debug view, frame statistics | drawing only | ready |
 
 `ecs`, `physics`, `audio` and `math` do not depend on OpenGL. They can be unit-tested and benchmarked
 headless, which is what the evaluation chapter relies on.

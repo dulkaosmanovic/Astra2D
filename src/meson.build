@@ -30,6 +30,8 @@ engine_sources = files(
   'scene/tiled_map.cpp',
   'assets/asset_cache.cpp',
   'audio/audio_engine.cpp',
+  'debug/frame_stats.cpp',
+  'debug/physics_debug_draw.cpp',
   'assets/file_watcher.cpp'
 )
 

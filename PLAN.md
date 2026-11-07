@@ -146,8 +146,8 @@ Stretch
 ## 6. Debug tools
 
 Required
-- [ ] Debug draw of colliders, contacts and velocities (toggle with a key)
-- [ ] FPS / frame time and render stats (in the window title or log is enough)
+- [x] Debug draw of colliders, contacts and velocities (toggle with a key): `drawPhysicsDebug()`, F3 in the games, D in `physics_playground`
+- [x] FPS / frame time and render stats (in the window title or log is enough): `FrameStats`, F2 logs them
 
 Stretch (in priority order)
 - [ ] ImGui overlay: stats graph, entity list, component inspector, debug toggles

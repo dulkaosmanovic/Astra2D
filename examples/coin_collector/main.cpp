@@ -17,12 +17,16 @@
 //   WASD, arrows / left stick, d-pad   move
 //   Enter, Space / A, Start            start / restart
 //   Escape                             quit
+//   F3                                 physics debug view
+//   F2                                 log FPS, frame times and render statistics
 
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/core/actions.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/events.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/frame_stats.hpp>
+#include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/animation.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/camera_shake.hpp>
@@ -187,6 +191,15 @@ protected:
         if (m_actions.isPressed("quit", in)) {
             quit();
         }
+        if (m_actions.isPressed("debug", in)) {
+            m_showPhysics = !m_showPhysics;
+        }
+        if (m_actions.isPressed("stats", in)) {
+            m_logStats = !m_logStats;
+            m_frameStats.restart();
+            ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
+        }
+        m_frameTime = dt;
         switch (m_state) {
         case State::Title:
         case State::GameOver:
@@ -232,8 +245,19 @@ protected:
                                   {burst.color.r, burst.color.g, burst.color.b, 1.0F - progress},
                                   3.0F);
         });
+        if (m_showPhysics) {
+            astra2d::drawPhysicsDebug(m_renderer, m_physics.world(),
+                                      {.lineWidth = 1.5F,
+                                       .contactSize = 6.0F,
+                                       .normalLength = 16.0F,
+                                       .velocityScale = 0.15F});
+        }
         drawHud();
         m_renderer.end();
+        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+            ASTRA_INFO("{}", m_frameStats.summary());
+        }
+        m_renderer.resetStats();
     }
 
 private:
@@ -261,6 +285,8 @@ private:
             .bind("start", GamepadButton::A)
             .bind("start", GamepadButton::Start);
         m_actions.bind("quit", Key::Escape);
+        m_actions.bind("debug", Key::F3);
+        m_actions.bind("stats", Key::F2);
     }
 
     // --- Systems: the gameplay, run by the Scene in this order ------------------------------
@@ -533,6 +559,10 @@ private:
     int m_lives = kLives;
     float m_timeLeft = kRoundTime;
     float m_time = 0.0F;
+    bool m_showPhysics = false;
+    bool m_logStats = false;
+    astra2d::FrameStats m_frameStats;
+    float m_frameTime = 0.0F;
 };
 
 } // namespace
