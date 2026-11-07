@@ -1,0 +1,7 @@
+date: 2026-11-07T22:16:50+01:00
+commit: 5bcaf36
+kernel: Linux 7.2.11-arch1-1
+cpu: AMD Ryzen 5 3500U with Radeon Vega Mobile Gfx
+compiler: c++ (GCC) 16.2.1 20260810
+buildtype: release
+settings: iterations=200 warmup=20 runs=5

@@ -9,6 +9,8 @@ a CSV file and a `*.machine.txt` file describing the machine, build and settings
 | E2: ECS vs. OOP game objects | `scripts/bench_ecs.sh` | `results/e2_ecs.csv` |
 | E3: broad phase cost | `scripts/bench_physics.sh` | `results/e3_broadphase.csv` |
 | E4: physics stability | `scripts/bench_physics.sh` | `results/e4_stack.csv`, `results/e4_bounce.csv` |
+| E5: usability | `scripts/bench_usability.py` | `results/e5_loc.csv`, `results/e5_api.csv` |
+| all of the above, then charts | `scripts/bench_all.sh` | also `results/summary.md`, `docs/images/evaluation/*.svg` |
 
 Method: release build, vsync off, warm-up frames ignored, several runs per case. The scene is
 rendered into an off-screen framebuffer of a fixed 1280x720 pixels, so the results do not depend on
@@ -70,3 +72,19 @@ bit-identical), so only the cost differs. Warm-up steps are ignored. CSV columns
 - `bounce --restitution e`: a ball dropped from 5 units. `energy_start`, `energy_end`,
   `energy_max` are kinetic plus potential energy per unit mass; with e = 1 it should stay
   constant, with e = 0 the ball should stop at the first impact. `bounces` counts contact begins.
+
+## E5: usability
+
+`scripts/bench_usability.py` counts the lines of the engine (`include/` + `src/`), the tests and
+every example: code lines are non-blank lines that are not only a comment, comment lines are counted
+apart (`e5_loc.csv`). It also lists every engine name (`astra2d::Name`) the platformer uses, with the
+module and header that declare it (`e5_api.csv`), which shows how much of the engine a real game
+touches.
+
+## Charts and summary
+
+`scripts/make_charts.py` reads the CSV files and writes one SVG chart per question to
+`docs/images/evaluation/` and `results/summary.md` with the mean ± sample standard deviation over
+the runs of every case and the ratios the evaluation discusses (naive / batched, OOP / ECS,
+brute force / grid). It needs only the Python standard library. The documentation's *Evaluation*
+page shows the charts and explains the results.

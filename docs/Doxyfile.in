@@ -1036,6 +1036,8 @@ INPUT                  = @SOURCE_ROOT@/docs/introduction.md \
                          @SOURCE_ROOT@/docs/audio.md \
                          @SOURCE_ROOT@/docs/debug.md \
                          @SOURCE_ROOT@/docs/platformer.md \
+                         @SOURCE_ROOT@/docs/evaluation.md \
+                         @SOURCE_ROOT@/docs/comparison.md \
                          @SOURCE_ROOT@/docs/modules.dox \
                          @SOURCE_ROOT@/include
 
@@ -1146,7 +1148,8 @@ EXAMPLE_RECURSIVE      = NO
 # \image command).
 
 IMAGE_PATH             = @SOURCE_ROOT@/docs \
-                         @SOURCE_ROOT@/docs/theme
+                         @SOURCE_ROOT@/docs/theme \
+                         @SOURCE_ROOT@/docs/images/evaluation
 
 # The INPUT_FILTER tag can be used to specify a program that Doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program

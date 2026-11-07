@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" width="680" height="400" role="img" aria-label="E5: lines of code">
+<title>E5: lines of code</title>
+<style>
+.surface { fill: #fcfcfb; } .grid { stroke: #e4e3df; } .axis { stroke: #8a8984; }
+.ink { fill: #0b0b0b; } .ink2 { fill: #52514e; } .ring { stroke: #fcfcfb; }
+.l1 { stroke: #2a78d6; } .l2 { stroke: #eb6834; } .l3 { stroke: #1baf7a; }
+.f1 { fill: #2a78d6; } .f2 { fill: #eb6834; } .f3 { fill: #1baf7a; }
+.l1, .l2, .l3 { fill: none; }
+@media (prefers-color-scheme: dark) {
+  .surface { fill: #1a1a19; } .grid { stroke: #33332f; } .axis { stroke: #6f6e69; }
+  .ink { fill: #f0efec; } .ink2 { fill: #c3c2b7; } .ring { stroke: #1a1a19; }
+  .l1 { stroke: #3987e5; } .l2 { stroke: #d95926; } .l3 { stroke: #199e70; }
+  .f1 { fill: #3987e5; } .f2 { fill: #d95926; } .f3 { fill: #199e70; }
+}
+text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+<rect class="surface" width="680" height="400" rx="8"/>
+<text class="ink" x="20" y="28" font-size="16" font-weight="600">E5: lines of code</text>
+<text class="ink2" x="20" y="47" font-size="12">Code lines without blank and comment-only lines; the platformer is the game</text>
+<text class="ink2" x="182" y="82" font-size="12" text-anchor="end">engine</text>
+<path class="f1" d="M190 71 h406.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-406.0 Z"/>
+<text class="ink" x="606.0" y="82" font-size="12">10,233</text>
+<text class="ink2" x="182" y="104" font-size="12" text-anchor="end">tests</text>
+<path class="f1" d="M190 93 h194.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-194.5 Z"/>
+<text class="ink" x="394.5" y="104" font-size="12">4,954</text>
+<text class="ink2" x="182" y="126" font-size="12" text-anchor="end">platformer</text>
+<path class="f1" d="M190 115 h56.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-56.4 Z"/>
+<text class="ink" x="256.4" y="126" font-size="12">1,508</text>
+<text class="ink2" x="182" y="148" font-size="12" text-anchor="end">physics_playground</text>
+<path class="f1" d="M190 137 h16.8 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-16.8 Z"/>
+<text class="ink" x="216.8" y="148" font-size="12">518</text>
+<text class="ink2" x="182" y="170" font-size="12" text-anchor="end">coin_collector</text>
+<path class="f1" d="M190 159 h14.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-14.7 Z"/>
+<text class="ink" x="214.7" y="170" font-size="12">467</text>
+<text class="ink2" x="182" y="192" font-size="12" text-anchor="end">sandbox</text>
+<path class="f1" d="M190 181 h9.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-9.7 Z"/>
+<text class="ink" x="209.7" y="192" font-size="12">341</text>
+<text class="ink2" x="182" y="214" font-size="12" text-anchor="end">renderer_stress</text>
+<path class="f1" d="M190 203 h7.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-7.7 Z"/>
+<text class="ink" x="207.7" y="214" font-size="12">292</text>
+<text class="ink2" x="182" y="236" font-size="12" text-anchor="end">scene</text>
+<path class="f1" d="M190 225 h7.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-7.3 Z"/>
+<text class="ink" x="207.3" y="236" font-size="12">282</text>
+<text class="ink2" x="182" y="258" font-size="12" text-anchor="end">post_processing</text>
+<path class="f1" d="M190 247 h3.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-3.3 Z"/>
+<text class="ink" x="203.3" y="258" font-size="12">183</text>
+<text class="ink2" x="182" y="280" font-size="12" text-anchor="end">input</text>
+<path class="f1" d="M190 269 h3.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-3.1 Z"/>
+<text class="ink" x="203.1" y="280" font-size="12">176</text>
+<text class="ink2" x="182" y="302" font-size="12" text-anchor="end">sprites</text>
+<path class="f1" d="M190 291 h0.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.6 Z"/>
+<text class="ink" x="200.6" y="302" font-size="12">115</text>
+<text class="ink2" x="182" y="324" font-size="12" text-anchor="end">shapes</text>
+<path class="f1" d="M190 313 h0.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.5 Z"/>
+<text class="ink" x="200.5" y="324" font-size="12">112</text>
+<text class="ink2" x="182" y="346" font-size="12" text-anchor="end">text</text>
+<path class="f1" d="M190 335 h0.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.2 Z"/>
+<text class="ink" x="200.2" y="346" font-size="12">104</text>
+<text class="ink2" x="182" y="368" font-size="12" text-anchor="end">hello_window</text>
+<path class="f1" d="M190 357 h-2.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h2.0 Z"/>
+<text class="ink" x="198.0" y="368" font-size="12">42</text>
+<line class="axis" x1="190" x2="190" y1="68" y2="376" stroke-width="1"/>
+</svg>

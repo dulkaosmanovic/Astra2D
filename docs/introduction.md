@@ -79,7 +79,7 @@ int main()
 
 <h2>Design goals</h2>
 
-- **Layered and testable.** Lower layers never include higher ones. The ECS, physics and math do not
+- **Layered and testable.** Lower layers never include higher ones. The ECS, physics and audio do not
   touch OpenGL, so they are unit-tested without a GPU.
 - **Built from scratch where it matters.** The ECS and the physics engine are the engine's own
   work; GLFW, GLAD, GLM and spdlog are used for the platform plumbing.
@@ -96,4 +96,7 @@ int main()
 | learn how the main loop, timestep and input work | @ref core_guide |
 | draw sprites, use the camera and understand batching | @ref renderer_guide |
 | organize a game as entities, components and systems | @ref ecs_guide |
+| see a complete game built on the engine | @ref platformer_guide |
+| see what the benchmarks measured and what the results mean | @ref evaluation |
+| compare the API with raylib and Godot | @ref comparison |
 | look up a class or function | [Modules](topics.html) or [Classes](annotated.html) |
