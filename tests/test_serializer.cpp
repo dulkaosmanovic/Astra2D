@@ -213,6 +213,18 @@ TEST(SerializerTests, BadFilesThrowAndLeaveTheSceneUnchanged)
                        {"id": 0, "parent": null,
                         "components": {"SpriteRenderer": {"texture": "a.png"}}}]})",
                    "no AssetCache");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"Collider": {"halfExtents": [0, 1]}}}]})",
+                   "halfExtents");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"Collider": {"shape": "circle", "radius": 0}}}]})",
+                   "radius");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"TilemapCollider": {"tileSize": 0, "rows": ["#"]}}}]})",
+                   "tileSize");
 }
 
 TEST(SerializerTests, FileRoundTrip)
@@ -294,4 +306,18 @@ TEST(SerializerTests, CommaDecimalLocaleDoesNotTruncateFloats)
     const glm::vec2 position = loaded.registry().get<Transform>(loaded.find("e")).position;
     EXPECT_EQ(position.x, 0.3F) << "locale " << chosen;
     EXPECT_EQ(position.y, 2.5F);
+}
+
+TEST(SerializerTests, OnlyTheSizeTheColliderShapeUsesIsChecked)
+{
+    // A circle's unused halfExtents and a box's unused radius may be anything.
+    const SceneSerializer serializer;
+    Scene scene;
+    EXPECT_NO_THROW(serializer.load(scene, json::parse(R"({"format": "astra2d-scene", "version": 1,
+        "entities": [
+          {"id": 0, "parent": null, "components": {"Collider":
+            {"shape": "circle", "radius": 1, "halfExtents": [0, -1]}}},
+          {"id": 1, "parent": null, "components": {"Collider":
+            {"shape": "box", "halfExtents": [1, 1], "radius": 0}}}]})")));
+    EXPECT_EQ(scene.registry().storage<astra2d::Collider>().size(), 2U);
 }

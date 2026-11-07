@@ -31,6 +31,7 @@ digraph layers {
         physics  [label="physics"];
         renderer [label="renderer", fillcolor="#1a2f55", fontcolor="white", URL="\ref renderer"];
         assets   [label="assets", fillcolor="#1a2f55", fontcolor="white", URL="\ref assets"];
+        audio    [label="audio", fillcolor="#1a2f55", fontcolor="white", URL="\ref audio"];
     }
     subgraph cluster_base {
         label="Foundation"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
@@ -39,11 +40,11 @@ digraph layers {
         math [label="math"];
     }
 
-    game -> scene; game -> debug;
+    game -> scene; game -> debug; game -> audio;
     scene -> ecs; scene -> physics; scene -> renderer; scene -> assets;
     debug -> renderer; debug -> physics;
     assets -> renderer;
-    renderer -> core; assets -> core; ecs -> core; physics -> math; renderer -> math;
+    renderer -> core; assets -> core; ecs -> core; audio -> core; physics -> math; renderer -> math;
 }
 @enddot
 
@@ -55,10 +56,11 @@ digraph layers {
 | @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, debug lines | yes | ready |
 | @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | no | ready |
 | @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | no | ready |
-| @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files | rendering only | ready |
+| @ref audio "audio" | Sound effects and music: decoding, voices, buses, headless mixing | no | ready |
+| @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files, Tiled maps | rendering only | ready |
 | debug | Debug drawing and statistics | yes | planned |
 
-`ecs`, `physics` and `math` do not depend on OpenGL. They can be unit-tested and benchmarked
+`ecs`, `physics`, `audio` and `math` do not depend on OpenGL. They can be unit-tested and benchmarked
 headless, which is what the evaluation chapter relies on.
 
 ## Source layout
@@ -67,10 +69,10 @@ headless, which is what the evaluation chapter relies on.
 include/astra2d/<module>/   public headers: the engine API
 src/<module>/               implementation
 tests/                      one GoogleTest file per module
-examples/                   example programs, from hello_window to a small game
-examples/assets/            textures, shaders and fonts used by the examples
+examples/                   example programs, from hello_window to the platformer game
+examples/assets/            textures, shaders, fonts, sounds and levels used by the examples
 docs/                       Doxygen configuration, these pages and the theme
-external/                   vendored code (GLAD, stb_image, doxygen-awesome-css)
+external/                   vendored code (GLAD, stb_image, miniaudio, doxygen-awesome-css)
 benchmarks/results/         benchmark CSV files and machine descriptions
 subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and GoogleTest
 ```
@@ -83,9 +85,10 @@ subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and
 | GLAD | Loading OpenGL 3.3 core functions |
 | GLM | Vectors and matrices |
 | spdlog | Logging (wrapped by @ref astra2d::log) |
-| nlohmann/json | Scene files (@ref astra2d::SceneSerializer); header-only |
+| nlohmann/json | Scene files (@ref astra2d::SceneSerializer) and Tiled maps (@ref astra2d::loadTiledMap); header-only |
 | stb_image | Decoding PNG/JPEG/BMP/TGA textures (vendored, private to the engine library) |
 | stb_truetype | Baking TrueType fonts into atlases (vendored, private to the engine library) |
+| miniaudio | Decoding, mixing and playing sound (vendored, private to the engine library) |
 | GoogleTest | Unit tests |
 
 Meson uses system packages when they are installed and falls back to the wraps in

@@ -21,6 +21,21 @@ examples = {
   'renderer_stress' : 'renderer_stress/main.cpp', # benchmark E1: batching vs. naive
 }
 
+# The showcase game: several files, and its level and controller code is also unit-tested
+# (tests/meson.build compiles those two files into the tests).
+platformer_sources = files(
+  'platformer/main.cpp',
+  'platformer/game.cpp',
+  'platformer/level.cpp',
+  'platformer/controller.cpp'
+)
+executable(
+  'platformer',
+  platformer_sources,
+  cpp_args : example_args,
+  dependencies : engine_dep
+)
+
 foreach name, source : examples
   executable(
     name,

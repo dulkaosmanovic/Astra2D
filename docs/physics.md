@@ -274,5 +274,8 @@ systems added after it see the results.
   a spring, shoot bullets, build towers and pyramids; one-way platforms, a tile map, a moving
   platform, a trigger zone; switch broad phases and see their cost; debug drawing of bounding
   boxes, contact points, normals and velocities.
+- `examples/platformer`: a platformer with tile maps, one-way planks the player can drop through
+  (collision groups), stomping enemies by the contact normal, hazards as triggers, ground detection
+  and ledge detection with ray casts (see @ref platformer_guide).
 - `examples/coin_collector`: a game without gravity; coins are triggers, spikes bounce off walls
   and the player by themselves, hits are collision events.

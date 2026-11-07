@@ -76,6 +76,7 @@ struct Body {
     bool bullet = false;
     bool allowSleep = true;
     bool awake = true;
+    bool touchWakeQueued = false; // in Impl::touchWakeQueue
     float sleepTime = 0.0F;
     std::uint64_t userData = 0;
     std::vector<std::uint32_t> shapes;
@@ -294,6 +295,7 @@ struct PhysicsWorld::Impl {
     std::vector<ShapeData> shapes;
     std::vector<std::uint32_t> freeShapes;
     std::size_t shapeCount = 0;
+    std::vector<std::uint32_t> touchWakeQueue; // bodies whose touching bodies are to be woken
 
     BroadPhase broadPhase;
     std::vector<BroadPhaseProxy> proxies;
@@ -364,17 +366,34 @@ struct PhysicsWorld::Impl {
         }
     }
 
-    // Wakes the bodies that touch body `index`, e.g. after it moved or was removed.
+    // Wakes the bodies that touch body `index`, e.g. after it moved. Queued so that moving many
+    // bodies costs one pass over the contacts (flushTouchWakes), not one pass per body.
     void wakeTouching(std::uint32_t index)
     {
+        if (!bodies[index].touchWakeQueued) {
+            bodies[index].touchWakeQueued = true;
+            touchWakeQueue.push_back(index);
+        }
+    }
+
+    // Runs the queued wakeTouching calls; before a step and before reading a body's sleep state.
+    void flushTouchWakes()
+    {
+        if (touchWakeQueue.empty()) {
+            return;
+        }
         for (const Contact& contact : contacts) {
-            const std::uint32_t a = shapes[contact.shapeA].body;
-            const std::uint32_t b = shapes[contact.shapeB].body;
-            if (a == index || b == index) {
-                wake(bodies[a]);
-                wake(bodies[b]);
+            Body& a = bodies[shapes[contact.shapeA].body];
+            Body& b = bodies[shapes[contact.shapeB].body];
+            if (a.touchWakeQueued || b.touchWakeQueued) {
+                wake(a);
+                wake(b);
             }
         }
+        for (const std::uint32_t index : touchWakeQueue) {
+            bodies[index].touchWakeQueued = false;
+        }
+        touchWakeQueue.clear();
     }
 
     void updateCenter(Body& b) { b.center = b.origin + b.rotation.apply(b.localCenter); }
@@ -424,11 +443,13 @@ struct PhysicsWorld::Impl {
         b.invInertia = (b.fixedRotation || b.inertia <= 0.0F) ? 0.0F : 1.0F / b.inertia;
     }
 
-    // Ends the contacts of shape `index` (events in the next step) and wakes the bodies.
-    void removeContactsOf(std::uint32_t index)
+    // Ends the contacts of the shapes for which `removed(shapeIndex)` is true (events in the
+    // next step) and wakes their bodies; one pass over the contacts for any number of shapes.
+    template <typename Predicate>
+    void removeContactsOf(Predicate removed)
     {
         std::erase_if(contacts, [&](const Contact& contact) {
-            if (contact.shapeA != index && contact.shapeB != index) {
+            if (!removed(contact.shapeA) && !removed(contact.shapeB)) {
                 return false;
             }
             const std::uint32_t a = shapes[contact.shapeA].body;
@@ -518,6 +539,7 @@ void PhysicsWorld::Impl::step(float dt)
     triggerEnd.clear();
     endEvents.swap(pendingEnd);
     triggerEnd.swap(pendingTriggerEnd);
+    flushTouchWakes();
 
     const auto broadStart = Clock::now();
     findPairs(dt);
@@ -684,7 +706,9 @@ void PhysicsWorld::Impl::updateTrigger(Contact& contact, const Manifold& manifol
 void PhysicsWorld::Impl::decideOneWay(Contact& contact, const Manifold& manifold, float dt) const
 {
     // One-way platforms decide once per encounter: a shape that arrives from the platform's top,
-    // not moving up, collides; any other is let through until they separate.
+    // not moving up and not already sunk into it, collides; any other is let through until they
+    // separate. The depth check matters for top-only tiles, whose normal is always up even when
+    // the shape enters from the side or below.
     if (manifold.count == 0) {
         contact.oneWay = OneWayState::Undecided;
         return;
@@ -700,8 +724,11 @@ void PhysicsWorld::Impl::decideOneWay(Contact& contact, const Manifold& manifold
     const float rising = glm::dot(other.velocity - platform.velocity, up);
     const bool fromAbove = glm::dot(normalFromPlatform, up) > 0.5F;
     const float slop = settings.linearSlop * scale();
+    // A shape falling onto the top sinks in at most as far as it fell in the last step.
+    const float maxDepth = slop + (std::max(-rising, 0.0F) * dt);
+    const bool onTop = manifold.minSeparation() >= -maxDepth;
     contact.oneWay =
-        fromAbove && rising <= slop / dt ? OneWayState::Enabled : OneWayState::Disabled;
+        fromAbove && onTop && rising <= slop / dt ? OneWayState::Enabled : OneWayState::Disabled;
 }
 
 void PhysicsWorld::Impl::warmStartFrom(const Manifold& before, Manifold& now)
@@ -1221,8 +1248,12 @@ void PhysicsWorld::destroyBody(BodyId body)
 {
     Impl& w = *m_impl;
     Body& b = w.body(body);
+    w.removeContactsOf([&](std::uint32_t s) { return w.shapes[s].body == body.index; });
+    if (b.touchWakeQueued) {
+        std::erase(w.touchWakeQueue, body.index);
+        b.touchWakeQueued = false;
+    }
     for (const std::uint32_t s : b.shapes) {
-        w.removeContactsOf(s);
         ShapeData& shape = w.shapes[s];
         shape.alive = false;
         ++shape.generation;
@@ -1408,12 +1439,14 @@ void PhysicsWorld::setBullet(BodyId body, bool bullet)
 
 bool PhysicsWorld::isAwake(BodyId body) const
 {
+    m_impl->flushTouchWakes();
     const Body& b = m_impl->body(body);
     return b.type == BodyType::Kinematic || b.awake;
 }
 
 void PhysicsWorld::setAwake(BodyId body, bool awake)
 {
+    m_impl->flushTouchWakes(); // earlier wakes must not undo this call
     Body& b = m_impl->body(body);
     if (!b.isDynamic()) {
         return;
@@ -1535,13 +1568,33 @@ void PhysicsWorld::removeShape(ShapeId shape)
 {
     Impl& w = *m_impl;
     ShapeData& data = w.shape(shape);
-    w.removeContactsOf(shape.index);
+    w.removeContactsOf([&](std::uint32_t s) { return s == shape.index; });
     Body& b = w.bodies[data.body];
     std::erase(b.shapes, shape.index);
     data.alive = false;
     ++data.generation;
     w.freeShapes.push_back(shape.index);
     --w.shapeCount;
+    w.updateMass(b);
+    Impl::wake(b);
+}
+
+void PhysicsWorld::removeShapes(BodyId body)
+{
+    Impl& w = *m_impl;
+    Body& b = w.body(body);
+    if (b.shapes.empty()) {
+        return;
+    }
+    w.removeContactsOf([&](std::uint32_t s) { return w.shapes[s].body == body.index; });
+    for (const std::uint32_t s : b.shapes) {
+        ShapeData& shape = w.shapes[s];
+        shape.alive = false;
+        ++shape.generation;
+        w.freeShapes.push_back(s);
+        --w.shapeCount;
+    }
+    b.shapes.clear();
     w.updateMass(b);
     Impl::wake(b);
 }

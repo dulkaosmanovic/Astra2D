@@ -31,6 +31,17 @@ Public headers live in `include/astra2d/assets/`.
 */
 
 /**
+@defgroup audio Audio
+@brief Sound effects and music: decoding, overlapping voices with volume, pitch and pan, effect
+and music buses, and a mode without an output device for tests and headless machines.
+
+Depends only on @ref core (logging, assertions) and the vendored miniaudio; no OpenGL. See
+@ref audio_guide.
+
+Public headers live in `include/astra2d/audio/`.
+*/
+
+/**
 @defgroup ecs ECS
 @brief Entities with generations, sparse-set component storage, the Registry, views and
 component signals.
@@ -58,10 +69,10 @@ Public headers live in `include/astra2d/physics/`.
 @defgroup scene Scene
 @brief Scene with systems in a fixed order, built-in components (Transform, SpriteRenderer,
 Animator, RigidBody, Collider, TilemapCollider), parent/child hierarchy, rendering, physics
-integration (PhysicsSystem) and JSON scene files.
+integration (PhysicsSystem), JSON scene files and Tiled map loading.
 
-Builds on @ref ecs, @ref physics, @ref renderer and @ref assets. See @ref ecs_guide and
-@ref physics_guide.
+Builds on @ref ecs, @ref physics, @ref renderer and @ref assets. See @ref ecs_guide,
+@ref physics_guide and, for Tiled maps, @ref platformer_guide.
 
 Public headers live in `include/astra2d/scene/`.
 */

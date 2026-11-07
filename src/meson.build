@@ -27,7 +27,9 @@ engine_sources = files(
   'scene/physics_system.cpp',
   'scene/scene.cpp',
   'scene/serializer.cpp',
+  'scene/tiled_map.cpp',
   'assets/asset_cache.cpp',
+  'audio/audio_engine.cpp',
   'assets/file_watcher.cpp'
 )
 
@@ -44,8 +46,9 @@ engine_lib = library(
   'astra2d',
   engine_sources,
   include_directories : engine_inc,
-  # stb_image is an implementation detail of Texture2D, so it is not passed on to engine users.
-  dependencies : engine_deps + [stb_dep]
+  # stb_image (Texture2D) and miniaudio (AudioEngine) are implementation details, so they are not
+  # passed on to engine users.
+  dependencies : engine_deps + [stb_dep, miniaudio_dep]
 )
 
 engine_dep = declare_dependency(

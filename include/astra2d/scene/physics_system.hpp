@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 /// @addtogroup scene
@@ -126,8 +127,7 @@ private:
         std::vector<ShapeId> shapes;
         std::optional<Collider> collider;
         std::optional<TilemapCollider> tilemap;
-        RigidBody rigidBody; // as last given to / read from the world
-        bool hasRigidBody = false;
+        RigidBody rigidBody;      // as last given to / read from the world
         glm::vec2 position{0.0F}; // world pose as last given to / read from the world
         float rotation = 0.0F;
         std::uint32_t stamp = 0; // sync() pass that last saw it
@@ -139,6 +139,7 @@ private:
     void applyChanges(const Record& record, const RigidBody& wanted);
     void rebuildShapes(Entity entity, Record& record);
     void writeBack();
+    void writeBack(Entity entity);
     void dispatchEvents();
     void forget(Entity entity);
 
@@ -149,6 +150,7 @@ private:
     // Entity of each body, also for one step after the body is destroyed, for its end events.
     std::unordered_map<std::uint64_t, Entity> m_entities;
     std::vector<std::uint64_t> m_retired;
+    std::vector<std::pair<int, Entity>> m_children; // writeBack() scratch: (depth, entity)
     Signal<const CollisionEvent&> m_collisionBegin;
     Signal<const CollisionEvent&> m_collisionEnd;
     Signal<const TriggerContact&> m_triggerEnter;

@@ -25,7 +25,8 @@ struct TileGrid {
     int height = 0;         ///< Rows.
     float tileSize = 1.0F;  ///< Side of a tile in world units.
     glm::vec2 origin{0.0F}; ///< Bottom-left corner of cell (0, 0), relative to the body.
-    /// `width * height` tiles, row by row from the bottom.
+    /// `width * height` tiles, row by row from the bottom. May be shorter (even empty): missing
+    /// tiles are Empty; set() fills it up.
     // NOLINTNEXTLINE(readability-redundant-member-init): GCC's -Wmissing-field-initializers
     std::vector<TileCollision> cells{};
 
