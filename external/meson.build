@@ -33,3 +33,29 @@ stb_dep = declare_dependency(
   include_directories : stb_inc,
   link_with : stb_lib
 )
+
+# miniaudio for audio playback (AudioEngine): decoding WAV/FLAC/MP3, mixing and the output device
+# (ALSA, PulseAudio, PipeWire or JACK, loaded at run time). Single file, public domain or MIT-0:
+#   external/miniaudio/miniaudio.h  v0.11.21 (tag 0.11.21, commit 4a5b74bef029b3592c54b6048650ee5f972c1a48)
+# The defines must match in every file that includes the header, so they are passed here.
+
+miniaudio_args = ['-DMA_NO_RESOURCE_MANAGER', '-DMA_NO_ENCODING', '-DMA_NO_GENERATION']
+miniaudio_inc = include_directories('miniaudio', is_system : true)
+
+miniaudio_lib = static_library(
+  'miniaudio',
+  'miniaudio/miniaudio.c',
+  include_directories : miniaudio_inc,
+  override_options : ['warning_level=0', 'werror=false']
+)
+
+miniaudio_dep = declare_dependency(
+  include_directories : miniaudio_inc,
+  compile_args : miniaudio_args,
+  link_with : miniaudio_lib,
+  dependencies : [
+    dependency('threads'),
+    meson.get_compiler('c').find_library('m', required : false),
+    meson.get_compiler('c').find_library('dl', required : false)
+  ]
+)

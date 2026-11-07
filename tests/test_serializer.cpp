@@ -307,3 +307,17 @@ TEST(SerializerTests, CommaDecimalLocaleDoesNotTruncateFloats)
     EXPECT_EQ(position.x, 0.3F) << "locale " << chosen;
     EXPECT_EQ(position.y, 2.5F);
 }
+
+TEST(SerializerTests, OnlyTheSizeTheColliderShapeUsesIsChecked)
+{
+    // A circle's unused halfExtents and a box's unused radius may be anything.
+    const SceneSerializer serializer;
+    Scene scene;
+    EXPECT_NO_THROW(serializer.load(scene, json::parse(R"({"format": "astra2d-scene", "version": 1,
+        "entities": [
+          {"id": 0, "parent": null, "components": {"Collider":
+            {"shape": "circle", "radius": 1, "halfExtents": [0, -1]}}},
+          {"id": 1, "parent": null, "components": {"Collider":
+            {"shape": "box", "halfExtents": [1, 1], "radius": 0}}}]})")));
+    EXPECT_EQ(scene.registry().storage<astra2d::Collider>().size(), 2U);
+}

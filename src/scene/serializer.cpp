@@ -204,7 +204,7 @@ Collider loadCollider(const json& j, const SceneSerializer::LoadContext& /*conte
     read(j, "category", c.category);
     read(j, "mask", c.mask);
     // Only the size the shape uses must be valid. Written so that NaN fails too.
-    if (c.shape == ColliderShape::Box && !(c.halfExtents.x > 0.0F) || !(c.halfExtents.y > 0.0F)) {
+    if (c.shape == ColliderShape::Box && (!(c.halfExtents.x > 0.0F) || !(c.halfExtents.y > 0.0F))) {
         throw std::runtime_error("collider halfExtents must be positive");
     }
     if (c.shape == ColliderShape::Circle && !(c.radius > 0.0F)) {

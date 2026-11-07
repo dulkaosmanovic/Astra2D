@@ -21,7 +21,13 @@ test_sources = files(
   'test_serializer.cpp',
   'test_collision.cpp',
   'test_physics.cpp',
-  'test_physics_system.cpp'
+  'test_physics_system.cpp',
+  'test_audio.cpp',
+  'test_tiled_map.cpp',
+  'test_platformer.cpp',
+  # The platformer example's game logic (no OpenGL), tested in test_platformer.cpp.
+  '../examples/platformer/level.cpp',
+  '../examples/platformer/controller.cpp'
 )
 
 test_exe = executable(

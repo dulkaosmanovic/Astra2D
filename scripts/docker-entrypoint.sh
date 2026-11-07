@@ -121,7 +121,7 @@ cmd_sandbox() {
     section "Example smoke tests"
     local example
     for example in hello_window shapes sprites text input post_processing coin_collector scene \
-        physics_playground; do
+        physics_playground platformer; do
         run_for 2 "./build/examples/$example"
     done
 

@@ -30,7 +30,8 @@ The project emphasizes clean architecture, modularity, testability and measurabl
 | Window and input | GLFW |
 | Math | GLM |
 | Logging | spdlog |
-| Scene files | nlohmann/json |
+| Scene files, Tiled maps | nlohmann/json |
+| Audio | miniaudio |
 | Build system | Meson + Ninja (dependencies via system packages or Meson wraps) |
 | Testing | GoogleTest, AddressSanitizer, UndefinedBehaviorSanitizer, Valgrind |
 | Documentation | Doxygen + doxygen-awesome-css |
@@ -48,7 +49,7 @@ Core features (required scope of the project):
 - debug drawing of colliders and contacts, performance statistics
 - example platformer game and per-system demo applications
 
-Planned extensions: ImGui debug overlay, Tiled level loading, audio, text rendering.
+Extensions done so far: Tiled level loading, audio, text rendering. Planned: ImGui debug overlay.
 See [PLAN.md](PLAN.md) for the full list and the current status.
 
 ---
@@ -75,7 +76,12 @@ The engine is in development. Done so far:
   map collision without ghost edges, ray casts; deterministic;
 - **scene**: scene with systems in a fixed order, Transform / SpriteRenderer / Animator / RigidBody /
   Collider / TilemapCollider components, parent/child hierarchy, sprite rendering by layer, JSON
-  scene files, PhysicsSystem connecting components to the physics world;
+  scene files, PhysicsSystem connecting components to the physics world, Tiled map loading;
+- **audio**: sound effects and music with miniaudio: overlapping voices with volume, pitch and pan,
+  voice limit, effect and music buses, mute; runs without a sound device (tests, CI);
+- **platformer** (`examples/platformer`): *Astra Run*, a complete game on the public API: three
+  levels from a text map and Tiled maps, run/jump controller with coyote time and jump buffering,
+  enemies, hazards, checkpoints, coins, camera follow, HUD, sound and music; original CC0 assets;
 - tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
 Next: debug tools. Progress is tracked in [PLAN.md](PLAN.md).
@@ -152,7 +158,7 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 ## Running
 
 `ninja -C build` builds the engine, the tests and every example. Each example is one commented
-`main.cpp` in `examples/`; read them in this order:
+`main.cpp` in `examples/` (the platformer game is split into a few files); read them in this order:
 
 | Example | Shows |
 |---|---|
@@ -165,6 +171,7 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 | `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, physics triggers and collisions, states, score, lives, shake, events |
 | `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
 | `./build/examples/physics_playground` | Physics: spawn and drag bodies, stacks, bullets, one-way platforms, tile map, trigger zone; switch broad phase (B), debug draw (D) |
+| `./build/examples/platformer` | **Astra Run**, the showcase game: three levels (text map and Tiled maps), coins, crawlers, hazards, checkpoints, music. A/D run, Space jump, S+Space drop, P pause, M mute; `platformer 2` starts at level 2 |
 | `./build/examples/Sandbox` | Everything at once: a Scene with interpolated movement, parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 

@@ -157,17 +157,17 @@ Stretch (in priority order)
 ## 7. Showcase platformer
 
 Required
-- [ ] Original platformer in `examples/platformer`, using only `include/astra2d/`
-- [ ] Player controller (run, jump), animated sprites, camera follow
-- [ ] One complete level loaded from a simple text/ASCII map file
-- [ ] Collectibles, one hazard or enemy type, win/lose condition
-- [ ] Original or CC0-licensed assets only
+- [x] Original platformer in `examples/platformer` (*Astra Run*), using only `include/astra2d/`
+- [x] Player controller (run, jump, jump cut), animated sprites, camera follow (look-ahead, pixel-perfect)
+- [x] One complete level loaded from a simple text/ASCII map file (`levels/level1.txt`)
+- [x] Collectibles (coins), hazards (spikes, lava) and an enemy type (crawler, stomped from above), win (flag after level 3) / lose (hearts) condition, checkpoints
+- [x] Original or CC0-licensed assets only (`scripts/generate_platformer_assets.py`: art, sounds, music)
 
 Stretch
-- [ ] Coyote time and jump buffering
-- [ ] Tiled JSON level loading (nlohmann_json wrap), more levels
-- [ ] Audio (miniaudio): jump, pickup, music
-- [ ] HUD with text (needs text rendering)
+- [x] Coyote time and jump buffering (`JumpController`, unit-tested)
+- [x] Tiled JSON level loading (`loadTiledMap`, external tilesets, `makeTileGrid`), more levels (3)
+- [x] Audio (miniaudio, `AudioEngine`): jump, pickup, stomp, hurt, music
+- [x] HUD with text (hearts, coins, time, level banner, title / pause / game over / victory screens)
 
 ## 8. Evaluation & documentation
 
