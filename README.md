@@ -56,7 +56,7 @@ See [PLAN.md](PLAN.md) for the full list and the current status.
 
 ## Current State
 
-The engine is in development. Done so far:
+All modules of the plan are done:
 
 - **core**: application and main loop with a fixed timestep, window, keyboard, mouse and gamepad
   input, action mapping (`"jump" -> Space / A`), type-safe event dispatcher, logging and
@@ -82,17 +82,16 @@ The engine is in development. Done so far:
 - **platformer** (`examples/platformer`): *Astra Run*, a complete game on the public API: three
   levels from a text map and Tiled maps, run/jump controller with coyote time and jump buffering,
   enemies, hazards, checkpoints, coins, camera follow, HUD, sound and music; original CC0 assets;
-- tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
-
 - **debug**: physics debug view (collision shapes coloured by body state, disabled tile edges,
   bounding boxes, contacts with normals, velocity arrows) and frame statistics (FPS, frame time
   min/mean/max, draw calls and quads per frame) for the log; F3 / F2 in the games.
 
 - **evaluation**: benchmarks E1–E5 run in a release build with charts and a discussion of the
   results (batching, ECS vs. OOP, broad phases, physics stability, usability), and a comparison of
-  the API with raylib and Godot.
+  the API with raylib and Godot;
+- tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
-All modules of the plan are done; the stretch items left are the ImGui overlay, a scoped profiler
+The stretch items left are the ImGui overlay, a scoped profiler
 and editor features (see [PLAN.md](PLAN.md)).
 
 ---

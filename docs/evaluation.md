@@ -41,9 +41,11 @@ effects explain it:
   of one draw call and its uniforms on this driver, and it is low: a modern Mesa driver submits
   small draw calls cheaply, and an integrated GPU shares memory with the CPU, so there is no bus
   transfer per call.
-- Both paths share the per-sprite CPU work: building four vertices (position, rotation, texture
-  coordinates, colour) and moving the sprites. At 100,000 sprites this alone is about 27 ms, so the
-  batched renderer is now limited by vertex generation, not by draw calls.
+- Both paths share the per-sprite work: building four vertices (position, rotation, texture
+  coordinates, colour), uploading them, and the GPU drawing and blending 100,000 sprites of 16×16
+  pixels (25.6 million pixels, about 28 times the target's area). At 100,000 sprites this shared
+  work is about 27 ms, so the batched renderer is now limited by the work per sprite, not by draw
+  calls. This measurement does not separate the CPU part from the GPU part.
 
 With batching, the engine keeps 60 frames per second (16.7 ms) up to about 50,000 moving sprites
 on this laptop, against about 25,000 without. A discrete GPU with a driver that has a higher cost
