@@ -21,34 +21,57 @@ should come from a run on an otherwise idle machine (`scripts/bench_all.sh`, abo
 
 `examples/renderer_stress` draws N moving textured sprites into a 1280×720 off-screen target,
 either batched (one vertex buffer, up to 16 textures, a draw call per 10,000 quads) or naively (one
-draw call with its own uniforms per sprite). The time measured is from `begin()` to `end()` plus
-`glFinish()`: the renderer's CPU work and the GPU work it causes.
+draw call with its own uniforms per sprite). Three times are measured per frame:
+
+- *render*: from `begin()` to `end()` plus `glFinish()`, the renderer's CPU work and the GPU work
+  it causes;
+- *CPU*: from `begin()` to `end()` without waiting for the GPU: building the vertices and handing
+  them and the draw calls to the driver;
+- *GPU*: the GPU's own time for the same commands, from an OpenGL timer query (`GL_TIME_ELAPSED`).
+
+E1 was run again at commit `7c8f862` when the CPU and GPU times were added; the other experiments
+are from `5bcaf36` (the engine code they measure did not change).
 
 ![Render time per frame, batched and naive (log scales)](e1_renderer.svg)
 
 | sprites | batched (ms) | naive (ms) | naive / batched | draw calls |
 |---:|---:|---:|---:|---:|
-| 1,000 | 0.64 ± 0.07 | 1.89 ± 0.18 | 3.0× | 1 / 1,000 |
-| 10,000 | 3.63 ± 0.21 | 7.01 ± 0.13 | 1.9× | 1 / 10,000 |
-| 50,000 | 14.8 ± 0.7 | 30.5 ± 2.0 | 2.1× | 5 / 50,000 |
-| 100,000 | 27.5 ± 0.8 | 59.2 ± 0.8 | 2.2× | 10 / 100,000 |
+| 1,000 | 0.67 ± 0.16 | 1.90 ± 0.14 | 2.8× | 1 / 1,000 |
+| 10,000 | 3.71 ± 0.13 | 6.87 ± 0.22 | 1.9× | 1 / 10,000 |
+| 50,000 | 14.4 ± 1.1 | 29.1 ± 1.5 | 2.0× | 5 / 50,000 |
+| 100,000 | 27.9 ± 0.6 | 56.7 ± 2.0 | 2.0× | 10 / 100,000 |
 
 **Batching halves the cost or better, but the gain is smaller than the draw call counts suggest.**
-Batching removes 99.99 % of the draw calls, yet the time falls only by a factor of 2 to 3. Two
-effects explain it:
+Batching removes 99.99 % of the draw calls, yet the time falls only by a factor of 2 to 3. The CPU
+and GPU times show why:
 
-- The naive path costs about 0.3 µs more per sprite ((59.2 − 27.5) ms / 100,000). That is the price
-  of one draw call and its uniforms on this driver, and it is low: a modern Mesa driver submits
-  small draw calls cheaply, and an integrated GPU shares memory with the CPU, so there is no bus
-  transfer per call.
-- Both paths share the per-sprite CPU work: building four vertices (position, rotation, texture
-  coordinates, colour) and moving the sprites. At 100,000 sprites this alone is about 27 ms, so the
-  batched renderer is now limited by vertex generation, not by draw calls.
+![Where the batched render time goes (log scales)](e1_split.svg)
+
+| sprites | mode | render (ms) | CPU (ms) | GPU (ms) |
+|---:|---|---:|---:|---:|
+| 10,000 | batched | 3.71 | 1.73 | 1.10 |
+| 10,000 | naive | 6.87 | 5.46 | 2.14 |
+| 100,000 | batched | 27.9 | 13.8 | 13.1 |
+| 100,000 | naive | 56.7 | 56.1 | 21.6 |
+
+- **The naive path is limited by the CPU.** Its CPU time is almost the whole render time, and the
+  GPU works in parallel with it. One draw call with its uniforms costs about 0.42 µs of CPU time more
+  than one batched sprite ((56.1 − 13.8) ms / 100,000). That is cheap: a modern Mesa driver submits
+  small draw calls quickly, and an integrated GPU shares memory with the CPU.
+- **The batched path is limited by the work per sprite, split evenly between CPU and GPU.** At
+  100,000 sprites the CPU needs 13.8 ms (about 140 ns per sprite to compute four rotated vertices
+  and upload them) and the GPU 13.1 ms to draw and blend 25.6 million pixels (100,000 sprites of
+  16×16, about 28 times the target's area). The two add up to almost exactly the render time, so they hardly
+  overlap: while the CPU builds a batch, the GPU has nothing to draw.
+- The GPU also gains from batching (21.6 against 13.1 ms), because each draw call has a fixed cost
+  on the GPU too. With few sprites, a fixed part of the render time (about 0.4 ms: clearing the
+  target and waiting for `glFinish()`) is neither CPU nor GPU drawing time.
 
 With batching, the engine keeps 60 frames per second (16.7 ms) up to about 50,000 moving sprites
 on this laptop, against about 25,000 without. A discrete GPU with a driver that has a higher cost
-per draw call would show a larger factor; the next step for the renderer would be to cut the
-per-sprite work (static geometry that is not rebuilt every frame, or instancing).
+per draw call would show a larger factor. The next steps for the renderer would be to cut the CPU
+work per sprite (instancing, or vertex buffers that are not rebuilt for static sprites) and to let
+the CPU build the next batch while the GPU draws the previous one.
 
 ## E2: Is a sparse-set ECS faster than OOP game objects?
 
@@ -169,6 +192,34 @@ the size of the engine, which is what made the refactorings during development s
 | clang-format and clang-tidy (bugprone, cppcoreguidelines, modernize, performance, readability, static analyzer) | no findings |
 | Doxygen with `WARN_IF_UNDOCUMENTED` | no warnings: every public type and function is documented |
 | Examples on a virtual display | CI runs every example for a few seconds and fails on an early exit or a sanitizer error (`scripts/docker-entrypoint.sh sandbox`) |
+
+### Test coverage
+
+`scripts/coverage.py` builds the engine with `-Db_coverage=true`, runs the unit tests once and
+reads GCC's counters with `gcov` (results in `benchmarks/results/coverage.csv`). Every compiled
+engine file is counted, also the ones no test uses.
+
+| module | lines | branches | functions |
+|---|---:|---:|---:|
+| ecs | 96.3 % | 57.3 % | 82.8 % |
+| debug | 95.8 % | 91.3 % | 93.3 % |
+| physics | 93.6 % | 73.0 % | 89.7 % |
+| audio | 91.1 % | 69.5 % | 91.7 % |
+| scene | 90.3 % | 69.9 % | 96.0 % |
+| core | 57.9 % | 58.8 % | 63.6 % |
+| assets | 48.5 % | 31.3 % | 61.1 % |
+| renderer | 43.1 % | 45.1 % | 40.3 % |
+| **total** | **78.3 %** (4,158 of 5,308) | **64.1 %** | **78.5 %** |
+
+**The modules that do not depend on OpenGL are covered to 90 % of their lines or more**, which is
+what the layering was for: the ECS, the physics, the scene, the audio and the debug tools are
+tested headless. The rest needs a window and an OpenGL context: `Application` and `Window` are
+never run by a unit test (they make up most of the gap in core), and of the renderer and the asset
+cache only the parts without OpenGL calls are (vertex building, cameras, sprite sheets, fonts,
+paths, file watching). That code is exercised by the examples instead, which CI runs on a virtual
+display. Branch coverage is lower than line coverage: gcov counts the branches of every template
+instantiation (in the ECS, one per component type) and of every assertion, whose failing side only
+the death tests take.
 
 All of these run in CI on every push (`.github/workflows/ci.yml`) and in the Docker image
 (`docker run --rm astra2d all`).

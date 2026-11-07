@@ -19,7 +19,8 @@
 #
 # The scene is rendered off-screen at a fixed 1280x720, so the window's size does not matter, but
 # keep the window visible (a minimized window pauses the main loop) and the machine otherwise idle.
-# Compare render_mean_ms between modes; frame_mean_ms also contains swap and compositor time.
+# Compare render_mean_ms between modes; cpu_mean_ms and gpu_mean_ms split it into the CPU's and the
+# GPU's share. frame_mean_ms also contains swap and compositor time.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -48,7 +49,7 @@ machine="${OUT%.csv}.machine.txt"
     echo "settings: frames=$FRAMES warmup=$WARMUP runs=$RUNS"
 } > "$machine"
 
-echo "run,mode,sprites,frames,width,height,render_mean_ms,render_stddev_ms,render_min_ms,render_max_ms,frame_mean_ms,frame_stddev_ms,draw_calls,quads" > "$OUT"
+echo "run,mode,sprites,frames,width,height,render_mean_ms,render_stddev_ms,render_min_ms,render_max_ms,frame_mean_ms,frame_stddev_ms,draw_calls,quads,cpu_mean_ms,cpu_stddev_ms,gpu_mean_ms,gpu_stddev_ms" > "$OUT"
 for run in $(seq 1 "$RUNS"); do
     for sprites in $SPRITES; do
         for mode in batched naive; do

@@ -1149,7 +1149,8 @@ EXAMPLE_RECURSIVE      = NO
 
 IMAGE_PATH             = @SOURCE_ROOT@/docs \
                          @SOURCE_ROOT@/docs/theme \
-                         @SOURCE_ROOT@/docs/images/evaluation
+                         @SOURCE_ROOT@/docs/images/evaluation \
+                         @SOURCE_ROOT@/docs/images/screenshots
 
 # The INPUT_FILTER tag can be used to specify a program that Doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program

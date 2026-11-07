@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" width="680" height="400" role="img" aria-label="E1: where the batched render time goes">
+<title>E1: where the batched render time goes</title>
+<style>
+.surface { fill: #fcfcfb; } .grid { stroke: #e4e3df; } .axis { stroke: #8a8984; }
+.ink { fill: #0b0b0b; } .ink2 { fill: #52514e; } .ring { stroke: #fcfcfb; }
+.l1 { stroke: #2a78d6; } .l2 { stroke: #eb6834; } .l3 { stroke: #1baf7a; }
+.f1 { fill: #2a78d6; } .f2 { fill: #eb6834; } .f3 { fill: #1baf7a; }
+.l1, .l2, .l3 { fill: none; }
+@media (prefers-color-scheme: dark) {
+  .surface { fill: #1a1a19; } .grid { stroke: #33332f; } .axis { stroke: #6f6e69; }
+  .ink { fill: #f0efec; } .ink2 { fill: #c3c2b7; } .ring { stroke: #1a1a19; }
+  .l1 { stroke: #3987e5; } .l2 { stroke: #d95926; } .l3 { stroke: #199e70; }
+  .f1 { fill: #3987e5; } .f2 { fill: #d95926; } .f3 { fill: #199e70; }
+}
+text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+<rect class="surface" width="680" height="400" rx="8"/>
+<text class="ink" x="20" y="28" font-size="16" font-weight="600">E1: where the batched render time goes</text>
+<text class="ink2" x="20" y="47" font-size="12">render ≈ CPU (build + submit vertices) + GPU (draw, timer query); mean ± sd</text>
+<line class="grid" x1="70" x2="560" y1="348.0" y2="348.0" stroke-width="1"/>
+<text class="ink2" x="62" y="352.0" font-size="11" text-anchor="end">0.01</text>
+<line class="grid" x1="70" x2="560" y1="279.0" y2="279.0" stroke-width="1"/>
+<text class="ink2" x="62" y="283.0" font-size="11" text-anchor="end">0.1</text>
+<line class="grid" x1="70" x2="560" y1="210.0" y2="210.0" stroke-width="1"/>
+<text class="ink2" x="62" y="214.0" font-size="11" text-anchor="end">1</text>
+<line class="grid" x1="70" x2="560" y1="141.0" y2="141.0" stroke-width="1"/>
+<text class="ink2" x="62" y="145.0" font-size="11" text-anchor="end">10</text>
+<line class="grid" x1="70" x2="560" y1="72.0" y2="72.0" stroke-width="1"/>
+<text class="ink2" x="62" y="76.0" font-size="11" text-anchor="end">100</text>
+<text class="ink2" x="82.0" y="366" font-size="11" text-anchor="middle">1k</text>
+<text class="ink2" x="321.0" y="366" font-size="11" text-anchor="middle">10k</text>
+<text class="ink2" x="488.1" y="366" font-size="11" text-anchor="middle">50k</text>
+<text class="ink2" x="560.0" y="366" font-size="11" text-anchor="middle">100k</text>
+<line class="axis" x1="70" x2="560" y1="348" y2="348" stroke-width="1"/>
+<text class="ink2" x="315.0" y="388" font-size="12" text-anchor="middle">sprites</text>
+<text class="ink2" transform="translate(18 206.0) rotate(-90)" font-size="12" text-anchor="middle">time per frame (ms, log)</text>
+<polyline class="l1" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,222.0 321.0,170.8 488.1,130.2 560.0,110.3"/>
+<line class="l1" x1="82.0" x2="82.0" y1="230.2" y2="215.6" stroke-width="1.5"/>
+<line class="l1" x1="488.1" x2="488.1" y1="132.5" y2="128.0" stroke-width="1.5"/>
+<circle cx="82.0" cy="222.0" r="4.5" class="f1 ring" stroke-width="2"/>
+<circle cx="321.0" cy="170.8" r="4.5" class="f1 ring" stroke-width="2"/>
+<circle cx="488.1" cy="130.2" r="4.5" class="f1 ring" stroke-width="2"/>
+<circle cx="560.0" cy="110.3" r="4.5" class="f1 ring" stroke-width="2"/>
+<polyline class="l2" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,261.0 321.0,193.6 488.1,150.0 560.0,131.3"/>
+<line class="l2" x1="488.1" x2="488.1" y1="153.2" y2="147.1" stroke-width="1.5"/>
+<rect x="77.5" y="256.5" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<rect x="316.5" y="189.1" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<rect x="483.6" y="145.5" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<rect x="555.5" y="126.8" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<polyline class="l3" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,285.8 321.0,207.3 488.1,156.5 560.0,132.9"/>
+<line class="l3" x1="82.0" x2="82.0" y1="289.4" y2="282.6" stroke-width="1.5"/>
+<line class="l3" x1="488.1" x2="488.1" y1="158.3" y2="154.8" stroke-width="1.5"/>
+<path d="M82.0 280.3 L87.2 289.3 L76.8 289.3 Z" class="f3 ring" stroke-width="2"/>
+<path d="M321.0 201.8 L326.2 210.8 L315.8 210.8 Z" class="f3 ring" stroke-width="2"/>
+<path d="M488.1 151.0 L493.3 160.0 L482.9 160.0 Z" class="f3 ring" stroke-width="2"/>
+<path d="M560.0 127.4 L565.2 136.4 L554.8 136.4 Z" class="f3 ring" stroke-width="2"/>
+<text class="ink" x="570.0" y="114.3" font-size="12">render</text>
+<text class="ink" x="570.0" y="135.3" font-size="12">CPU</text>
+<text class="ink" x="570.0" y="150.3" font-size="12">GPU</text>
+<line class="l1" x1="20" x2="42" y1="62" y2="62" stroke-width="2"/>
+<circle cx="31.0" cy="62.0" r="4.5" class="f1 ring" stroke-width="2"/>
+<text class="ink" x="48" y="66" font-size="12">render</text>
+<line class="l2" x1="102" x2="124" y1="62" y2="62" stroke-width="2"/>
+<rect x="108.5" y="57.5" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<text class="ink" x="130" y="66" font-size="12">CPU</text>
+<line class="l3" x1="163" x2="185" y1="62" y2="62" stroke-width="2"/>
+<path d="M174.0 56.5 L179.2 65.5 L168.8 65.5 Z" class="f3 ring" stroke-width="2"/>
+<text class="ink" x="191" y="66" font-size="12">GPU</text>
+</svg>

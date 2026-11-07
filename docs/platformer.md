@@ -6,6 +6,10 @@
 on the public API in `include/astra2d/`. A stranded astronaut runs and jumps through three levels,
 collects coins, stomps crawlers, avoids spikes and lava, and reaches the flag.
 
+![The title screen; level 1 runs behind it](platformer_title.png)
+
+![Level 2, a Tiled map: a jump over lava, coins and a crawler](platformer_level2.png)
+
 ```bash
 ./build/examples/platformer        # from the title screen
 ./build/examples/platformer 2      # start at level 2, e.g. while editing it

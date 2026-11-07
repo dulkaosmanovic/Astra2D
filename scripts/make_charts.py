@@ -274,6 +274,29 @@ def e1(md):
                   f"{calls[('naive', str(sprites))][0]:.0f} "
                   f"| {pm(*frame[('batched', str(sprites))][:2])} |")
     md.append("")
+    if "cpu_mean_ms" in rows[0]:
+        e1_split(md, rows, render)
+
+
+def e1_split(md, rows, render):
+    """Where the render time goes: CPU submission vs. GPU execution (newer CSVs only)."""
+    cpu = summarize(rows, ("mode", "sprites"), "cpu_mean_ms")
+    gpu = summarize(rows, ("mode", "sprites"), "gpu_mean_ms")
+    batched = [(name, series(stats, 0, 1, ["batched"])[0][1])
+               for name, stats in (("render", render), ("CPU", cpu), ("GPU", gpu))]
+    line_chart(IMAGES / "e1_split.svg", "E1: where the batched render time goes",
+               "render ≈ CPU (build + submit vertices) + GPU (draw, timer query); mean ± sd",
+               "sprites", "time per frame (ms, log)", batched, True, True)
+    md.append("### E1: CPU and GPU share of the render time\n")
+    md.append("| sprites | mode | render ms | CPU ms (build + submit) | GPU ms (draw) |")
+    md.append("|---:|---|---:|---:|---:|")
+    for sprites in sorted({int(k[1]) for k in render}):
+        for mode in ("batched", "naive"):
+            key = (mode, str(sprites))
+            if key in render and key in cpu and key in gpu:
+                md.append(f"| {sprites:,} | {mode} | {pm(*render[key][:2])} | {pm(*cpu[key][:2])} "
+                          f"| {pm(*gpu[key][:2])} |")
+    md.append("")
 
 
 def e2(md):

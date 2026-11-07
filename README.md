@@ -19,6 +19,12 @@ Astra2D is a separate engine library that games and tools are built on, not a si
 The **entity component system and the physics engine are implemented from scratch**, without third-party engine libraries.
 The project emphasizes clean architecture, modularity, testability and measurable performance.
 
+<p align="center">
+  <img src="docs/images/screenshots/platformer_level2.png" width="49%" alt="Astra Run, level 2"/>
+  <img src="docs/images/screenshots/platformer_debug.png" width="49%" alt="Astra Run with the physics debug view"/>
+</p>
+<p align="center"><em><code>examples/platformer</code>, the showcase game, and the same moment with the physics debug view (F3)</em></p>
+
 ---
 
 ## Technology
@@ -56,7 +62,7 @@ See [PLAN.md](PLAN.md) for the full list and the current status.
 
 ## Current State
 
-The engine is in development. Done so far:
+All modules of the plan are done:
 
 - **core**: application and main loop with a fixed timestep, window, keyboard, mouse and gamepad
   input, action mapping (`"jump" -> Space / A`), type-safe event dispatcher, logging and
@@ -82,17 +88,16 @@ The engine is in development. Done so far:
 - **platformer** (`examples/platformer`): *Astra Run*, a complete game on the public API: three
   levels from a text map and Tiled maps, run/jump controller with coyote time and jump buffering,
   enemies, hazards, checkpoints, coins, camera follow, HUD, sound and music; original CC0 assets;
-- tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
-
 - **debug**: physics debug view (collision shapes coloured by body state, disabled tile edges,
   bounding boxes, contacts with normals, velocity arrows) and frame statistics (FPS, frame time
   min/mean/max, draw calls and quads per frame) for the log; F3 / F2 in the games.
 
 - **evaluation**: benchmarks E1–E5 run in a release build with charts and a discussion of the
   results (batching, ECS vs. OOP, broad phases, physics stability, usability), and a comparison of
-  the API with raylib and Godot.
+  the API with raylib and Godot;
+- tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
-All modules of the plan are done; the stretch items left are the ImGui overlay, a scoped profiler
+The stretch items left are the ImGui overlay, a scoped profiler
 and editor features (see [PLAN.md](PLAN.md)).
 
 ---
@@ -210,6 +215,16 @@ give the reason.
 ninja -C build-valgrind
 valgrind --leak-check=full ./build-valgrind/tests/engine_tests --gtest_filter='-*DeathTest*'
 ```
+
+### Test coverage
+
+```bash
+python3 scripts/coverage.py   # configures build-cov, runs the tests, prints coverage per module
+```
+
+Needs only GCC's `gcov`; the table is written to `benchmarks/results/coverage.csv` and discussed
+in [docs/evaluation.md](docs/evaluation.md) (78 % of the engine's lines, 90 % or more in the
+modules that do not use OpenGL).
 
 ### Docker
 

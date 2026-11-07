@@ -38,6 +38,10 @@ coloured lines without touching OpenGL, so `tests/test_debug.cpp` checks the geo
 (corners, rotation, circle rims, colours, contact and arrow counts). drawPhysicsDebug() then draws
 each line with the batched renderer, so a few thousand debug lines cost one or two draw calls.
 
+![The platformer with F3: the player's box and velocity (cyan), coin and lava triggers (yellow), the one-way plank, the crawler's contacts (red)](platformer_debug.png)
+
+![physics_playground with D: a bullet hitting the pyramid, a tower of boxes, bounding boxes of the static shapes](physics_playground.png)
+
 ## Frame statistics
 
 @ref astra2d::FrameStats collects the frame times and @ref astra2d::RenderStats of every frame and

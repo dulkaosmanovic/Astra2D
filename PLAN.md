@@ -41,12 +41,12 @@ Required items are the minimum for a defensible thesis; stretch items are added 
             ├──────────────────────────────────────────────┤
             │ core      Application, Window, Input, Time,     │
             │           Log, Assert                            │
-            │ math      GLM, Rect, Transform helpers           │
+            │ audio     sounds, music (miniaudio)              │
             └──────────────────────────────────────────────┘
 ```
 
 Rules:
-- Lower layers never include higher ones. `ecs`, `physics` and `math` do not depend on OpenGL, so they can be unit-tested without a GPU.
+- Lower layers never include higher ones. `ecs`, `physics` and `audio` do not depend on OpenGL (GLM is used directly; there is no separate math module), so they can be unit-tested without a GPU.
 - Public headers live in `include/astra2d/<module>/`, implementation in `src/<module>/`.
 - Each module has a test file in `tests/`.
 
@@ -74,7 +74,7 @@ Stretch
 - [x] Usable as a Meson subproject: `dependency('astra2d')`, tests/examples skipped as a subproject
 - [x] `executableDirectory()` / `findDirectory()` so a game finds its own assets when installed
 - [x] Feature examples (`hello_window`, `shapes`, `sprites`, `text`, `input`, `post_processing`, `coin_collector`), all smoke-tested in CI; example assets moved to `examples/assets/`
-- [ ] `.clang-format` / `.clang-tidy`
+- [x] `.clang-format` / `.clang-tidy` (checked in CI as errors)
 
 ## 2. Core
 
@@ -173,7 +173,7 @@ Stretch
 
 Required
 - [x] Benchmarks below, run in a release build: E1–E5 in `benchmarks/results/`, charts by `scripts/make_charts.py`, results and discussion in `docs/evaluation.md` (`scripts/bench_all.sh` repeats everything)
-- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks
+- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks; line coverage per module by `scripts/coverage.py` (78 % overall)
 - [x] Doxygen comments on all public APIs (`WARN_IF_UNDOCUMENTED`, 0 warnings; CI fails on any)
 - [x] README: build, run, usage example
 
@@ -191,7 +191,7 @@ Each measurement answers a question that the thesis discusses.
 |---|---|---|---|
 | E1 | How much does batching help? | `renderer_stress`: batched vs. one draw call per sprite at 1k / 10k / 50k / 100k sprites | frame time, draw calls |
 | E2 | Is sparse-set ECS faster than OOP game objects? | iterate and update 10k / 100k / 1M entities, ECS vs. `GameObject` with virtual `update()` | time per update |
-| E3 | How much does the broad phase reduce collision cost? | `physics_playground` headless: brute force vs. grid/sort-and-sweep at 100 / 1k / 5k bodies | time per physics step, number of pair tests |
+| E3 | How much does the broad phase reduce collision cost? | `benchmarks/physics_benchmark` (headless): brute force vs. grid/sort-and-sweep at 100 / 1k / 5k bodies | time per physics step, number of pair tests |
 | E4 | Is the physics stable? | stack of N boxes, measure drift over 10 s; energy with restitution 0 and 1 | position error |
 | E5 | Is the engine usable? | the platformer: lines of game code vs. engine code; features used | LOC, list of used APIs |
 

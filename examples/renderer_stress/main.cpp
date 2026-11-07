@@ -13,13 +13,19 @@
 // pixels and then copied to the window. The measured work is therefore the same whatever size the
 // window manager gives the window (a tiling window manager ignores the requested size).
 //
-// Two times are measured per frame:
+// Four times are measured per frame:
 //   render_ms  begin() .. end() + glFinish(): the renderer's CPU work and the GPU drawing it causes
+//   cpu_ms     begin() .. end() on the CPU, without waiting for the GPU: building the vertices and
+//              submitting them and the draw calls to the driver
+//   gpu_ms     the GPU's own time for the commands of begin() .. end() (a GL_TIME_ELAPSED query):
+//              vertex processing, drawing and blending the pixels
 //   frame_ms   from one frame to the next: also the sprite update, the copy to the window, the
 //              buffer swap and the compositor; shown for context, noisier
+// render_ms is about cpu_ms plus the part of gpu_ms that does not overlap with the CPU work.
 //
 // CSV columns: mode, sprites, frames, width, height, render_mean_ms, render_stddev_ms,
-//              render_min_ms, render_max_ms, frame_mean_ms, frame_stddev_ms, draw_calls, quads
+//              render_min_ms, render_max_ms, frame_mean_ms, frame_stddev_ms, draw_calls, quads,
+//              cpu_mean_ms, cpu_stddev_ms, gpu_mean_ms, gpu_stddev_ms
 //              (draw_calls and quads are per frame)
 
 #include <astra2d/assets/asset_cache.hpp>
@@ -137,6 +143,32 @@ struct Sprite {
     int frame;
 };
 
+/// A GL_TIME_ELAPSED query object (OpenGL 3.3 core): the GPU time of the commands between begin()
+/// and end().
+class TimerQuery {
+public:
+    TimerQuery() { glGenQueries(1, &m_id); }
+    ~TimerQuery() { glDeleteQueries(1, &m_id); }
+    TimerQuery(const TimerQuery&) = delete;
+    TimerQuery& operator=(const TimerQuery&) = delete;
+    TimerQuery(TimerQuery&&) = delete;
+    TimerQuery& operator=(TimerQuery&&) = delete;
+
+    void begin() const { glBeginQuery(GL_TIME_ELAPSED, m_id); }
+    static void end() { glEndQuery(GL_TIME_ELAPSED); }
+
+    /// Waits for the result if the GPU has not finished yet; after glFinish() it is ready.
+    [[nodiscard]] double milliseconds() const
+    {
+        GLuint64 nanoseconds = 0;
+        glGetQueryObjectui64v(m_id, GL_QUERY_RESULT, &nanoseconds);
+        return static_cast<double>(nanoseconds) / 1.0e6;
+    }
+
+private:
+    GLuint m_id = 0;
+};
+
 class RendererStress : public astra2d::Application {
 public:
     explicit RendererStress(const Options& options)
@@ -158,6 +190,8 @@ public:
         if (benchmarking()) {
             m_frameTimes.reserve(static_cast<std::size_t>(options.frames));
             m_renderTimes.reserve(static_cast<std::size_t>(options.frames));
+            m_cpuTimes.reserve(static_cast<std::size_t>(options.frames));
+            m_gpuTimes.reserve(static_cast<std::size_t>(options.frames));
         }
     }
 
@@ -209,6 +243,8 @@ protected:
         glClear(GL_COLOR_BUFFER_BIT);
 
         m_renderer.resetStats();
+        const auto cpuStart = std::chrono::steady_clock::now();
+        m_gpuTimer.begin();
         m_renderer.begin(m_camera);
         for (const Sprite& sprite : m_sprites) {
             m_renderer.drawSprite(sprite.position, {kSize, kSize},
@@ -216,16 +252,22 @@ protected:
                                   sprite.rotation);
         }
         m_renderer.end();
+        TimerQuery::end();
+        const auto cpuEnd = std::chrono::steady_clock::now();
 
         // glFinish makes the measured time include the GPU work, not only command submission.
         glFinish();
         const double renderMs =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
                 .count();
+        const FrameTimes times{
+            .render = renderMs,
+            .cpu = std::chrono::duration<double, std::milli>(cpuEnd - cpuStart).count(),
+            .gpu = m_gpuTimer.milliseconds()};
 
         m_target.blitToWindow(window().framebufferWidth(), window().framebufferHeight(), true,
                               astra2d::TextureFilter::Linear);
-        measureFrame(renderMs);
+        measureFrame(times);
     }
 
 private:
@@ -262,8 +304,15 @@ private:
         ASTRA_INFO("{} sprites", count);
     }
 
-    void measureFrame(double renderMs)
+    struct FrameTimes {
+        double render = 0.0;
+        double cpu = 0.0;
+        double gpu = 0.0;
+    };
+
+    void measureFrame(const FrameTimes& times)
     {
+        const double renderMs = times.render;
         const auto now = std::chrono::steady_clock::now();
         const double frameMs = std::chrono::duration<double, std::milli>(now - m_lastFrame).count();
         m_lastFrame = now;
@@ -274,6 +323,8 @@ private:
             if (m_frameNumber > std::max(m_options.warmup, 1)) {
                 m_frameTimes.push_back(frameMs);
                 m_renderTimes.push_back(renderMs);
+                m_cpuTimes.push_back(times.cpu);
+                m_gpuTimes.push_back(times.gpu);
             }
             if (std::cmp_equal(m_frameTimes.size(), m_options.frames)) {
                 printResult();
@@ -303,16 +354,21 @@ private:
     {
         const Summary render = summarize(m_renderTimes);
         const Summary frame = summarize(m_frameTimes);
+        const Summary cpu = summarize(m_cpuTimes);
+        const Summary gpu = summarize(m_gpuTimes);
         if (m_options.header) {
             std::puts("mode,sprites,frames,width,height,render_mean_ms,render_stddev_ms,"
-                      "render_min_ms,render_max_ms,frame_mean_ms,frame_stddev_ms,draw_calls,quads");
+                      "render_min_ms,render_max_ms,frame_mean_ms,frame_stddev_ms,draw_calls,quads,"
+                      "cpu_mean_ms,cpu_stddev_ms,gpu_mean_ms,gpu_stddev_ms");
         }
         const auto& stats = m_renderer.stats();
-        std::puts(std::format("{},{},{},{},{},{:.4f},{:.4f},{:.4f},{:.4f},{:.4f},{:.4f},{},{}",
+        std::puts(std::format("{},{},{},{},{},{:.4f},{:.4f},{:.4f},{:.4f},{:.4f},{:.4f},{},{},"
+                              "{:.4f},{:.4f},{:.4f},{:.4f}",
                               m_renderer.batching() ? "batched" : "naive", m_sprites.size(),
                               m_frameTimes.size(), kTargetWidth, kTargetHeight, render.mean,
                               render.stddev, render.min, render.max, frame.mean, frame.stddev,
-                              stats.drawCalls, stats.quads)
+                              stats.drawCalls, stats.quads, cpu.mean, cpu.stddev, gpu.mean,
+                              gpu.stddev)
                       .c_str());
         std::fflush(stdout);
     }
@@ -330,6 +386,9 @@ private:
     int m_frameNumber = 0;
     std::vector<double> m_frameTimes;
     std::vector<double> m_renderTimes;
+    std::vector<double> m_cpuTimes;
+    std::vector<double> m_gpuTimes;
+    TimerQuery m_gpuTimer;
     double m_titleTimer = 0.0;
     double m_titleRender = 0.0;
     int m_titleFrames = 0;
