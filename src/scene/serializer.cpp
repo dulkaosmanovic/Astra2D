@@ -203,6 +203,13 @@ Collider loadCollider(const json& j, const SceneSerializer::LoadContext& /*conte
     read(j, "oneWay", c.oneWay);
     read(j, "category", c.category);
     read(j, "mask", c.mask);
+    // Only the size the shape uses must be valid. Written so that NaN fails too.
+    if (c.shape == ColliderShape::Box && !(c.halfExtents.x > 0.0F) || !(c.halfExtents.y > 0.0F)) {
+        throw std::runtime_error("collider halfExtents must be positive");
+    }
+    if (c.shape == ColliderShape::Circle && !(c.radius > 0.0F)) {
+        throw std::runtime_error("collider radius must be positive");
+    }
     return c;
 }
 
@@ -262,6 +269,9 @@ TilemapCollider loadTilemap(const json& j, const SceneSerializer::LoadContext& /
     read(j, "restitution", t.restitution);
     read(j, "category", t.category);
     read(j, "mask", t.mask);
+    if (!(t.grid.tileSize > 0.0F)) {
+        throw std::runtime_error("tileSize must be positive");
+    }
     const auto rows = j.at("rows").get<std::vector<std::string>>();
     const std::size_t width = rows.empty() ? 0 : rows.front().size();
     t.grid.height = static_cast<int>(rows.size());

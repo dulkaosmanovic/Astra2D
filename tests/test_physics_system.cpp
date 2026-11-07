@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <vector>
 
 using astra2d::BodyType;
@@ -280,4 +281,49 @@ TEST(PhysicsSystemTests, BadPolygonIsIgnored)
     scene.fixedUpdate(kDt);
     ASSERT_TRUE(physics.world().valid(physics.body(e)));
     EXPECT_TRUE(physics.world().shapes(physics.body(e)).empty());
+}
+
+TEST(PhysicsSystemTests, BadColliderSizesAreIgnored)
+{
+    Scene scene;
+    PhysicsSystem physics(scene);
+    const Entity box = scene.createEntity();
+    scene.registry().emplace<Collider>(box, Collider{.halfExtents = {0.0F, 1.0F}});
+    const Entity circle = addBox(scene, {0.0F, 0.0F});
+    scene.registry().get<Collider>(circle) =
+        Collider{.shape = ColliderShape::Circle, .radius = -1.0F};
+    const Entity tiles = scene.createEntity();
+    astra2d::TilemapCollider tilemap;
+    tilemap.grid.width = 2;
+    tilemap.grid.height = 1;
+    tilemap.grid.tileSize = 0.0F;
+    tilemap.grid.cells.assign(2, astra2d::TileCollision::Solid);
+    scene.registry().emplace<astra2d::TilemapCollider>(tiles, tilemap);
+    run(scene, 0.1F);
+    for (const Entity e : {box, circle, tiles}) {
+        ASSERT_TRUE(physics.world().valid(physics.body(e)));
+        EXPECT_TRUE(physics.world().shapes(physics.body(e)).empty());
+    }
+    // A dynamic body without shapes still falls, with a finite position.
+    EXPECT_TRUE(std::isfinite(scene.registry().get<Transform>(circle).position.y));
+    EXPECT_LT(scene.registry().get<Transform>(circle).position.y, 0.0F);
+}
+
+TEST(PhysicsSystemTests, ChildBodyOfAMovingParentBodyIsNotDragged)
+{
+    // Views run from the last added entity, so the child's RigidBody comes first and would be
+    // written back before the parent moves; it must still be converted against the parent's new
+    // pose.
+    Scene scene;
+    PhysicsSystem physics(scene, {.gravity = {0.0F, 0.0F}});
+    const Entity parent = addBox(scene, {0.0F, 0.0F}, {.velocity = {5.0F, 0.0F}});
+    const Entity child = addBox(scene, {0.0F, 5.0F});
+    scene.setParent(child, parent);
+    run(scene, 1.0F);
+    EXPECT_NEAR(scene.worldTransform(parent).position.x, 5.0F, 0.01F);
+    const Transform world = scene.worldTransform(child);
+    EXPECT_NEAR(world.position.x, 0.0F, 1e-3F);
+    EXPECT_NEAR(world.position.y, 5.0F, 1e-3F);
+    EXPECT_NEAR(physics.world().position(physics.body(child)).x, 0.0F, 1e-3F);
+    EXPECT_NEAR(scene.registry().get<Transform>(child).position.x, -5.0F, 0.01F); // local
 }

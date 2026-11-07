@@ -213,6 +213,18 @@ TEST(SerializerTests, BadFilesThrowAndLeaveTheSceneUnchanged)
                        {"id": 0, "parent": null,
                         "components": {"SpriteRenderer": {"texture": "a.png"}}}]})",
                    "no AssetCache");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"Collider": {"halfExtents": [0, 1]}}}]})",
+                   "halfExtents");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"Collider": {"shape": "circle", "radius": 0}}}]})",
+                   "radius");
+    expectRejected(R"({"format": "astra2d-scene", "version": 1, "entities": [
+                       {"id": 0, "parent": null,
+                        "components": {"TilemapCollider": {"tileSize": 0, "rows": ["#"]}}}]})",
+                   "tileSize");
 }
 
 TEST(SerializerTests, FileRoundTrip)

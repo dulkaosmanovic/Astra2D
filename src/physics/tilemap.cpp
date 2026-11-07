@@ -11,8 +11,10 @@ TileCollision TileGrid::at(int x, int y) const
     if (x < 0 || y < 0 || x >= width || y >= height) {
         return TileCollision::Empty;
     }
-    return cells[(static_cast<std::size_t>(y) * static_cast<std::size_t>(width)) +
-                 static_cast<std::size_t>(x)];
+    // set() fills cells lazily, so a grid that was only given its size has none yet.
+    const std::size_t index = (static_cast<std::size_t>(y) * static_cast<std::size_t>(width)) +
+                              static_cast<std::size_t>(x);
+    return index < cells.size() ? cells[index] : TileCollision::Empty;
 }
 
 void TileGrid::set(int x, int y, TileCollision tile)
@@ -79,9 +81,10 @@ std::uint8_t exposedEdges(const TileGrid& grid, const TileRect& r)
 
 std::vector<TileRect> mergeTiles(const TileGrid& grid)
 {
-    ASTRA_ASSERT(grid.cells.size() ==
+    // Fewer cells are fine (the rest are Empty, see TileGrid::at()); more mean a wrong size.
+    ASTRA_ASSERT(grid.cells.size() <=
                      static_cast<std::size_t>(grid.width) * static_cast<std::size_t>(grid.height),
-                 "TileGrid::cells must have width * height tiles");
+                 "TileGrid::cells must have at most width * height tiles");
     std::vector<TileRect> rects;
     std::vector<std::size_t> open; // rectangles that reach the previous row
     std::vector<std::size_t> nextOpen;

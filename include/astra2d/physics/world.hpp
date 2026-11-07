@@ -32,7 +32,7 @@ struct BodyId {
     std::uint32_t index = std::numeric_limits<std::uint32_t>::max(); ///< Slot in the world.
     std::uint32_t generation = 0;                                    ///< Use count of the slot.
 
-    /// True unless default-constructed (it may still refer to a destroyed body).
+    /// True only if default-constructed (a non-null id may still refer to a destroyed body).
     [[nodiscard]] bool isNull() const { return index == std::numeric_limits<std::uint32_t>::max(); }
     /// Equal if all fields are equal.
     friend bool operator==(BodyId, BodyId) = default;
@@ -43,7 +43,7 @@ struct ShapeId {
     std::uint32_t index = std::numeric_limits<std::uint32_t>::max(); ///< Slot in the world.
     std::uint32_t generation = 0;                                    ///< Use count of the slot.
 
-    /// True unless default-constructed (it may still refer to a destroyed shape).
+    /// True only if default-constructed (a non-null id may still refer to a destroyed shape).
     [[nodiscard]] bool isNull() const { return index == std::numeric_limits<std::uint32_t>::max(); }
     /// Equal if all fields are equal.
     friend bool operator==(ShapeId, ShapeId) = default;
@@ -296,6 +296,9 @@ public:
     ShapeId addShape(BodyId body, const ShapeDef& def);
     /// Removes @p shape; its touching contacts end. @pre valid(shape).
     void removeShape(ShapeId shape);
+    /// Removes all shapes of @p body (much faster than removeShape() one by one for many
+    /// shapes); their touching contacts end. @pre valid(body).
+    void removeShapes(BodyId body);
     /// True if @p shape exists.
     [[nodiscard]] bool valid(ShapeId shape) const;
     /// The body of @p shape. @pre valid(shape).

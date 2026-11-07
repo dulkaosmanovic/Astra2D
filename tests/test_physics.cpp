@@ -646,3 +646,73 @@ TEST(TilemapTests, BodyLandsOnTilesAndOneWayTiles)
     EXPECT_NEAR(world.position(onPlatform).y, 3.4F, 0.02F);
     EXPECT_TRUE(world.isGrounded(onPlatform));
 }
+
+TEST(TilemapTests, OneWayTilesLetBodiesThroughFromTheSide)
+{
+    // A top-only tile's normal is always up; a body entering it sideways must not be lifted.
+    PhysicsWorld world({.gravity = {0.0F, 0.0F}, .enableSleep = false});
+    const astra2d::TileGrid grid = parseGrid({
+        "...---..",
+        "........",
+    });
+    const BodyId level = world.createBody({.type = BodyType::Static});
+    astra2d::addTileShapes(world, level, grid);
+    const BodyId box = addBox(world, {0.5F, 1.5F}, glm::vec2(0.3F),
+                              {.velocity = {4.0F, 0.0F}, .fixedRotation = true});
+    run(world, 1.5F);
+    EXPECT_GT(world.position(box).x, 6.0F);          // went through
+    EXPECT_NEAR(world.position(box).y, 1.5F, 1e-3F); // at the same height
+    EXPECT_NEAR(world.velocity(box).x, 4.0F, 1e-3F); // without being slowed down
+}
+
+TEST(TilemapTests, GridWithoutCellsIsEmpty)
+{
+    astra2d::TileGrid grid;
+    grid.width = 8;
+    grid.height = 4;
+    EXPECT_EQ(grid.at(3, 2), astra2d::TileCollision::Empty);
+    EXPECT_TRUE(astra2d::mergeTiles(grid).empty());
+    grid.set(1, 1, astra2d::TileCollision::Solid);
+    EXPECT_EQ(grid.at(1, 1), astra2d::TileCollision::Solid);
+    EXPECT_EQ(astra2d::mergeTiles(grid).size(), 1U);
+}
+
+TEST(PhysicsWorldTests, RemoveShapesEndsContactsAndKeepsTheBody)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId level = world.createBody({.type = BodyType::Static});
+    world.addShape(level, ShapeDef::makeBox({0.5F, 0.5F}, {-3.0F, 0.5F}));
+    world.addShape(level, ShapeDef::makeBox({0.5F, 0.5F}, {3.0F, 0.5F}));
+    const BodyId left = addBox(world, {-3.0F, 1.5F}, glm::vec2(0.5F));
+    const BodyId right = addBox(world, {3.0F, 1.5F}, glm::vec2(0.5F));
+    run(world, 1.0F);
+    ASSERT_EQ(world.shapes(level).size(), 2U);
+    world.removeShapes(level);
+    EXPECT_TRUE(world.valid(level));
+    EXPECT_TRUE(world.shapes(level).empty());
+    world.step(kDt);
+    int ended = 0;
+    for (const astra2d::ContactEndEvent& event : world.contactEndEvents()) {
+        ended += event.bodyA == level || event.bodyB == level ? 1 : 0;
+    }
+    EXPECT_EQ(ended, 2);
+    run(world, 1.0F);
+    EXPECT_NEAR(world.position(left).y, 0.5F, 0.02F); // fell onto the ground
+    EXPECT_NEAR(world.position(right).y, 0.5F, 0.02F);
+}
+
+TEST(PhysicsWorldTests, MovingABodyWakesWhatTouchesItBeforeTheNextQuery)
+{
+    PhysicsWorld world;
+    const BodyId ground = addGround(world);
+    const BodyId box = addBox(world, {0.0F, 0.5F});
+    run(world, 3.0F);
+    ASSERT_FALSE(world.isAwake(box));
+    world.setTransform(ground, {0.0F, -0.6F}, 0.0F);
+    EXPECT_TRUE(world.isAwake(box));
+    // Putting it back to sleep afterwards sticks: the queued wake does not undo it.
+    world.setTransform(ground, {0.0F, -0.5F}, 0.0F);
+    world.setAwake(box, false);
+    EXPECT_FALSE(world.isAwake(box));
+}

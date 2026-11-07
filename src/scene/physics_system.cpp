@@ -4,6 +4,7 @@
 #include "astra2d/physics/tilemap.hpp"
 #include "astra2d/scene/scene.hpp"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace astra2d {
@@ -15,15 +16,26 @@ std::uint64_t bodyKey(BodyId body)
     return (static_cast<std::uint64_t>(body.index) << 32U) | body.generation;
 }
 
-// The world's shape for a Collider, or none if its polygon points are unusable.
+// The world's shape for a Collider, or none if its size or polygon points are unusable.
 std::optional<ShapeDef> toShapeDef(const Collider& collider)
 {
     ShapeDef def;
     switch (collider.shape) {
     case ColliderShape::Box:
+        // Written so that NaN fails too.
+        if (!(collider.halfExtents.x > 0.0F) || !(collider.halfExtents.y > 0.0F)) {
+            ASTRA_CORE_ERROR("Collider box ignored: half extents ({}, {}) must be positive",
+                             collider.halfExtents.x, collider.halfExtents.y);
+            return std::nullopt;
+        }
         def = ShapeDef::makeBox(collider.halfExtents, collider.offset);
         break;
     case ColliderShape::Circle:
+        if (!(collider.radius > 0.0F)) {
+            ASTRA_CORE_ERROR("Collider circle ignored: radius {} must be positive",
+                             collider.radius);
+            return std::nullopt;
+        }
         def = ShapeDef::makeCircle(collider.radius, collider.offset);
         break;
     case ColliderShape::Polygon: {
@@ -211,11 +223,8 @@ void PhysicsSystem::applyChanges(const Record& record, const RigidBody& wanted)
 
 void PhysicsSystem::rebuildShapes(Entity entity, Record& record)
 {
-    for (const ShapeId shape : record.shapes) {
-        if (m_world.valid(shape)) {
-            m_world.removeShape(shape);
-        }
-    }
+    // All shapes of the body are the record's, so they go in one pass over the contacts.
+    m_world.removeShapes(record.body);
     record.shapes.clear();
 
     const Registry& registry = m_scene->registry();
@@ -230,7 +239,10 @@ void PhysicsSystem::rebuildShapes(Entity entity, Record& record)
             record.shapes.push_back(m_world.addShape(record.body, *def));
         }
     }
-    if (tilemap != nullptr) {
+    if (tilemap != nullptr && !(tilemap->grid.tileSize > 0.0F)) {
+        ASTRA_CORE_ERROR("TilemapCollider ignored: tileSize {} must be positive",
+                         tilemap->grid.tileSize);
+    } else if (tilemap != nullptr) {
         ShapeDef material;
         material.friction = tilemap->friction;
         material.restitution = tilemap->restitution;
@@ -259,46 +271,69 @@ void PhysicsSystem::step(float deltaTime)
 
 void PhysicsSystem::writeBack()
 {
+    // A child body's Transform is relative to its parent, so it is written after the parent's
+    // (the parent may be a body too): roots first, then children by depth in the hierarchy.
+    m_children.clear();
     Registry& registry = m_scene->registry();
-    registry.view<RigidBody, Transform>().each(
-        [&](Entity entity, RigidBody& rigidBody, Transform& transform) {
-        const auto it = m_records.find(entity);
-        if (it == m_records.end() || !m_world.valid(it->second.body)) {
-            return;
-        }
-        Record& record = it->second;
-        const BodyId body = record.body;
-        if (m_world.type(body) == BodyType::Static) {
-            return;
-        }
-        const glm::vec2 position = m_world.position(body);
-        const float rotation = m_world.angle(body);
-        const Entity parent = m_scene->parent(entity);
-        if (parent.isNull()) {
-            transform.position = position;
-            transform.rotation = rotation;
-            record.position = position;
-            record.rotation = rotation;
+    registry.view<RigidBody, Transform>().each([&](Entity entity, RigidBody&, Transform&) {
+        if (m_scene->parent(entity).isNull()) {
+            writeBack(entity);
         } else {
-            // A child: its Transform is relative to the parent.
-            const Transform parentWorld = m_scene->worldTransform(parent);
-            const Transform local =
-                relativeTo(parentWorld, {.position = position,
-                                         .rotation = rotation,
-                                         .scale = parentWorld.scale * transform.scale});
-            transform.position = local.position;
-            transform.rotation = local.rotation;
-            // Compared with the recomputed world transform at the next sync, so rounding in the
-            // conversion does not look like a teleport.
-            const Transform recomputed = m_scene->worldTransform(entity);
-            record.position = recomputed.position;
-            record.rotation = recomputed.rotation;
+            int depth = 0;
+            for (Entity e = entity; !e.isNull(); e = m_scene->parent(e)) {
+                ++depth;
+            }
+            m_children.emplace_back(depth, entity);
         }
-        rigidBody.velocity = m_world.velocity(body);
-        rigidBody.angularVelocity = m_world.angularVelocity(body);
-        record.rigidBody.velocity = rigidBody.velocity;
-        record.rigidBody.angularVelocity = rigidBody.angularVelocity;
     });
+    // Stable: same order as the view at equal depth, so writing back stays deterministic.
+    std::ranges::stable_sort(m_children, {}, &std::pair<int, Entity>::first);
+    for (const auto& [depth, entity] : m_children) {
+        writeBack(entity);
+    }
+}
+
+void PhysicsSystem::writeBack(Entity entity)
+{
+    const auto it = m_records.find(entity);
+    if (it == m_records.end() || !m_world.valid(it->second.body)) {
+        return;
+    }
+    Record& record = it->second;
+    const BodyId body = record.body;
+    if (m_world.type(body) == BodyType::Static) {
+        return;
+    }
+    Registry& registry = m_scene->registry();
+    auto& rigidBody = registry.get<RigidBody>(entity);
+    auto& transform = registry.get<Transform>(entity);
+    const glm::vec2 position = m_world.position(body);
+    const float rotation = m_world.angle(body);
+    const Entity parent = m_scene->parent(entity);
+    if (parent.isNull()) {
+        transform.position = position;
+        transform.rotation = rotation;
+        record.position = position;
+        record.rotation = rotation;
+    } else {
+        // A child: its Transform is relative to the parent.
+        const Transform parentWorld = m_scene->worldTransform(parent);
+        const Transform local =
+            relativeTo(parentWorld, {.position = position,
+                                     .rotation = rotation,
+                                     .scale = parentWorld.scale * transform.scale});
+        transform.position = local.position;
+        transform.rotation = local.rotation;
+        // Compared with the recomputed world transform at the next sync, so rounding in the
+        // conversion does not look like a teleport.
+        const Transform recomputed = m_scene->worldTransform(entity);
+        record.position = recomputed.position;
+        record.rotation = recomputed.rotation;
+    }
+    rigidBody.velocity = m_world.velocity(body);
+    rigidBody.angularVelocity = m_world.angularVelocity(body);
+    record.rigidBody.velocity = rigidBody.velocity;
+    record.rigidBody.angularVelocity = rigidBody.angularVelocity;
 }
 
 void PhysicsSystem::dispatchEvents()
