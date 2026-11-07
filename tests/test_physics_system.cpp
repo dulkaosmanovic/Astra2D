@@ -283,6 +283,19 @@ TEST(PhysicsSystemTests, BadPolygonIsIgnored)
     EXPECT_TRUE(physics.world().shapes(physics.body(e)).empty());
 }
 
+TEST(PhysicsSystemTests, BadMassFallsBackToOne)
+{
+    Scene scene;
+    PhysicsSystem physics(scene);
+    addGround(scene);
+    const Entity box = addBox(scene, {0.0F, 2.0F});
+    scene.registry().get<RigidBody>(box).mass = 0.0F;
+    run(scene, 1.0F);
+    const Transform& t = scene.registry().get<Transform>(box);
+    EXPECT_TRUE(std::isfinite(t.position.x) && std::isfinite(t.position.y));
+    EXPECT_FLOAT_EQ(physics.world().mass(physics.body(box)), 1.0F);
+}
+
 TEST(PhysicsSystemTests, BadColliderSizesAreIgnored)
 {
     Scene scene;

@@ -107,6 +107,9 @@ TEST(FontTests, InvalidInputThrows)
 {
     const std::vector<std::uint8_t> garbage(100, 0x42);
     EXPECT_THROW(FontAtlas(garbage, 8.0F), std::runtime_error);
+    // Shorter than the font header (e.g. an empty file): must not be read past its end.
+    EXPECT_THROW(FontAtlas(std::vector<std::uint8_t>{}, 8.0F), std::runtime_error);
+    EXPECT_THROW(FontAtlas(std::vector<std::uint8_t>{0, 1, 0}, 8.0F), std::runtime_error);
     EXPECT_THROW((void)FontAtlas::fromFile("no/such/font.ttf", 8.0F), std::runtime_error);
     EXPECT_THROW(
         (void)FontAtlas::fromFile(ASTRA2D_ASSETS_DIR "/fonts/PressStart2P-Regular.ttf", 64.0F, 32),

@@ -46,9 +46,16 @@ FontAtlas::FontAtlas(std::span<const std::uint8_t> ttf, float pixelHeight, int a
             std::format("Invalid font size {} or atlas size {}", pixelHeight, atlasSize));
     }
 
+    // shortcut: stb_truetype does no bounds checks; only data shorter than the 12-byte header is
+    // caught here, so fonts must be trusted game assets (a truncated real font is read out of
+    // range).
+    constexpr std::size_t kHeaderSize = 12;
+    if (ttf.size() < kHeaderSize) {
+        throw std::runtime_error("Not a TrueType font");
+    }
     stbtt_fontinfo info{};
     const int offset = stbtt_GetFontOffsetForIndex(ttf.data(), 0);
-    if (ttf.empty() || offset < 0 || stbtt_InitFont(&info, ttf.data(), offset) == 0) {
+    if (offset < 0 || stbtt_InitFont(&info, ttf.data(), offset) == 0) {
         throw std::runtime_error("Not a TrueType font");
     }
     const float scale = stbtt_ScaleForPixelHeight(&info, pixelHeight);
@@ -110,6 +117,9 @@ FontAtlas::FontAtlas(std::span<const std::uint8_t> ttf, float pixelHeight, int a
             m_glyphs.emplace(codepoint, glyph);
         }
     }
+    // glyph() falls back to '?'; a font without it draws unknown characters as nothing instead of
+    // throwing on every draw.
+    m_glyphs.try_emplace(kFallback);
 
     // White RGBA with coverage as alpha, so the tint colour gives the text colour.
     m_pixels.resize(texels * 4);

@@ -90,11 +90,17 @@ void EventDispatcher::dispatch(std::type_index type, const void* event)
     // Handlers added by a handler are appended; only those present now receive this event.
     const std::size_t count = channel.handlers.size();
     ++channel.dispatchDepth;
-    for (std::size_t i = 0; i < count; ++i) {
-        const Handler& handler = *channel.handlers[i];
-        if (handler.alive) {
-            handler.callback(event);
+    try {
+        for (std::size_t i = 0; i < count; ++i) {
+            const Handler& handler = *channel.handlers[i];
+            if (handler.alive) {
+                handler.callback(event);
+            }
         }
+    } catch (...) {
+        // Else the depth stays above 0 and unsubscribed handlers are never erased again.
+        --channel.dispatchDepth;
+        throw;
     }
     --channel.dispatchDepth;
     if (channel.dispatchDepth == 0 && channel.hasDead) {

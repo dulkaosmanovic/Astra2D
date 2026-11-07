@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 namespace astra2d {
 
@@ -557,13 +558,30 @@ std::vector<Entity> SceneSerializer::load(Scene& scene, const json& document) co
 void SceneSerializer::saveFile(const Scene& scene, const std::filesystem::path& path) const
 {
     const json data = save(scene);
-    std::ofstream file(path);
-    if (!file) {
-        throw std::runtime_error(std::format("Cannot write scene file '{}'", path.string()));
+    // Written next to the target and renamed over it, so a failed write (full disk, crash) leaves
+    // the old file intact instead of a truncated one.
+    std::filesystem::path temporary = path;
+    temporary += ".tmp";
+    {
+        std::ofstream file(temporary);
+        if (!file) {
+            throw std::runtime_error(std::format("Cannot write scene file '{}'", path.string()));
+        }
+        file << data.dump(2) << '\n';
+        file.close();
+        if (!file) {
+            std::error_code ignored;
+            std::filesystem::remove(temporary, ignored);
+            throw std::runtime_error(std::format("Error writing scene file '{}'", path.string()));
+        }
     }
-    file << data.dump(2) << '\n';
-    if (!file) {
-        throw std::runtime_error(std::format("Error writing scene file '{}'", path.string()));
+    std::error_code error;
+    std::filesystem::rename(temporary, path, error);
+    if (error) {
+        std::error_code ignored;
+        std::filesystem::remove(temporary, ignored);
+        throw std::runtime_error(
+            std::format("Cannot replace scene file '{}': {}", path.string(), error.message()));
     }
 }
 
