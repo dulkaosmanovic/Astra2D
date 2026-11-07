@@ -26,6 +26,8 @@ CSV columns for E1:
 | `render_*_ms` | `begin()` to `end()` plus `glFinish()`: the renderer's CPU work and the GPU drawing it causes. **Compare this between modes.** |
 | `frame_*_ms` | time between frames: also sprite update, copy to the window, buffer swap and compositor |
 | `draw_calls`, `quads` | per frame |
+| `cpu_*_ms` | `begin()` to `end()` on the CPU without waiting for the GPU: building the vertices and submitting them and the draw calls |
+| `gpu_*_ms` | the GPU's own time for the same commands (`GL_TIME_ELAPSED` timer query) |
 
 ## E2: ECS vs. OOP game objects
 

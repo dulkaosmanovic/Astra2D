@@ -173,7 +173,7 @@ Stretch
 
 Required
 - [x] Benchmarks below, run in a release build: E1–E5 in `benchmarks/results/`, charts by `scripts/make_charts.py`, results and discussion in `docs/evaluation.md` (`scripts/bench_all.sh` repeats everything)
-- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks
+- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks; line coverage per module by `scripts/coverage.py` (78 % overall)
 - [x] Doxygen comments on all public APIs (`WARN_IF_UNDOCUMENTED`, 0 warnings; CI fails on any)
 - [x] README: build, run, usage example
 

@@ -19,6 +19,12 @@ Astra2D is a separate engine library that games and tools are built on, not a si
 The **entity component system and the physics engine are implemented from scratch**, without third-party engine libraries.
 The project emphasizes clean architecture, modularity, testability and measurable performance.
 
+<p align="center">
+  <img src="docs/images/screenshots/platformer_level2.png" width="49%" alt="Astra Run, level 2"/>
+  <img src="docs/images/screenshots/platformer_debug.png" width="49%" alt="Astra Run with the physics debug view"/>
+</p>
+<p align="center"><em><code>examples/platformer</code>, the showcase game, and the same moment with the physics debug view (F3)</em></p>
+
 ---
 
 ## Technology
@@ -209,6 +215,16 @@ give the reason.
 ninja -C build-valgrind
 valgrind --leak-check=full ./build-valgrind/tests/engine_tests --gtest_filter='-*DeathTest*'
 ```
+
+### Test coverage
+
+```bash
+python3 scripts/coverage.py   # configures build-cov, runs the tests, prints coverage per module
+```
+
+Needs only GCC's `gcov`; the table is written to `benchmarks/results/coverage.csv` and discussed
+in [docs/evaluation.md](docs/evaluation.md) (78 % of the engine's lines, 90 % or more in the
+modules that do not use OpenGL).
 
 ### Docker
 
