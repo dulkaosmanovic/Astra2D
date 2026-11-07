@@ -1,0 +1,8 @@
+date: 2026-11-07T22:19:43+01:00
+commit: 5bcaf36
+kernel: Linux 7.2.11-arch1-1
+cpu: AMD Ryzen 5 3500U with Radeon Vega Mobile Gfx
+compiler: c++ (GCC) 16.2.1 20260810
+buildtype: release
+settings: frames=600 warmup=120 runs=3
+gpu: 4.6 (Core Profile) Mesa 26.2.5-arch1.1 (AMD Radeon Vega 8 Graphics (radeonsi, raven, ACO, DRM 3.64, 7.2.11-arch1-1))

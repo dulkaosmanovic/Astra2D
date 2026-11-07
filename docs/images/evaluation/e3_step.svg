@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" width="680" height="400" role="img" aria-label="E3: physics step time by broad phase">
+<title>E3: physics step time by broad phase</title>
+<style>
+.surface { fill: #fcfcfb; } .grid { stroke: #e4e3df; } .axis { stroke: #8a8984; }
+.ink { fill: #0b0b0b; } .ink2 { fill: #52514e; } .ring { stroke: #fcfcfb; }
+.l1 { stroke: #2a78d6; } .l2 { stroke: #eb6834; } .l3 { stroke: #1baf7a; }
+.f1 { fill: #2a78d6; } .f2 { fill: #eb6834; } .f3 { fill: #1baf7a; }
+.l1, .l2, .l3 { fill: none; }
+@media (prefers-color-scheme: dark) {
+  .surface { fill: #1a1a19; } .grid { stroke: #33332f; } .axis { stroke: #6f6e69; }
+  .ink { fill: #f0efec; } .ink2 { fill: #c3c2b7; } .ring { stroke: #1a1a19; }
+  .l1 { stroke: #3987e5; } .l2 { stroke: #d95926; } .l3 { stroke: #199e70; }
+  .f1 { fill: #3987e5; } .f2 { fill: #d95926; } .f3 { fill: #199e70; }
+}
+text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+<rect class="surface" width="680" height="400" rx="8"/>
+<text class="ink" x="20" y="28" font-size="16" font-weight="600">E3: physics step time by broad phase</text>
+<text class="ink2" x="20" y="47" font-size="12">Whole step, bodies moving like a gas (mean ± sd over runs)</text>
+<line class="grid" x1="70" x2="560" y1="348.0" y2="348.0" stroke-width="1"/>
+<text class="ink2" x="62" y="352.0" font-size="11" text-anchor="end">0.01</text>
+<line class="grid" x1="70" x2="560" y1="279.0" y2="279.0" stroke-width="1"/>
+<text class="ink2" x="62" y="283.0" font-size="11" text-anchor="end">0.1</text>
+<line class="grid" x1="70" x2="560" y1="210.0" y2="210.0" stroke-width="1"/>
+<text class="ink2" x="62" y="214.0" font-size="11" text-anchor="end">1</text>
+<line class="grid" x1="70" x2="560" y1="141.0" y2="141.0" stroke-width="1"/>
+<text class="ink2" x="62" y="145.0" font-size="11" text-anchor="end">10</text>
+<line class="grid" x1="70" x2="560" y1="72.0" y2="72.0" stroke-width="1"/>
+<text class="ink2" x="62" y="76.0" font-size="11" text-anchor="end">100</text>
+<text class="ink2" x="82.0" y="366" font-size="11" text-anchor="middle">100</text>
+<text class="ink2" x="363.3" y="366" font-size="11" text-anchor="middle">1k</text>
+<text class="ink2" x="560.0" y="366" font-size="11" text-anchor="middle">5k</text>
+<line class="axis" x1="70" x2="560" y1="348" y2="348" stroke-width="1"/>
+<text class="ink2" x="315.0" y="388" font-size="12" text-anchor="middle">bodies</text>
+<text class="ink2" transform="translate(18 206.0) rotate(-90)" font-size="12" text-anchor="middle">step time (ms, log)</text>
+<polyline class="l1" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,300.6 363.3,180.0 560.0,86.2"/>
+<line class="l1" x1="82.0" x2="82.0" y1="305.8" y2="296.2" stroke-width="1.5"/>
+<circle cx="82.0" cy="300.6" r="4.5" class="f1 ring" stroke-width="2"/>
+<circle cx="363.3" cy="180.0" r="4.5" class="f1 ring" stroke-width="2"/>
+<circle cx="560.0" cy="86.2" r="4.5" class="f1 ring" stroke-width="2"/>
+<polyline class="l2" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,319.9 363.3,258.0 560.0,196.4"/>
+<line class="l2" x1="82.0" x2="82.0" y1="344.3" y2="306.6" stroke-width="1.5"/>
+<rect x="77.5" y="315.4" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<rect x="358.8" y="253.5" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<rect x="555.5" y="191.9" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<polyline class="l3" fill="none" stroke-width="2" stroke-linejoin="round" points="82.0,313.3 363.3,265.4 560.0,212.5"/>
+<line class="l3" x1="82.0" x2="82.0" y1="321.4" y2="307.0" stroke-width="1.5"/>
+<line class="l3" x1="363.3" x2="363.3" y1="267.0" y2="263.9" stroke-width="1.5"/>
+<path d="M82.0 307.8 L87.2 316.8 L76.8 316.8 Z" class="f3 ring" stroke-width="2"/>
+<path d="M363.3 259.9 L368.5 268.9 L358.1 268.9 Z" class="f3 ring" stroke-width="2"/>
+<path d="M560.0 207.0 L565.2 216.0 L554.8 216.0 Z" class="f3 ring" stroke-width="2"/>
+<text class="ink" x="570.0" y="90.2" font-size="12">brute</text>
+<text class="ink" x="570.0" y="200.4" font-size="12">sap</text>
+<text class="ink" x="570.0" y="216.5" font-size="12">grid</text>
+<line class="l1" x1="20" x2="42" y1="62" y2="62" stroke-width="2"/>
+<circle cx="31.0" cy="62.0" r="4.5" class="f1 ring" stroke-width="2"/>
+<text class="ink" x="48" y="66" font-size="12">brute</text>
+<line class="l2" x1="95" x2="117" y1="62" y2="62" stroke-width="2"/>
+<rect x="101.5" y="57.5" width="9" height="9" rx="1.5" class="f2 ring" stroke-width="2"/>
+<text class="ink" x="123" y="66" font-size="12">sap</text>
+<line class="l3" x1="156" x2="178" y1="62" y2="62" stroke-width="2"/>
+<path d="M167.0 56.5 L172.2 65.5 L161.8 65.5 Z" class="f3 ring" stroke-width="2"/>
+<text class="ink" x="184" y="66" font-size="12">grid</text>
+</svg>

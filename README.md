@@ -88,7 +88,12 @@ The engine is in development. Done so far:
   bounding boxes, contacts with normals, velocity arrows) and frame statistics (FPS, frame time
   min/mean/max, draw calls and quads per frame) for the log; F3 / F2 in the games.
 
-Next: evaluation (benchmarks E1–E5) and documentation. Progress is tracked in [PLAN.md](PLAN.md).
+- **evaluation**: benchmarks E1–E5 run in a release build with charts and a discussion of the
+  results (batching, ECS vs. OOP, broad phases, physics stability, usability), and a comparison of
+  the API with raylib and Godot.
+
+All modules of the plan are done; the stretch items left are the ImGui overlay, a scoped profiler
+and editor features (see [PLAN.md](PLAN.md)).
 
 ---
 
@@ -361,6 +366,17 @@ the machine. Run it on an otherwise idle machine with the window visible.
 broad phase at 100 to 5000 bodies) and E4 (drift of box towers, energy of a bouncing ball) headless
 and writes `benchmarks/results/e3_broadphase.csv`, `e4_stack.csv` and `e4_bounce.csv`.
 
+`scripts/bench_usability.py` measures E5 (lines of code of the engine, the tests and every example,
+and which engine types the platformer uses). `scripts/make_charts.py` turns all CSV files into the
+charts in `docs/images/evaluation/` and the tables in `benchmarks/results/summary.md`.
+`scripts/bench_all.sh` does all of it in one go (about ten minutes, release build):
+
+```bash
+scripts/bench_all.sh
+```
+
+The results, with charts and what they mean, are in the documentation's *Evaluation* page.
+
 ### Making a game with Astra2D
 
 A game lives in its own repository and uses the engine as a library. The engine is not copied into
@@ -416,7 +432,9 @@ Guides for every module (core, renderer, ECS and scenes, physics) are part of th
 
 Documentation is published at **https://dulkaosmanovic.github.io/Astra2D/** on every push to `main`.
 To generate it locally, run `ninja -C build docs` and open `build/docs/html/index.html`.
-It contains a getting-started guide, the architecture overview, a guide per module and the API reference.
+It contains a getting-started guide, the architecture overview, a guide per module, the example
+game, the evaluation (benchmarks E1–E5 with charts), a comparison with raylib and Godot, and the
+API reference.
 
 ---
 

@@ -1,0 +1,15 @@
+part,kind,files,code_lines,comment_lines
+engine,engine library (include/ + src/),76,10233,2163
+tests,unit tests,25,4954,250
+examples/coin_collector,example,1,467,58
+examples/hello_window,example,1,42,11
+examples/input,example,1,176,21
+examples/physics_playground,example,1,518,41
+examples/platformer,game,7,1508,154
+examples/post_processing,example,1,183,17
+examples/renderer_stress,example,1,292,28
+examples/sandbox,example,1,341,39
+examples/scene,example,1,282,38
+examples/shapes,example,1,112,23
+examples/sprites,example,1,115,17
+examples/text,example,1,104,17

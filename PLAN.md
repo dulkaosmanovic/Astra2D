@@ -66,7 +66,7 @@ Required
 - [x] OpenGL 3.3 core via GLAD; C++20
 - [x] Meson wraps; sanitizers via `-Db_sanitize`; tests link `gtest_main`
 - [x] Doxygen with doxygen-awesome-css submodule
-- [ ] README build/run instructions kept up to date
+- [x] README build/run instructions kept up to date
 
 Stretch
 - [x] `Dockerfile` (Arch, Mesa llvmpipe + Xvfb) for build/test/docs
@@ -172,14 +172,14 @@ Stretch
 ## 8. Evaluation & documentation
 
 Required
-- [ ] Benchmarks below, run in a release build
-- [ ] Full test run under ASan/UBSan and Valgrind without errors or leaks
-- [ ] Doxygen comments on all public APIs
-- [ ] README: build, run, usage example
+- [x] Benchmarks below, run in a release build: E1–E5 in `benchmarks/results/`, charts by `scripts/make_charts.py`, results and discussion in `docs/evaluation.md` (`scripts/bench_all.sh` repeats everything)
+- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks
+- [x] Doxygen comments on all public APIs (`WARN_IF_UNDOCUMENTED`, 0 warnings; CI fails on any)
+- [x] README: build, run, usage example
 
 Stretch
-- [ ] Architecture page with diagrams in `docs/`
-- [ ] Comparison of the engine API with an existing engine/framework (e.g. Godot, raylib)
+- [x] Architecture page with diagrams in `docs/` (module layers, one frame through the modules)
+- [x] Comparison of the engine API with an existing engine/framework: raylib and Godot (`docs/comparison.md`)
 
 ---
 
