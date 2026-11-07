@@ -21,6 +21,8 @@ collects coins, stomps crawlers, avoids spikes and lava, and reaches the flag.
 | R | Back | restart the level |
 | M | | mute |
 | Escape | | quit |
+| F3 | | physics debug view (see @ref debug_guide) |
+| F2 | | FPS, frame times and render statistics in the log |
 
 ## Game rules
 

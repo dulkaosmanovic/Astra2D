@@ -84,7 +84,11 @@ The engine is in development. Done so far:
   enemies, hazards, checkpoints, coins, camera follow, HUD, sound and music; original CC0 assets;
 - tooling: CI with sanitizers, Valgrind, clang-format and clang-tidy; Docker image; Doxygen site.
 
-Next: debug tools. Progress is tracked in [PLAN.md](PLAN.md).
+- **debug**: physics debug view (collision shapes coloured by body state, disabled tile edges,
+  bounding boxes, contacts with normals, velocity arrows) and frame statistics (FPS, frame time
+  min/mean/max, draw calls and quads per frame) for the log; F3 / F2 in the games.
+
+Next: evaluation (benchmarks E1–E5) and documentation. Progress is tracked in [PLAN.md](PLAN.md).
 
 ---
 
@@ -168,10 +172,10 @@ can be turned off with `-Dtests=disabled` and `-Dexamples=disabled` (see `meson.
 | `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
 | `./build/examples/input` | Action mapping, gamepads, rebinding at run time, game events |
 | `./build/examples/post_processing` | Render targets and effects (1-4 switch, Tab low resolution) |
-| `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, physics triggers and collisions, states, score, lives, shake, events |
+| `./build/examples/coin_collector` | A small complete game on the Scene/ECS: entities, systems, physics triggers and collisions, states, score, lives, shake, events; F3 physics view, F2 frame statistics |
 | `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
-| `./build/examples/physics_playground` | Physics: spawn and drag bodies, stacks, bullets, one-way platforms, tile map, trigger zone; switch broad phase (B), debug draw (D) |
-| `./build/examples/platformer` | **Astra Run**, the showcase game: three levels (text map and Tiled maps), coins, crawlers, hazards, checkpoints, music. A/D run, Space jump, S+Space drop, P pause, M mute; `platformer 2` starts at level 2 |
+| `./build/examples/physics_playground` | Physics: spawn and drag bodies, stacks, bullets, one-way platforms, tile map, trigger zone; switch broad phase (B), debug draw (D), frame statistics (F2) |
+| `./build/examples/platformer` | **Astra Run**, the showcase game: three levels (text map and Tiled maps), coins, crawlers, hazards, checkpoints, music. A/D run, Space jump, S+Space drop, P pause, M mute, F3 physics view, F2 frame statistics; `platformer 2` starts at level 2 |
 | `./build/examples/Sandbox` | Everything at once: a Scene with interpolated movement, parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 

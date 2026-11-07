@@ -78,6 +78,17 @@ Public headers live in `include/astra2d/scene/`.
 */
 
 /**
+@defgroup debug Debug tools
+@brief Physics debug view (shapes, body states, bounding boxes, contacts, velocities) and frame
+statistics (FPS, frame times, draw calls) for the log or a HUD.
+
+Builds on @ref physics and @ref renderer. The debug view is collected as plain lines before it is
+drawn, and FrameStats is pure arithmetic, so both are unit-tested. See @ref debug_guide.
+
+Public headers live in `include/astra2d/debug/`.
+*/
+
+/**
 @namespace astra2d
 @brief All public engine types and functions.
 
