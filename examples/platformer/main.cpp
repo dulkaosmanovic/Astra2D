@@ -43,7 +43,8 @@ int firstLevel(std::span<char*> args)
     const char* end = text + std::strlen(text);
     int level = 0;
     const auto [stop, error] = std::from_chars(text, end, level);
-    if (error != std::errc{} || stop != end) {
+    // Below 1 is rejected here: the caller subtracts 1, which would overflow for INT_MIN.
+    if (error != std::errc{} || stop != end || level < 1) {
         throw std::invalid_argument(std::string("Usage: platformer [level number], not '") + text +
                                     "'");
     }
