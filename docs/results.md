@@ -1,5 +1,9 @@
 # Results {#results}
 
+@htmlonly
+<script>window.location.replace("platformer_guide.html");</script>
+@endhtmlonly
+
 What the engine makes possible, and how well it works.
 
 | Page | What it shows |
