@@ -48,10 +48,6 @@ bool solidColumn(const TileGrid& grid, int x, int y, int height)
     return true;
 }
 
-} // namespace
-
-namespace {
-
 // The run of equal tiles starting at column x of row y: its end column (exclusive).
 int runEnd(const TileGrid& grid, int x, int y)
 {
