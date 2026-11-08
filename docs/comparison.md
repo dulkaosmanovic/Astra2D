@@ -9,6 +9,13 @@ the engine owns the loop. Astra2D is a C++ library like raylib (the game is a pr
 it), but it brings the structure of an engine: a fixed-step main loop, an entity component system,
 physics with collision events, and a scene that draws itself.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>**raylib** is a library the game drives: its own loop, objects and collision code.</li>
+<li>**Godot** is an engine with an editor: it owns the loop, and the game is a tree of scripted nodes.</li>
+<li>**Astra2D** is a library like raylib, but brings an engine's structure: fixed-step loop, ECS, physics and a scene.</li>
+</ul></div>
+
 ## The same task in three APIs
 
 A character that runs left and right and jumps when it stands on the ground.
@@ -119,3 +126,8 @@ physics and the drawing.
 - **Measured and tested.** Astra2D's own systems are compared against naive baselines (batching,
   ECS layout, broad phase) and unit-tested headless, which is possible because the ECS, the physics
   and the audio do not depend on OpenGL.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref evaluation "Evaluation"</span>
+<span class="astra-pager-next">Next: <a href="topics.html">API reference</a> →</span>
+</div>

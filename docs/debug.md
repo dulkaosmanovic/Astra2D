@@ -6,6 +6,13 @@ The @ref debug "debug" module helps to see what the engine does while a game run
 the physics world and frame statistics for the log. Both are opt-in: a game decides on which key to
 show them, and nothing is drawn or measured otherwise.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>`drawPhysicsDebug()` draws the real collision shapes, body states, contacts and velocities with the game's camera.</li>
+<li>`FrameStats` reports FPS, the min/mean/max frame time and draw calls once per interval.</li>
+<li>Both are opt-in; the examples use F3 for the physics view and F2 for statistics.</li>
+</ul></div>
+
 ## Physics debug view
 
 @ref astra2d::drawPhysicsDebug draws the state of a @ref astra2d::PhysicsWorld on top of the game,
@@ -72,3 +79,8 @@ for a HUD or the window title; the Sandbox shows the FPS and frame time in its H
 | `coin_collector` | F3 | F2 |
 | `physics_playground` | D (with bounding boxes) | F2 |
 | `Sandbox` | | always in the HUD |
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref audio_guide "Audio"</span>
+<span class="astra-pager-next">Next: @ref platformer_guide "Example game" →</span>
+</div>

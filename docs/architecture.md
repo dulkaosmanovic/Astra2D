@@ -2,6 +2,13 @@
 
 [TOC]
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>Eight modules in three layers. A module uses modules in its own or a lower layer, never a higher one.</li>
+<li>`ecs`, `physics` and `audio` do not touch OpenGL, so they are tested and benchmarked without a GPU.</li>
+<li>Games include only the public headers in `include/astra2d/`.</li>
+</ul></div>
+
 ## Layers
 
 The engine is split into modules arranged in layers. A module may use modules in the same or a
@@ -132,12 +139,12 @@ digraph frame {
 ```text
 include/astra2d/<module>/   public headers: the engine API
 src/<module>/               implementation
-tests/                      one GoogleTest file per module
+tests/                      unit tests (GoogleTest), one file per class or feature
 examples/                   example programs, from hello_window to the platformer game
 examples/assets/            textures, shaders, fonts, sounds and levels used by the examples
 docs/                       Doxygen configuration, these pages and the theme
-external/                   vendored code (GLAD, stb_image, miniaudio, doxygen-awesome-css)
-benchmarks/results/         benchmark CSV files and machine descriptions
+external/                   vendored code (GLAD, stb_image, stb_truetype, miniaudio, doxygen-awesome-css)
+benchmarks/                 headless benchmark programs; results/ holds the CSV files and summary
 subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and GoogleTest
 ```
 
@@ -174,3 +181,8 @@ the unit tests, which, like the examples, are skipped when Astra2D is a subproje
 - Formatting follows `.clang-format` (4 spaces, 100 columns, function braces on their own line) and
   the code passes the `.clang-tidy` checks (bugprone, cppcoreguidelines, modernize, performance,
   readability, the clang static analyzer, and more). Both are enforced in CI.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref getting-started "Getting started"</span>
+<span class="astra-pager-next">Next: @ref core_guide "Core" →</span>
+</div>

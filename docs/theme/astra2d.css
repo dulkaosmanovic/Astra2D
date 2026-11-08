@@ -234,3 +234,138 @@ div:has(> div.contents a#mainpage) > div.header {
 div.contents .dotgraph {
     margin: 16px 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* Key numbers on the landing page                                     */
+/* ------------------------------------------------------------------ */
+
+.astra-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+    margin: 18px 0 26px;
+}
+
+.astra-stat {
+    border-radius: var(--border-radius-large);
+    padding: 14px 16px;
+    background: var(--astra-accent-soft);
+    border-left: 4px solid var(--primary-color);
+}
+
+.astra-stat .astra-stat-value {
+    display: block;
+    font-size: 1.7em;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--astra-navy);
+    font-variant-numeric: tabular-nums;
+}
+
+.astra-stat .astra-stat-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.88em;
+    line-height: 1.45;
+    color: var(--page-secondary-foreground-color);
+}
+
+/* ------------------------------------------------------------------ */
+/* Screenshots                                                          */
+/* ------------------------------------------------------------------ */
+
+.astra-shots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 8px 0 24px;
+}
+
+.astra-shots img,
+div.contents div.image img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--separator-color);
+}
+
+/* Evaluation charts are SVG line art: no frame around them. */
+div.contents div.image img[src$=".svg"] {
+    border: none;
+    max-width: 760px;
+}
+
+div.contents div.image div.caption {
+    font-size: 0.88em;
+    color: var(--page-secondary-foreground-color);
+    margin-top: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reading path and page navigation                                    */
+/* ------------------------------------------------------------------ */
+
+.astra-path {
+    counter-reset: step;
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 24px;
+}
+
+.astra-path .astra-step {
+    counter-increment: step;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    padding: 10px 14px;
+    border: 1px solid var(--separator-color);
+    border-radius: var(--border-radius-large);
+}
+
+.astra-path .astra-step::before {
+    content: counter(step);
+    flex: none;
+    width: 1.7em;
+    height: 1.7em;
+    line-height: 1.7em;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85em;
+    background: var(--primary-color);
+    color: var(--page-background-color);
+}
+
+/* "In short" box at the top of a guide. */
+.astra-summary {
+    padding: 12px 16px;
+    margin: 12px 0 20px;
+    border-radius: var(--border-radius-large);
+    background: var(--astra-accent-soft);
+    border-left: 4px solid var(--primary-color);
+}
+
+.astra-summary p:first-child { margin-top: 0; }
+.astra-summary p:last-child,
+.astra-summary ul:last-child { margin-bottom: 0; }
+
+/* Previous / next links at the bottom of a guide. */
+.astra-pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--separator-color);
+}
+
+.astra-pager span {
+    font-weight: 600;
+}
+
+.astra-pager .astra-pager-next {
+    margin-left: auto;
+    text-align: right;
+}

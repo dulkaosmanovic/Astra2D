@@ -7,6 +7,14 @@ collision detection, an impulse solver, triggers, one-way platforms, sleeping, c
 for fast bodies and tile map collision. It does not depend on OpenGL or the ECS, so all of it is
 unit-tested. @ref astra2d::PhysicsSystem connects it to a @ref astra2d::Scene.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>Games add `Collider` and `RigidBody` components and a `PhysicsSystem`; tools can use `PhysicsWorld` directly.</li>
+<li>A step runs broad phase → narrow phase (SAT, contact manifolds) → sequential impulse solver → sleeping.</li>
+<li>Platformer features: one-way platforms, tile maps without ghost edges, bullets that do not tunnel, ray casts.</li>
+<li>Deterministic: the same inputs give bit-identical results, whichever broad phase is used.</li>
+</ul></div>
+
 ## Two ways to use it
 
 **Through the scene** (what games normally do): give entities a @ref astra2d::Collider and, if they
@@ -110,13 +118,13 @@ three report exactly the same pairs, sorted afterwards, so the simulation is **b
 whatever broad phase is used** (tested); only the cost differs.
 
 `benchmarks/physics_benchmark broadphase` measures this on a "gas" of N bodies bouncing in a box
-without gravity (release build, Ryzen 5 3500U, means per step):
+without gravity (release build, Ryzen 5 3500U, mean step time):
 
 | Bodies | Brute force | Sort and sweep | Uniform grid | Box tests: brute / SAP / grid |
 |---:|---:|---:|---:|---|
-| 100 | 0.04 ms | 0.04 ms | 0.05 ms | 5 350 / 615 / 155 |
-| 1 000 | 2.96 ms | 0.21 ms | 0.17 ms | 503 500 / 15 499 / 1 411 |
-| 5 000 | 62.9 ms | 1.67 ms | 0.98 ms | 12 517 500 / 160 001 / 6 847 |
+| 100 | 0.049 ms | 0.026 ms | 0.032 ms | 5,350 / 611 / 154 |
+| 1,000 | 2.72 ms | 0.20 ms | 0.16 ms | 503,500 / 15,523 / 1,403 |
+| 5,000 | 62.4 ms | 1.57 ms | 0.92 ms | 12,517,500 / 160,676 / 6,851 |
 
 With 100 bodies the broad phase does not matter; at 5000, brute force alone takes four frames
 while the grid needs 1 ms for the whole step. Run `scripts/bench_physics.sh` for the full
@@ -184,7 +192,7 @@ from step to step instead of flickering.
 
 The vertical error is the allowed overlap of every contact added up (and the bottom boxes carrying
 the most weight overlap most). A ball dropped from 5 m with restitution 1 keeps its energy within
-±2% over 60 s; with restitution 0 it stops at the first impact.
+±2% over 10 s; with restitution 0 it stops at the first impact. @ref evaluation discusses both.
 
 ## Body types, sleeping, events
 
@@ -270,6 +278,8 @@ systems added after it see the results.
 
 ## Examples
 
+![physics_playground with debug drawing: a bullet hitting a pyramid, a tower of boxes, bounding boxes of the static shapes](physics_playground.png)
+
 - `examples/physics_playground`: spawn boxes, circles and polygons with the mouse, drag them with
   a spring, shoot bullets, build towers and pyramids; one-way platforms, a tile map, a moving
   platform, a trigger zone; switch broad phases and see their cost; debug drawing of bounding
@@ -279,3 +289,8 @@ systems added after it see the results.
   and ledge detection with ray casts (see @ref platformer_guide).
 - `examples/coin_collector`: a game without gravity; coins are triggers, spikes bounce off walls
   and the player by themselves, hits are collision events.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref ecs_guide "ECS and scenes"</span>
+<span class="astra-pager-next">Next: @ref audio_guide "Audio" →</span>
+</div>

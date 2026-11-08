@@ -5,6 +5,14 @@
 The @ref core "core" module turns an empty `main()` into a running game: it opens the window,
 runs the main loop, delivers input and splits time into fixed simulation steps.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>`Application::run()` owns the loop; a game overrides `onStart()`, `onFixedUpdate()`, `onUpdate()` and `onRender()`.</li>
+<li>The simulation advances in fixed steps (1/60 s by default), zero or more per frame; drawing interpolates between them.</li>
+<li>Read one-frame input such as `isPressed()` in `onUpdate()`, not in `onFixedUpdate()`.</li>
+<li>`ActionMap` binds named actions to keys and gamepads; `EventDispatcher` lets systems talk without knowing each other.</li>
+</ul></div>
+
 ## The main loop
 
 @ref astra2d::Application::run "Application::run()" repeats the following until the window is
@@ -267,3 +275,8 @@ failing line. Assertions are compiled out in release builds (`NDEBUG`) unless `A
 is defined, so the condition must not have side effects (it is still type-checked). The message uses
 the same formatter as the log macros. Errors the program can recover from, such as a missing file
 or invalid settings like a non-positive fixed step, throw exceptions instead.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref architecture "Architecture"</span>
+<span class="astra-pager-next">Next: @ref renderer_guide "Renderer" →</span>
+</div>
