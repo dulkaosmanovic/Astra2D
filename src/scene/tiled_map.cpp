@@ -251,8 +251,18 @@ float TiledProperties::number(std::string_view name, float fallback) const
 
 int TiledProperties::integer(std::string_view name, int fallback) const
 {
-    const float result = number(name, static_cast<float>(fallback));
-    return static_cast<int>(std::lround(result));
+    const auto it = values.find(name);
+    if (it == values.end()) {
+        return fallback;
+    }
+    // Read as an int first: a float holds integers exactly only up to 2^24.
+    int result = 0;
+    const std::string& text = it->second;
+    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), result);
+    if (error == std::errc{} && end == text.data() + text.size()) {
+        return result;
+    }
+    return static_cast<int>(std::lround(number(name, static_cast<float>(fallback)))); // "2.5"
 }
 
 bool TiledProperties::boolean(std::string_view name, bool fallback) const

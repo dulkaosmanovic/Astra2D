@@ -2,6 +2,7 @@
 
 #include "astra2d/assets/asset_cache.hpp"
 #include "astra2d/core/log.hpp"
+#include "astra2d/physics/geometry.hpp"
 #include "astra2d/renderer/texture.hpp"
 #include "astra2d/scene/components.hpp"
 #include "astra2d/scene/scene.hpp"
@@ -210,6 +211,13 @@ Collider loadCollider(const json& j, const SceneSerializer::LoadContext& /*conte
     }
     if (c.shape == ColliderShape::Circle && !(c.radius > 0.0F)) {
         throw std::runtime_error("collider radius must be positive");
+    }
+    if (c.shape == ColliderShape::Polygon) {
+        try {
+            (void)makePolygon(c.points); // 3 to 8 corners, not all on a line
+        } catch (const std::invalid_argument& error) {
+            throw std::runtime_error(std::format("collider polygon: {}", error.what()));
+        }
     }
     return c;
 }
