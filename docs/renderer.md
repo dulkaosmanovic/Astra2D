@@ -7,6 +7,14 @@ frames and debug lines, seen through a 2D camera. Its centre is @ref astra2d::Re
 renderer that turns thousands of quads into a handful of draw calls. The @ref assets "assets"
 module loads the textures and shaders it uses, each file only once.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>Draw between `begin(camera)` and `end()`. Positions are quad centres in a y-up world.</li>
+<li>`Renderer2D` batches quads: one draw call per 10,000 quads or 16 textures, instead of one per sprite.</li>
+<li>A texture must stay alive until `end()`; keeping textures in an `AssetCache` makes that automatic.</li>
+<li>The `AssetCache` loads each file once and reloads changed files while the game runs.</li>
+</ul></div>
+
 ## Drawing a frame
 
 A renderer and a camera are usually members of the Application subclass. Members are constructed
@@ -328,6 +336,13 @@ fixed:
 if ((m_reloadTimer += dt) > 0.5F) { m_reloadTimer = 0.0F; m_assets.reloadChanged(); }
 ```
 
-In the sandbox, editing `examples/assets/shaders/crt.frag` changes the picture within half a second. The storage is a generic @ref astra2d::ResourceCache, which keeps each
+In the sandbox, editing `examples/assets/shaders/crt.frag` changes the picture within half a second.
+
+The storage is a generic @ref astra2d::ResourceCache, which keeps each
 resource behind a stable pointer (references survive later insertions) and stores nothing if
 loading throws. It has no OpenGL dependency and is unit-tested with plain types.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref core_guide "Core"</span>
+<span class="astra-pager-next">Next: @ref ecs_guide "ECS and scenes" →</span>
+</div>

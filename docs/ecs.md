@@ -6,6 +6,14 @@ The @ref ecs "ecs" module stores game objects as **entities with components**; t
 @ref scene "scene" module builds a game world on top of it: a Scene with systems, built-in
 components, a parent/child hierarchy, rendering and scene files.
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>An entity is a 32-bit id with a generation, a component is a plain struct, a system is a function over a view.</li>
+<li>Each component type lives in a sparse set: O(1) add, remove and lookup, and gap-free iteration.</li>
+<li>A `Scene` runs systems in an explicit order by phase and adds a hierarchy, interpolation and JSON scene files.</li>
+<li>At 100,000 objects and more, updates are 2.6 to 6 times faster than with OOP game objects (E2).</li>
+</ul></div>
+
 ## Why an entity component system
 
 A classic game object hierarchy gives every object a class: `Player : Character : GameObject`, each
@@ -136,6 +144,7 @@ The tests in `tests/test_ecs.cpp` cover each of them:
   then throws `std::logic_error`, because it has no component left to return.
 - Emitting does not copy the handler list. Handlers connected during an emit first run on the next
   one, and disconnected ones are skipped at once.
+
 Signals let independent code react to changes without the code making them knowing about it; the
 Scene uses one itself to keep the hierarchy consistent (below).
 
@@ -264,19 +273,18 @@ some data the update does not touch, updated as `position += velocity * dt`, sto
 - `oop_shuffled`: the same objects updated in random order, as in a long-running game whose objects
   were created and destroyed over time.
 
-One run on the development machine (release build, AMD Ryzen 5 3500U; the thesis numbers come from
-the script, on an idle machine):
+Time per object and update (release build, AMD Ryzen 5 3500U, mean of 5 runs):
 
 | Objects | ecs | oop | oop_shuffled |
-|---|---|---|---|
-| 10 000 | 2.4 ns | 2.2 ns | 2.1 ns |
-| 100 000 | 2.6 ns | 7.2 ns | 12.7 ns |
-| 1 000 000 | 2.6 ns | 7.0 ns | 13.1 ns |
+|---:|---:|---:|---:|
+| 10,000 | 3.6 ns | 2.2 ns | 4.2 ns |
+| 100,000 | 2.07 ns | 7.07 ns | 12.5 ns |
+| 1,000,000 | 2.60 ns | 6.84 ns | 12.9 ns |
 
-Time per object and update. While everything fits in the CPU cache (10 000 objects) the layouts
-cost the same. Beyond that, the ECS stays flat, while the game objects get 2.7 times slower in
-allocation order and 5 times slower shuffled, because each object is a cache miss and carries data
-the update does not need.
+While everything fits in the CPU cache (10,000 objects) the layouts cost about the same, within the
+measurement noise. Beyond that, the ECS stays flat, while the game objects get 2.6 to 3.4 times
+slower in allocation order and 5 to 6 times slower shuffled, because each object is a cache miss
+and carries data the update does not need. @ref evaluation has the chart and the discussion.
 
 ## Examples
 
@@ -290,3 +298,8 @@ keeps its world in a Scene too.
 `Pickup` component, an `onDestroy<Pickup>` signal that counts collected coins and spawns an effect,
 `destroyLater()` in a view, and saving (F5) and loading (F9) the scene, including the example's own
 components.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref renderer_guide "Renderer"</span>
+<span class="astra-pager-next">Next: @ref physics_guide "Physics" →</span>
+</div>

@@ -2,6 +2,18 @@
 
 [TOC]
 
+## Quick start
+
+On Arch Linux; the rest of this page explains each step and the alternatives.
+
+```bash
+git clone --recurse-submodules https://github.com/dulkaosmanovic/Astra2D.git
+cd Astra2D
+scripts/setup.sh                   # compiler, Meson, Ninja, libraries; configures build/
+ninja -C build                     # the engine, the tests and every example
+./build/examples/platformer        # A/D run, Space jump, F3 physics view
+```
+
 ## Requirements
 
 - Linux with a GPU and driver that support OpenGL 3.3
@@ -17,7 +29,7 @@ missing libraries (GLFW, GLM, spdlog, GoogleTest) from the wraps in `subprojects
 The documentation theme is a git submodule, so clone recursively:
 
 ```bash
-git clone --recurse-submodules <repository-url>
+git clone --recurse-submodules https://github.com/dulkaosmanovic/Astra2D.git
 # or, in an existing clone:
 git submodule update --init
 ```
@@ -68,10 +80,14 @@ Each build variant lives in its own directory, so they can exist side by side.
 
 </div>
 
-Add `-Dwerror=true` to any variant to treat warnings as errors, as CI does. `-Dtests=disabled` and
-`-Dexamples=disabled` skip the unit tests and the examples.
+Add `-Dwerror=true` to any variant to treat warnings as errors, as CI does. `-Dtests=disabled`,
+`-Dexamples=disabled` and `-Dbenchmarks=disabled` skip the unit tests, the examples and the
+benchmark programs.
 
 ## Run
+
+Run the examples from the repository root. Each is one commented `main.cpp` in `examples/`, so
+they double as a tutorial; the table lists them from the simplest to the complete game.
 
 | Command | What it does |
 |---|---|
@@ -146,7 +162,7 @@ int main()
 - <b class="tab-title">In your own project</b>
   This is how a game uses Astra2D: in its own repository, with the engine as a library.
   Astra2D exports the Meson dependency `astra2d`. Place the repository in your project's
-  `subprojects/` directory (for example `git submodule add <repository-url> subprojects/astra2d`):
+  `subprojects/` directory (for example `git submodule add https://github.com/dulkaosmanovic/Astra2D.git subprojects/astra2d`):
   ```meson
   project('hello', 'cpp', default_options : ['cpp_std=c++20'])
 
@@ -186,3 +202,8 @@ astra2d::AssetCache assets(astra2d::findDirectory(
     {astra2d::executableDirectory() / "assets",   // installed game
      GAME_SOURCE_ASSETS_DIR}));                    // development build, set in meson.build
 ```
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref mainpage "Home"</span>
+<span class="astra-pager-next">Next: @ref architecture "Architecture" →</span>
+</div>

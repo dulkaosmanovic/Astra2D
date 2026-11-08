@@ -7,6 +7,13 @@ It is a thin layer over [miniaudio](https://miniaud.io) (vendored in `external/m
 decodes the files, mixes the sounds on its own thread and talks to the output device (PulseAudio,
 ALSA or JACK, loaded at run time).
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>`sound(path)` decodes a file once; `play()` starts a new voice, so sounds can overlap; `playMusic()` loops one track.</li>
+<li>Call `update()` once per frame.</li>
+<li>Without a sound device the engine runs silently, and tests mix the output themselves with `readFrames()`.</li>
+</ul></div>
+
 ## Use
 
 ```cpp
@@ -63,3 +70,8 @@ bus and WAV decoding, all without sound hardware, also under Valgrind.
 `examples/platformer` plays a jump, coin, stomp, hurt, checkpoint, win and game-over sound and a
 music loop, all made by `scripts/generate_platformer_assets.py`; `M` mutes. Each effect is played
 with a slightly random pitch, so repeated sounds do not get tiring. See @ref platformer_guide.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref physics_guide "Physics"</span>
+<span class="astra-pager-next">Next: @ref debug_guide "Debug tools" →</span>
+</div>

@@ -28,6 +28,13 @@ collects coins, stomps crawlers, avoids spikes and lava, and reaches the flag.
 | F3 | | physics debug view (see @ref debug_guide) |
 | F2 | | FPS, frame times and render statistics in the log |
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>A complete game with three levels, enemies, hazards, checkpoints, sound and a HUD, written only against the public API.</li>
+<li>1,508 lines of code, 15 % of the engine's size; its level loading and movement rules are unit-tested.</li>
+<li>Shows Scene systems, physics signals, collision groups, coyote time and jump buffering, and Tiled maps working together.</li>
+</ul></div>
+
 ## Game rules
 
 - Three hearts per level. Spikes, lava and touching a crawler from the side cost one, with a
@@ -44,12 +51,13 @@ The game is split by what each part does, and the parts that do not draw are uni
 
 | File | Lines | What |
 |---|---|---|
-| `level.hpp/.cpp` | 480 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
-| `controller.hpp/.cpp` | 130 | Movement rules: acceleration, jump, jump cut, coyote time, jump buffering |
-| `game.cpp` | 1040 | The game: entities, systems, physics events, camera, HUD, sound, game states |
-| `main.cpp`, `game.hpp` | 50 | Entry point |
+| `level.hpp/.cpp` | 514 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
+| `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, jump cut, coyote time, jump buffering |
+| `game.cpp` | 1,098 | The game: entities, systems, physics events, camera, HUD, sound, game states |
+| `main.cpp`, `game.hpp` | 77 | Entry point |
 
-About 1,700 lines of game code (with comments) on about 13,700 lines of engine: the engine does the
+About 1,800 lines of game code (1,508 without comments and blank lines, see @ref evaluation) on
+about 10,200 lines of engine code: the engine does the
 window, input mapping, fixed timestep, rendering, animation, the ECS, physics, collision events,
 level file parsing and audio, and the game only says what happens.
 
@@ -170,3 +178,8 @@ Renderer2D with sprites, tiled backgrounds and text; SpriteSheet and animation; 
 parallax and shake; Scene, Registry, views and systems; PhysicsSystem with dynamic and static
 bodies, triggers, collision events, collision filtering, one-way tile platforms, ground detection
 and ray casts; TilemapCollider; Tiled map loading; AudioEngine.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref debug_guide "Debug tools"</span>
+<span class="astra-pager-next">Next: @ref evaluation "Evaluation" →</span>
+</div>

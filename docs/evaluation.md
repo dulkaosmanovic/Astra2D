@@ -17,6 +17,15 @@ The raw results are CSV files in `benchmarks/results/` with a `*.machine.txt` ne
 and the columns. These runs were made in a normal desktop session; the final numbers for a report
 should come from a run on an otherwise idle machine (`scripts/bench_all.sh`, about ten minutes).
 
+<div class="astra-summary"><b>In short</b>
+<ul>
+<li>**E1:** batching cuts 100,000 draw calls to 10 and halves the render time.</li>
+<li>**E2:** at 1M objects the ECS updates 2.6× faster than OOP objects, 5× faster than scattered ones.</li>
+<li>**E3:** at 5,000 bodies the uniform grid makes the physics step 68× faster than brute force.</li>
+<li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
+<li>**E5:** the complete platformer is 15 % of the engine's size.</li>
+</ul></div>
+
 ## E1: How much does batching help?
 
 `examples/renderer_stress` draws N moving textured sprites into a 1280×720 off-screen target,
@@ -115,10 +124,10 @@ cost differs.
 |---:|---:|---:|---:|---:|---:|
 | 100 | 0.049 ± 0.008 | 0.026 ± 0.014 | 0.032 ± 0.007 | 1.9× | 1.5× |
 | 1,000 | 2.72 ± 0.06 | 0.202 ± 0.010 | 0.157 ± 0.008 | 13.5× | 17.3× |
-| 5,000 | 62.3 ± 0.3 | 1.58 ± 0.02 | 0.93 ± 0.04 | 39.4× | 67.3× |
+| 5,000 | 62.4 ± 0.3 | 1.57 ± 0.03 | 0.92 ± 0.04 | 39.6× | 67.9× |
 
 **The broad phase turns the quadratic cost into a nearly linear one: at 5,000 bodies a step takes
-0.93 ms with the grid instead of 62 ms.** Brute force tests every pair, n(n−1)/2: 12.5 million box
+0.92 ms with the grid instead of 62 ms.** Brute force tests every pair, n(n−1)/2: 12.5 million box
 tests at 5,000 bodies to find 722 touching pairs, so its time grows 23-fold for 5 times as many
 bodies. Sort and sweep tests 160,676 boxes (only neighbours along the x-axis); the grid only the
 bodies in the same and neighbouring cells, 6,851. With 100 bodies all three cost a few hundredths
@@ -234,3 +243,8 @@ All of these run in CI on every push (`.github/workflows/ci.yml`) and in the Doc
   (big bodies cover many cells), which is where sort and sweep is the safer choice.
 - E5 counts lines, which says how much code a game needs, not how easy it was to write; the
   comparison with raylib and Godot (@ref comparison) looks at the API from that side.
+
+<div class="astra-pager">
+<span class="astra-pager-prev">← @ref platformer_guide "Example game"</span>
+<span class="astra-pager-next">Next: @ref comparison "Comparison" →</span>
+</div>
