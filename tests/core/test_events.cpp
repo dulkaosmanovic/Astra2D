@@ -68,9 +68,9 @@ TEST(EventTests, MovedSubscriptionKeepsTheHandler)
     }
     events.publish(Hit{});
     EXPECT_EQ(calls, 1);
-    EXPECT_TRUE(kept.active());
+    EXPECT_TRUE(kept.connected());
     kept.reset();
-    EXPECT_FALSE(kept.active());
+    EXPECT_FALSE(kept.connected());
     events.publish(Hit{});
     EXPECT_EQ(calls, 1);
 }
@@ -82,7 +82,7 @@ TEST(EventTests, SubscriptionMayOutliveTheDispatcher)
         EventDispatcher events;
         subscription = events.subscribe<Hit>([](const Hit&) {});
     }
-    EXPECT_FALSE(subscription.active());
+    EXPECT_FALSE(subscription.connected());
     subscription.reset(); // must not touch the destroyed dispatcher
 }
 

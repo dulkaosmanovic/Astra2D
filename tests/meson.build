@@ -6,6 +6,7 @@ test_sources = files(
   'core/test_events.cpp',
   'core/test_input.cpp',
   'core/test_paths.cpp',
+  'core/test_signal.cpp',
   'core/test_timestep.cpp',
   'renderer/test_camera.cpp',
   'renderer/test_camera_shake.cpp',

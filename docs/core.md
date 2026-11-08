@@ -224,6 +224,10 @@ events().enqueue(CoinCollected{5});    // handlers run at a fixed point of the n
 | Deferred events | `enqueue()` stores a copy; `dispatchQueued()` delivers them in order, events queued meanwhile wait for the next call |
 | Order | handlers run in subscription order |
 
+Each event type is one @ref astra2d::Signal "Signal", the same handler list the ECS uses for its
+component notifications, and a `Subscription` is its @ref astra2d::Connection "Connection"
+(`tests/core/test_signal.cpp`).
+
 Application owns a dispatcher (`events()`) and calls `dispatchQueued()` once per frame, right after
 polling the window. The engine publishes `WindowResizeEvent`, `WindowFocusEvent` and
 `GamepadConnectionEvent` on it. The window events are queued during polling, so their handlers run at

@@ -2,7 +2,7 @@
 
 #include "astra2d/core/assert.hpp"
 #include "astra2d/ecs/entity.hpp"
-#include "astra2d/ecs/signal.hpp"
+#include "astra2d/core/signal.hpp"
 #include "astra2d/ecs/sparse_set.hpp"
 
 #include <algorithm>
@@ -175,14 +175,6 @@ public:
         const auto* component = tryGet<Component>(entity);
         ASTRA_ASSERT(component != nullptr, "entity does not have the requested component");
         return *component;
-    }
-
-    /// Several components at once, as a tuple of references:
-    /// `auto [p, v] = registry.getAll<Position, Velocity>(e);`
-    template <typename... Components>
-    [[nodiscard]] std::tuple<Components&...> getAll(Entity entity)
-    {
-        return std::tuple<Components&...>(get<Components>(entity)...);
     }
 
     /// The component of @p entity, or nullptr if the entity is invalid or does not have it.
@@ -367,12 +359,6 @@ public:
     [[nodiscard]] bool contains(Entity entity) const
     {
         return m_leading != nullptr && m_registry->valid(entity) && matches(entity);
-    }
-
-    /// Upper bound of the number of matching entities: the size of the smallest pool.
-    [[nodiscard]] std::size_t sizeHint() const
-    {
-        return m_leading != nullptr ? m_leading->size() : 0;
     }
 
     /// Exact number of matching entities (walks the smallest pool).

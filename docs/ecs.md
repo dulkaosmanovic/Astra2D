@@ -130,7 +130,8 @@ astra2d::Connection connection = registry.onDestroy<Pickup>().connect(
     });
 ```
 
-A @ref astra2d::Connection disconnects its handler when destroyed, like an event subscription.
+A @ref astra2d::Connection disconnects its handler when destroyed. Signal and Connection come from
+@ref core, where the EventDispatcher is built on them too.
 
 Handlers run in the middle of a change to the registry, so a few rules keep that change consistent.
 The tests in `tests/ecs/test_ecs.cpp` cover each of them:
