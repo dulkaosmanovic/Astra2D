@@ -1,6 +1,7 @@
 #include "astra2d/renderer/shader.hpp"
 
 #include "astra2d/core/log.hpp"
+#include "text_file.hpp"
 
 #include <glad/gl.h>
 
@@ -8,8 +9,6 @@
 
 #include <array>
 #include <format>
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -19,17 +18,6 @@ namespace astra2d {
 static_assert(std::is_same_v<GLuint, std::uint32_t>);
 
 namespace {
-
-std::string readFile(const std::filesystem::path& path)
-{
-    const std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error(std::format("Cannot open shader file '{}'", path.string()));
-    }
-    std::ostringstream contents;
-    contents << file.rdbuf();
-    return contents.str();
-}
 
 const char* stageName(GLenum type)
 {
@@ -94,7 +82,7 @@ Shader Shader::fromFiles(const std::filesystem::path& vertexPath,
                          const std::filesystem::path& fragmentPath)
 {
     try {
-        return {readFile(vertexPath), readFile(fragmentPath)};
+        return {detail::readTextFile(vertexPath), detail::readTextFile(fragmentPath)};
     } catch (const std::runtime_error& error) {
         throw std::runtime_error(std::format("{} (shader '{}' + '{}')", error.what(),
                                              vertexPath.string(), fragmentPath.string()));

@@ -113,12 +113,6 @@ void main()
 }
 )";
 
-template <typename T>
-std::span<const std::byte> bytes(std::span<const T> data)
-{
-    return std::as_bytes(data);
-}
-
 } // namespace
 
 struct Renderer2D::Impl {
@@ -128,11 +122,11 @@ struct Renderer2D::Impl {
         , vertexBuffer(BufferType::Vertex,
                        settings.maxQuadsPerBatch * 4 * sizeof(detail::QuadVertex),
                        BufferUsage::Dynamic)
-        , indexBuffer(BufferType::Index, bytes(std::span<const std::uint32_t>(
+        , indexBuffer(BufferType::Index, std::as_bytes(std::span<const std::uint32_t>(
                                              detail::quadIndices(settings.maxQuadsPerBatch))))
-        , unitQuadVertices(BufferType::Vertex, bytes(std::span<const float>(kUnitQuad)))
+        , unitQuadVertices(BufferType::Vertex, std::as_bytes(std::span<const float>(kUnitQuad)))
         , unitQuadIndices(BufferType::Index,
-                          bytes(std::span<const std::uint32_t>(detail::quadIndices(1))))
+                          std::as_bytes(std::span<const std::uint32_t>(detail::quadIndices(1))))
         , whiteTexture(1, 1, std::array<std::uint8_t, 4>{255, 255, 255, 255})
         , textureSlots(queryTextureSlots())
         , batch(settings.maxQuadsPerBatch, textureSlots, whiteTexture.id())
@@ -169,7 +163,7 @@ struct Renderer2D::Impl {
             return;
         }
         vertexBuffer.orphan();
-        vertexBuffer.setData(bytes(batch.vertices()));
+        vertexBuffer.setData(std::as_bytes(batch.vertices()));
 
         const auto textures = batch.textures();
         for (std::size_t slot = 0; slot < textures.size(); ++slot) {
@@ -412,11 +406,6 @@ const RenderStats& Renderer2D::stats() const
 void Renderer2D::resetStats()
 {
     m_impl->stats = {};
-}
-
-int Renderer2D::textureSlots() const
-{
-    return m_impl->textureSlots;
 }
 
 } // namespace astra2d

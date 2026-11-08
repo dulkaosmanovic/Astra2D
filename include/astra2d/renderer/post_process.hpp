@@ -40,8 +40,6 @@ public:
     /// Creates the full-screen geometry and the built-in copy effect. Needs an OpenGL context.
     PostProcess();
 
-    /// The vertex shader every effect is linked with.
-    [[nodiscard]] static std::string_view vertexShader();
     /// Compiles an effect from fragment shader source.
     /// @throws std::runtime_error if it does not compile or link.
     [[nodiscard]] static Shader createEffect(std::string_view fragmentSource);

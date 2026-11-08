@@ -2,7 +2,7 @@
 
 // Internal to the renderer (not a public header). Collects quads into one vertex array on the CPU
 // and assigns texture slots; Renderer2D uploads and draws the result. Contains no OpenGL calls, so
-// the batching rules are unit-tested directly (tests/test_quad_batch.cpp).
+// the batching rules are unit-tested directly (tests/renderer/test_quad_batch.cpp).
 
 #include "astra2d/renderer/sprite.hpp"
 

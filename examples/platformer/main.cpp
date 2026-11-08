@@ -19,7 +19,7 @@
 //   level.hpp/.cpp        levels as data: text maps (level1.txt) and Tiled maps (level2/3.tmj)
 //   controller.hpp/.cpp   movement rules: acceleration, jump, coyote time, jump buffering
 //   game.cpp              the game: entities, systems, physics events, camera, HUD, sound
-// level and controller do not use OpenGL and are unit-tested in tests/test_platformer.cpp.
+// level and controller do not use OpenGL and are unit-tested in tests/examples/test_platformer.cpp.
 // The assets are made by scripts/generate_platformer_assets.py (original, CC0).
 
 #include "game.hpp"

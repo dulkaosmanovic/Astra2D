@@ -2,7 +2,7 @@
 
 // A level of the platformer as plain data: which tile is drawn where, what collides, and where the
 // player, coins, enemies, checkpoints and the goal start. Loaded from a text map (.txt) or a Tiled
-// map (.tmj); no OpenGL, so it is unit-tested (tests/test_platformer.cpp).
+// map (.tmj); no OpenGL, so it is unit-tested (tests/examples/test_platformer.cpp).
 
 #include <astra2d/physics/tilemap.hpp>
 #include <astra2d/scene/tiled_map.hpp>

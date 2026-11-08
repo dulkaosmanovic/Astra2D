@@ -2,7 +2,7 @@
 
 // How the player moves: tuning values, horizontal acceleration and the jump rules (coyote time and
 // jump buffering). Pure functions of the input and the state, without the engine, so they are
-// unit-tested (tests/test_platformer.cpp).
+// unit-tested (tests/examples/test_platformer.cpp).
 
 namespace platformer {
 
