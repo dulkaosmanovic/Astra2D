@@ -31,8 +31,21 @@ struct Layer {
     bool fillsView = false;   ///< Tiles the whole view instead of a strip (stars, the cave wall).
 };
 
-/// A planet's sky: a gradient, stars, the next planet hanging in it, and up to three layers.
+/// Particles drifting through the view: spores, ice glitter, motes or embers.
+struct Weather {
+    int count = 0;            ///< How many are in view at once.
+    glm::vec4 color{1.0F};    ///< Colour and opacity.
+    glm::vec2 velocity{0.0F}; ///< World units per second.
+    float sway = 0.0F;        ///< Side-to-side speed, world units per second.
+    float size = 1.0F;        ///< Side of the square, world units.
+    bool flicker = false;     ///< Fades in and out.
+};
+
+/// A planet: its gravity and weather, and its sky (a gradient, stars, the next planet hanging in
+/// it, and up to three layers).
 struct Look {
+    float gravity = 1.0F;          ///< Times Earth's: changes how high and far the player jumps.
+    Weather weather;               ///< Drifting in front of everything.
     glm::vec4 skyTop;              ///< Colour at the top of the screen.
     glm::vec4 skyBottom;           ///< Colour at the bottom.
     bool stars = false;            ///< Stars over the gradient (not in a cave).
@@ -50,9 +63,15 @@ inline constexpr glm::vec4 kVolcanoFill{0.204F, 0.118F, 0.157F, 1.0F};
 inline constexpr Layer kStars{
     .texture = "textures/stars.png", .parallax = {0.02F, 0.02F}, .fillsView = true};
 
-/// One per level, in level order: Verda, the Crystal Moon, Nimbus and Pyros.
+/// One per level, in level order: Verda, the Crystal Moon (low gravity), Nimbus and Pyros (heavy).
 inline constexpr std::array<Look, 4> kLooks = {{
-    {.skyTop = {0.02F, 0.02F, 0.07F, 1.0F},
+    {.weather = {.count = 36,
+                 .color = {0.80F, 1.0F, 0.60F, 0.7F},
+                 .velocity = {4.0F, 6.0F},
+                 .sway = 6.0F,
+                 .size = 1.5F,
+                 .flicker = true},
+     .skyTop = {0.02F, 0.02F, 0.07F, 1.0F},
      .skyBottom = {0.16F, 0.40F, 0.48F, 1.0F},
      .stars = true,
      .skyPlanet = planet::kCrystalMoon,
@@ -65,14 +84,25 @@ inline constexpr std::array<Look, 4> kLooks = {{
                   .parallax = {0.4F, 0.5F},
                   .y = 40.0F,
                   .fill = kHillFill}}}},
-    {.skyTop = {0.02F, 0.02F, 0.06F, 1.0F},
+    {.gravity = 0.6F,
+     .weather = {.count = 60,
+                 .color = {0.80F, 0.95F, 1.0F, 0.8F},
+                 .velocity = {-3.0F, -10.0F},
+                 .sway = 4.0F,
+                 .flicker = true},
+     .skyTop = {0.02F, 0.02F, 0.06F, 1.0F},
      .skyBottom = {0.08F, 0.08F, 0.18F, 1.0F},
-     .ground = {0.80F, 0.90F, 1.0F, 1.0F},
      .layers = {{{.texture = "textures/cave.png",
                   .parallax = {0.3F, 0.3F},
                   .tint = {0.26F, 0.32F, 0.50F, 1.0F},
                   .fillsView = true}}}},
-    {.skyTop = {0.03F, 0.02F, 0.10F, 1.0F},
+    {.gravity = 0.8F,
+     .weather = {.count = 30,
+                 .color = {1.0F, 0.85F, 0.95F, 0.6F},
+                 .velocity = {10.0F, 2.0F},
+                 .sway = 3.0F,
+                 .size = 2.0F},
+     .skyTop = {0.03F, 0.02F, 0.10F, 1.0F},
      .skyBottom = {0.78F, 0.40F, 0.58F, 1.0F},
      .stars = true,
      .skyPlanet = planet::kPyros,
@@ -85,7 +115,14 @@ inline constexpr std::array<Look, 4> kLooks = {{
                   .parallax = {0.35F, 0.4F},
                   .y = 50.0F,
                   .tint = {1.0F, 0.88F, 0.95F, 0.95F}}}}},
-    {.skyTop = {0.03F, 0.01F, 0.03F, 1.0F},
+    {.gravity = 1.1F,
+     .weather = {.count = 70,
+                 .color = {1.0F, 0.55F, 0.20F, 0.9F},
+                 .velocity = {3.0F, 22.0F},
+                 .sway = 8.0F,
+                 .size = 1.5F,
+                 .flicker = true},
+     .skyTop = {0.03F, 0.01F, 0.03F, 1.0F},
      .skyBottom = {0.50F, 0.13F, 0.07F, 1.0F},
      .stars = true,
      .skyPlanet = planet::kEarth,

@@ -1,11 +1,11 @@
 part,kind,files,code_lines,comment_lines
 engine,engine library (include/ + src/),85,10089,2136
-tests,unit tests,26,4983,249
+tests,unit tests,26,4993,249
 examples/coin_collector,example,1,479,60
 examples/hello_window,example,1,42,11
 examples/input,example,1,177,21
 examples/physics_playground,example,1,520,42
-examples/platformer,game,8,1919,203
+examples/platformer,game,8,2014,210
 examples/post_processing,example,1,183,17
 examples/renderer_stress,example,1,337,37
 examples/sandbox,example,1,338,39

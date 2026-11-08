@@ -29,6 +29,10 @@ constexpr bool isSolidFrame(int frame)
     case tile::kCrate:
     case tile::kBrick:
     case tile::kGrassSingle:
+    case tile::kIceTop:
+    case tile::kIce:
+    case tile::kBasaltTop:
+    case tile::kBasalt:
         return true;
     default:
         return false;
@@ -105,8 +109,12 @@ int textTile(const TextGrid& grid, int x, int y)
         }
         return right ? tile::kGrassLeft : tile::kGrassSingle;
     }
-    case '=':
+    case '=': // rock with a top: stone, ice and basalt
         return grid.at(x, y - 1) == '=' ? tile::kStone : tile::kStoneTop;
+    case 'I':
+        return grid.at(x, y - 1) == 'I' ? tile::kIce : tile::kIceTop;
+    case 'R':
+        return grid.at(x, y - 1) == 'R' ? tile::kBasalt : tile::kBasaltTop;
     case '-':
         return tile::kPlank;
     case '^':
@@ -145,6 +153,8 @@ int decorTile(char c)
         return tile::kTorch;
     case 'y':
         return tile::kPine;
+    case 'a':
+        return tile::kAlienPlant;
     default:
         return tile::kNone;
     }

@@ -21,11 +21,11 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <path class="f1" d="M190 71 h406.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-406.0 Z"/>
 <text class="ink" x="606.0" y="82" font-size="12">10,089</text>
 <text class="ink2" x="182" y="104" font-size="12" text-anchor="end">tests</text>
-<path class="f1" d="M190 93 h198.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-198.5 Z"/>
-<text class="ink" x="398.5" y="104" font-size="12">4,983</text>
+<path class="f1" d="M190 93 h198.9 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-198.9 Z"/>
+<text class="ink" x="398.9" y="104" font-size="12">4,993</text>
 <text class="ink2" x="182" y="126" font-size="12" text-anchor="end">platformer</text>
-<path class="f1" d="M190 115 h74.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-74.0 Z"/>
-<text class="ink" x="274.0" y="126" font-size="12">1,919</text>
+<path class="f1" d="M190 115 h77.8 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-77.8 Z"/>
+<text class="ink" x="277.8" y="126" font-size="12">2,014</text>
 <text class="ink2" x="182" y="148" font-size="12" text-anchor="end">physics_playground</text>
 <path class="f1" d="M190 137 h17.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-17.1 Z"/>
 <text class="ink" x="217.1" y="148" font-size="12">520</text>

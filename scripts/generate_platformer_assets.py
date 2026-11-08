@@ -8,7 +8,7 @@ only the Python standard library:
 
 Writes into examples/assets/:
     textures/platformer.png   characters and objects, 8x5 frames of 16x16
-    textures/tiles.png        the tileset, 8x3 tiles of 16x16
+    textures/tiles.png        the tileset, 8x4 tiles of 16x16
     textures/clouds.png       parallax backgrounds that tile horizontally (cave.png and
     textures/cave.png         stars.png also vertically); drawn light so the game can tint them
     textures/volcanoes.png    per level
@@ -36,7 +36,7 @@ tiles.png tiles:
      0 grass   1 dirt   2 grass left edge   3 grass right edge   4 stone top   5 stone
      6 one-way plank   7 spikes   8 bush   9 flower   10 rock   11 sign   12 crate   13 brick
     14 grass single column   15 lava   16 crystals   17 mushroom   18 grass tuft   19 torch
-    20 one-way cloud   21 pine
+    20 one-way cloud   21 pine   22 ice top   23 ice   24 basalt top   25 basalt   26 alien plant
 """
 
 import json
@@ -544,7 +544,7 @@ def crystal(s, x, top, colors):
 
 
 def make_tiles():
-    s = Sheet(8, 3)
+    s = Sheet(8, 4)
     grass_top(s.frame(0), False, False)
     dirt(s.frame(1), 2)
     grass_top(s.frame(2), True, False)
@@ -666,7 +666,70 @@ def make_tiles():
             p.rect(8 - half, y, 7, y, PINE)
             p.rect(8, y, 7 + half, y, PINE_DARK)
     p.outline()
+    # 22-25: the ground of the Crystal Moon (ice) and of Pyros (basalt), each with a top.
+    ice(s.frame(22), True)
+    ice(s.frame(23), False)
+    basalt(s.frame(24), True)
+    basalt(s.frame(25), False)
+    # 26: an alien plant with glowing bulbs.
+    a = s.frame(26)
+    for x, top, bend in ((5, 6, -1), (8, 3, 0), (11, 7, 1)):
+        for y in range(top + 2, 16):
+            a.put(x + (bend if y < top + 5 else 0), y, rgb(52, 140, 120))
+        a.ellipse(x + bend + 0.5, top + 1.5, 1.8, 1.8, rgb(120, 250, 220) if x != 8 else
+                  rgb(250, 140, 240))
+        a.put(x + bend, top, rgb(240, 255, 250))
+    a.rect(4, 15, 12, 15, rgb(36, 100, 92))
+    a.outline()
     return s
+
+
+ICE = rgb(150, 200, 236)
+ICE_LIGHT = rgb(214, 238, 255)
+ICE_DARK = rgb(96, 146, 198)
+FROST = rgb(244, 250, 255)
+BASALT = rgb(58, 44, 50)
+BASALT_LIGHT = rgb(98, 74, 74)
+BASALT_DARK = rgb(36, 26, 32)
+MAGMA = rgb(255, 122, 40)
+MAGMA_LIGHT = rgb(255, 210, 110)
+
+
+def ice(s, top):
+    """Ice rock: blocks with light edges and cracks; the top one has a cap of frost."""
+    s.rect(0, 0, 15, 15, ICE)
+    for y in (0, 8):
+        offset = 0 if y == 0 else 5
+        s.rect(0, y + 7, 15, y + 7, ICE_DARK)
+        s.rect((offset + 9) % 16, y, (offset + 9) % 16, y + 6, ICE_DARK)
+        s.rect(0, y, 15, y, ICE_LIGHT)
+    for x, y in ((3, 3), (4, 4), (12, 11), (13, 12), (6, 12)):
+        s.put(x, y, ICE_LIGHT)
+    if top:
+        for x in range(16):
+            depth = 2 + (x * 7 % 5 == 0) + (x % 6 == 2)
+            s.rect(x, 0, x, depth, FROST)
+        s.put(4, 4, FROST)
+        s.put(11, 5, FROST)
+
+
+def basalt(s, top):
+    """Dark volcanic rock with glowing magma veins; the top one has a lighter crust."""
+    rnd = random.Random(9 if top else 10)
+    s.rect(0, 0, 15, 15, BASALT)
+    for _ in range(8):
+        x, y = rnd.randrange(16), rnd.randrange(16)
+        s.rect(x, y, min(x + 2, 15), y, BASALT_DARK)
+    x = rnd.randrange(3, 13)
+    for y in range(3 if top else 0, 16):  # a crack of magma
+        x = max(1, min(14, x + rnd.choice((-1, 0, 0, 1))))
+        s.put(x, y, MAGMA)
+        if y % 5 == 0:
+            s.put(x, y, MAGMA_LIGHT)
+    if top:
+        s.rect(0, 0, 15, 1, BASALT_LIGHT)
+        for x in range(0, 16, 3):
+            s.put(x, 2, BASALT_LIGHT)
 
 
 # --- Backgrounds -----------------------------------------------------------------------------
@@ -977,24 +1040,24 @@ def make_music():
 LEVELS = {
     "level2": {
         "name": "Crystal Moon",
-        "hint": "Ride the platforms over the lava; spikers cannot be stomped",
+        "hint": "Low gravity: you jump higher. Spikers cannot be stomped",
         "rows": [
-            "======================================================================================================================================================",
-            "==..................====............................===================..............................====...................=====...................==",
-            "==..................................................===================...........ooH...............................................................==",
-            "==..................................................===================..........c..c...............................................................==",
-            "==..................................................===================.........======..............................................................==",
-            "==..................................................===================.........======..............................................................==",
-            "==.........................oo.......................===================.........======..............................................................==",
-            "==..............................................................................======....................ooo.................v.....................==",
-            "==.....oooo...o.o.o........c.....v..............................................======....v...........ooo.---........o.o.o.o.o......................==",
-            "==............-----........==..........o.o.o....................................======................---............................o.o.o..........==",
-            "==.........................==.........................o.o.o.o.o.o.o.............======..............................................................==",
-            "==.P..c..u...c........k....==...................C.........k.......u..........V..======......c..k................C...c.....k...................c.u.F.==",
-            "====================================..M.......======================================================.........=====================..M.......==========",
-            "====================================LLLLLLLLLL======================================================LLLLLLLLL=====================LLLLLLLLLL==========",
-            "======================================================================================================================================================",
-            "======================================================================================================================================================",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+            "II..................IIII............................IIIIIIIIIIIIIIIIIII..............................IIII...................IIIII...................II",
+            "II..................................................IIIIIIIIIIIIIIIIIII...........ooH...............................................................II",
+            "II..................................................IIIIIIIIIIIIIIIIIII..........c..c...............................................................II",
+            "II..................................................IIIIIIIIIIIIIIIIIII.........IIIIII..............................................................II",
+            "II..................................................IIIIIIIIIIIIIIIIIII.........IIIIII..............................................................II",
+            "II.........................oo.......................IIIIIIIIIIIIIIIIIII.........IIIIII..............................................................II",
+            "II..............................................................................IIIIII....................ooo.................v.....................II",
+            "II.....oooo...o.o.o........c.....v..............................................IIIIII....v...........ooo.---........o.o.o.o.o......................II",
+            "II............-----........II..........o.o.o....................................IIIIII................---............................o.o.o..........II",
+            "II.........................II.........................o.o.o.o.o.o.o.............IIIIII..............................................................II",
+            "II.P..c..u...c........k....II...................C.........k.......u..........V..IIIIII......c..k................C...c.....k...................c.u.F.II",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII..M.......IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII.........IIIIIIIIIIIIIIIIIIIII..M.......IIIIIIIIII",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIILLLLLLLLLLIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIILLLLLLLLLIIIIIIIIIIIIIIIIIIIIILLLLLLLLLLIIIIIIIIII",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+            "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
         ],
     },
     "level3": {
@@ -1006,11 +1069,11 @@ LEVELS = {
             "...........................~~~~~~~~.............................................................................................................................",
             "....................................................................v...........................................................................................",
             ".........................................................................................................v......................................................",
-            "..................................................................ooo.......................o.o.oy..............................................................",
+            "..................................................................ooo.......................o.o.oa..............................................................",
             "..................................................................~~~......................########..o.o....o.o.................................ooo.............",
             "............ooo.........................o.o.o.........v......ooo.......ooo.................########..~~~~...~~~~................o.o.o...........~~~.............",
             "............~~~..............................................~~~.......~~~.................########.............................................................",
-            ".................................j..............C...y...g..................................########.................C...e..b.............g...k....y..g...F...b..",
+            ".................................j..............C...a...g..................................########.................C...e..b.............g...k....a..g...F...b..",
             "...P..s.g..........f.e..b.....#######..M......#############...................g.k..f.......########...............###########..M......##########################",
             "##########.......##########...#######.........#############.................#########......########...............###########.........##########################",
             "##########.......##########...#######.........#############.................#########...V..########...............###########.........##########################",
@@ -1021,32 +1084,32 @@ LEVELS = {
     },
     "level4": {
         "name": "Pyros",
-        "hint": "The last planet before home: watch the bats and the lava",
+        "hint": "Heavy gravity: jumps are shorter. Mind the lava",
         "rows": [
-            "BB............................................................................................................................................................BB",
-            "BB............................................................................................BBBBBBBBBBBBBBBBB...............................................BB",
-            "BB............................................................................................BBBBBBBBBBBBBBBBB...............................................BB",
-            "BB.....................................................................t.o.ot.................BBBBBBBBBBBBBBBBB..........o.o.o.k..............................BB",
-            "BB....................................................................=======.................BBBBBBBBBBBBBBBBB.........---------.............................BB",
-            "BB....................................................................=======.................BBBBBBBBBBBBBBBBB...............................................BB",
-            "BB....................................................................=======.................BBBBBBBBBBBBBBBBB...............................................BB",
-            "BB................ooo.................................................=======.................BBBBBBBBBBBBBBBBB...............................................BB",
-            "BB........ooo....................o.o.o................................=======.....v.......v...................................................................BB",
-            "BB..............................=======...........o.o.o...............=======..........................................................o.o.o..................BB",
-            "BB...........................................==.......................=======......................ooo...o..H.................................................BB",
-            "BB.P..t...........^^^....k..t................==..........t..C......V..=======.........k..........^^....^^.........C...j.........................e.....t...F..tBB",
-            "BBBBBBBBBB...BBBBBBBBBBBBBBBBBBBBBBBBBBBBB...BB..M......BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB..M.......BBBBBBBBBBBBBBBBBB",
-            "BBBBBBBBBBLLLBBBBBBBBBBBBBBBBBBBBBBBBBBBBBLLLBBLLLLLLLLLBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBLLLLLLLLLLBBBBBBBBBBBBBBBBBB",
-            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-            "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+            "RR............................................................................................................................................................RR",
+            "RR............................................................................................RRRRRRRRRRRRRRRRR...............................................RR",
+            "RR............................................................................................RRRRRRRRRRRRRRRRR...............................................RR",
+            "RR.....................................................................t.o.ot.................RRRRRRRRRRRRRRRRR..........o.o.o.k..............................RR",
+            "RR....................................................................RRRRRRR.................RRRRRRRRRRRRRRRRR.........---------.............................RR",
+            "RR....................................................................RRRRRRR.................RRRRRRRRRRRRRRRRR...............................................RR",
+            "RR....................................................................RRRRRRR.................RRRRRRRRRRRRRRRRR...............................................RR",
+            "RR................ooo.................................................RRRRRRR.................RRRRRRRRRRRRRRRRR...............................................RR",
+            "RR........ooo....................o.o.o................................RRRRRRR.....v.......v...................................................................RR",
+            "RR..............................RRRRRRR...........o.o.o...............RRRRRRR..........................................................o.o.o..................RR",
+            "RR...........................................RR.......................RRRRRRR......................ooo...o..H.................................................RR",
+            "RR.P..t...........^^^....k..t................RR..........t..C......V..RRRRRRR.........k..........^^....^^.........C...j.........................e.....t...F..tRR",
+            "RRRRRRRRRR...RRRRRRRRRRRRRRRRRRRRRRRRRRRRR...RR..M......RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR..M.......RRRRRRRRRRRRRRRRRR",
+            "RRRRRRRRRRLLLRRRRRRRRRRRRRRRRRRRRRRRRRRRRRLLLRRLLLLLLLLLRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRLLLLLLLLLLRRRRRRRRRRRRRRRRRR",
+            "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+            "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
         ],
     },
 }
 
 SOLID_GROUND = "#"
-SOLID_STONE = "="
 PLANK = "-"
-DECOR = {"b": 8, "f": 9, "r": 10, "s": 11, "c": 16, "u": 17, "g": 18, "t": 19, "y": 21}
+DECOR = {"b": 8, "f": 9, "r": 10, "s": 11, "c": 16, "u": 17, "g": 18, "t": 19, "y": 21, "a": 26}
+TOPPED = {"=": (4, 5), "I": (22, 23), "R": (24, 25)}  # (top, inside): stone, ice, basalt
 SPAWNS = {"P": "player", "o": "coin", "e": "crawler", "v": "flyer", "k": "spiker", "j": "spring",
           "H": "heart", "M": "platform", "V": "lift", "F": "goal", "C": "checkpoint"}
 
@@ -1064,15 +1127,16 @@ def choose_tile(rows, x, y):
             return 1
         left, right = at(x - 1, y) == SOLID_GROUND, at(x + 1, y) == SOLID_GROUND
         return 0 if left and right else 3 if left else 2 if right else 14
-    if c == SOLID_STONE:
-        return 5 if at(x, y - 1) == SOLID_STONE else 4
+    if c in TOPPED:
+        top, inside = TOPPED[c]
+        return inside if at(x, y - 1) == c else top
     return {"-": 6, "^": 7, "X": 12, "B": 13, "L": 15, "~": 20}.get(c)
 
 
 def make_tileset():
-    solid = [0, 1, 2, 3, 4, 5, 12, 13, 14]
+    solid = [0, 1, 2, 3, 4, 5, 12, 13, 14, 22, 23, 24, 25]
     tiles = []
-    for i in range(24):
+    for i in range(32):
         props = []
         if i in solid:
             props.append({"name": "collision", "type": "string", "value": "solid"})
@@ -1084,8 +1148,8 @@ def make_tileset():
             tiles.append({"id": i, "properties": props})
     return {
         "type": "tileset", "version": "1.10", "tiledversion": "1.10.2", "name": "tiles",
-        "image": "../textures/tiles.png", "imagewidth": CELL * 8, "imageheight": CELL * 3,
-        "tilewidth": FRAME, "tileheight": FRAME, "tilecount": 24, "columns": 8,
+        "image": "../textures/tiles.png", "imagewidth": CELL * 8, "imageheight": CELL * 4,
+        "tilewidth": FRAME, "tileheight": FRAME, "tilecount": 32, "columns": 8,
         "margin": PADDING, "spacing": 2 * PADDING, "tiles": tiles,
     }
 

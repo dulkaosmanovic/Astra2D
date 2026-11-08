@@ -28,6 +28,7 @@
 #include <glm/common.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
 #include <algorithm>
@@ -57,6 +58,7 @@ using astra2d::Transform;
 constexpr std::array<std::string_view, 4> kLevelFiles = {"levels/level1.txt", "levels/level2.tmj",
                                                          "levels/level3.tmj", "levels/level4.tmj"};
 constexpr float kViewHeight = 224.0F; // world units shown vertically (14 tiles)
+constexpr float kGravity = 1200.0F;   // Earth's, in world units/s²; each planet scales it
 constexpr int kMaxHearts = 3;
 constexpr float kInvulnerableTime = 1.5F; // after a hit
 constexpr float kHurtPoseTime = 0.35F;    // the hurt frame is shown this long after a hit
@@ -66,7 +68,7 @@ constexpr float kSpikerSpeed = 22.0F;
 constexpr float kFlyerSpeed = 30.0F;
 constexpr float kFlyerRange = 3.0F * kTileSize; // flies this far to each side of its start
 constexpr float kFlyerBob = 6.0F;               // and this far up and down
-constexpr float kSpringSpeed = 600.0F;          // about 9 tiles high
+constexpr float kSpringSpeed = 600.0F;          // about 9 tiles high (at any gravity, see launch())
 constexpr glm::vec2 kPlatformTravel{4.0F * kTileSize, 0.0F};
 constexpr glm::vec2 kLiftTravel{0.0F, 4.0F * kTileSize};
 constexpr float kMoverPeriod = 4.0F;     // seconds there and back
@@ -211,7 +213,7 @@ public:
         , m_shake({.maxOffset = {6.0F, 6.0F}, .maxAngle = 0.02F})
         , m_random(std::random_device{}())
         // World units are texels of the 16x16 art, so the tolerances are scaled to 16 per metre.
-        , m_physics(m_scene, {.gravity = {0.0F, -1200.0F}, .lengthUnitsPerMeter = kTileSize})
+        , m_physics(m_scene, {.gravity = {0.0F, -kGravity}, .lengthUnitsPerMeter = kTileSize})
     {
         // All levels and backgrounds are loaded up front, so a broken file stops the game at once.
         for (const std::string_view file : kLevelFiles) {
@@ -319,6 +321,7 @@ protected:
         m_shake.update(dt);
         m_audio.update();
         m_banner = std::max(m_banner - dt, 0.0F);
+        driftWeather(dt);
         m_time += dt;
         followPlayer(dt, false);
         ++m_frame;
@@ -328,7 +331,7 @@ protected:
 
     void onRender() override
     {
-        const Look& look = kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
+        const Look& look = currentLook();
         glClearColor(look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -348,6 +351,7 @@ protected:
         drawTiles(m_level.ground, look.ground);
         drawMovers();
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
+        drawWeather(look.weather);
         if (m_showPhysics) {
             // Sizes in world units, where a tile is 16. Shows the merged tile boxes (inner edges
             // faint), triggers, contacts and velocities.
@@ -791,7 +795,8 @@ private:
             return; // on the way up already, e.g. jumping past it
         }
         auto& player = registry.get<Player>(m_player);
-        body.velocity.y = kSpringSpeed;
+        // Scaled with the planet's gravity, so a spring throws as high on every planet.
+        body.velocity.y = kSpringSpeed * std::sqrt(currentLook().gravity);
         player.launched = true;
         player.jump.reset();
         registry.get<astra2d::Animator>(spring).player.play(m_springAnimation, true);
@@ -858,6 +863,14 @@ private:
         m_levelTime = 0.0F;
         m_hazardContacts = 0;
         m_banner = kBannerTime;
+        // Each planet has its own gravity and weather.
+        m_physics.world().settings().gravity = {0.0F, -kGravity * currentLook().gravity};
+        m_weather.resize(static_cast<std::size_t>(currentLook().weather.count));
+        std::uniform_real_distribution<float> unit(0.0F, 1.0F);
+        for (glm::vec3& particle : m_weather) { // x, y in a view-sized box; z: a phase
+            particle = {unit(m_random) * 400.0F, unit(m_random) * kViewHeight,
+                        unit(m_random) * 6.28F};
+        }
         m_jumpQueued = false; // e.g. the Space that confirmed a menu
         m_shake.reset();
         auto& registry = m_scene.registry();
@@ -1140,9 +1153,12 @@ private:
         if (layer.fillsView) {
             m_renderer.drawTiled((min + max) * 0.5F, max - min, texture, tile, layer.tint);
         } else {
+            // Half a texel short at the top: the texture repeats vertically too, and its top edge
+            // could otherwise sample the opposite (bottom) row, a dark line across the sky.
             const float bottom = layer.y - (tile.y * 0.5F);
-            m_renderer.drawTiled({centerX, layer.y}, {width, tile.y}, texture, tile, layer.tint,
-                                 {0.0F, bottom});
+            const float height = tile.y - 0.5F;
+            m_renderer.drawTiled({centerX, bottom + (height * 0.5F)}, {width, height}, texture,
+                                 tile, layer.tint, {0.0F, bottom});
             if (layer.fill.a > 0.0F && bottom > min.y) {
                 m_renderer.drawQuad({centerX, (bottom + min.y) * 0.5F}, {width, bottom - min.y},
                                     layer.fill);
@@ -1163,6 +1179,41 @@ private:
                                       kSpriteSize, m_sheet.frame(kPlatformLeft + i));
             }
         });
+    }
+
+    [[nodiscard]] const Look& currentLook() const
+    {
+        return kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
+    }
+
+    void driftWeather(float dt)
+    {
+        const Weather& weather = currentLook().weather;
+        for (glm::vec3& particle : m_weather) {
+            particle.x +=
+                (weather.velocity.x + (weather.sway * std::sin((m_time * 1.3F) + particle.z))) * dt;
+            particle.y += weather.velocity.y * dt;
+        }
+    }
+
+    // The weather particles, wrapped into the camera's view so they fill it wherever it goes.
+    void drawWeather(const Weather& weather)
+    {
+        const glm::vec2 min = m_camera.visibleMin();
+        const glm::vec2 size = m_camera.visibleSize();
+        const auto wrap = [](float value, float range) {
+            const float r = std::fmod(value, range);
+            return r < 0.0F ? r + range : r;
+        };
+        for (const glm::vec3& particle : m_weather) {
+            glm::vec4 color = weather.color;
+            if (weather.flicker) {
+                color.a *= 0.55F + (0.45F * std::sin((m_time * 4.0F) + (particle.z * 3.0F)));
+            }
+            const glm::vec2 at =
+                min + glm::vec2{wrap(particle.x - min.x, size.x), wrap(particle.y - min.y, size.y)};
+            m_renderer.drawQuad(at, glm::vec2{weather.size}, color);
+        }
     }
 
     // The tiles of @p layer that the camera sees, tinted for the planet.
@@ -1238,6 +1289,8 @@ private:
                 drawCentered(m_level.name, top - (16.0F * s), 16.0F * s,
                              {kGold.r, kGold.g, kGold.b, alpha});
                 drawCentered(m_level.hint, top - (40.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
+                drawCentered(std::format("gravity {:.1f} g", currentLook().gravity),
+                             top - (56.0F * s), text, {kGold.r, kGold.g, kGold.b, alpha});
             }
             break;
         case State::Paused:
@@ -1436,6 +1489,7 @@ private:
     float m_totalTime = 0.0F;
     float m_banner = 0.0F;
     float m_time = 0.0F;
+    std::vector<glm::vec3> m_weather; // see driftWeather()
     std::uint64_t m_frame = 0;
     std::uint64_t m_jumpFrame = ~std::uint64_t{0};
     bool m_jumpQueued = false;

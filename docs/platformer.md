@@ -9,6 +9,19 @@ and the lava planet **Pyros**. On each one they collect coins, stomp crawlers an
 hedgehogs, spikes and lava, ride moving platforms and lifts, and reach the rocket that flies them to
 the next planet.
 
+Every planet feels different, not only looks it:
+
+| Planet | Gravity | Ground | Weather | In the sky |
+|---|---|---|---|---|
+| Verda | 1.0 g | grass, alien bulb plants | drifting spores | the Crystal Moon |
+| Crystal Moon | 0.6 g: higher, floatier jumps | ice rock with frost, crystals | falling ice glitter | (inside the moon) |
+| Nimbus | 0.8 g | lilac grass, one-way clouds | floating motes | Pyros |
+| Pyros | 1.1 g: shorter jumps | basalt with magma veins, lava | rising embers | Earth |
+
+The level banner shows the gravity. The levels are designed for the jumps of their planet, and a
+spring throws the player equally high on every planet (its speed scales with the square root of
+the gravity).
+
 <div class="astra-figures">
 <div class="astra-figure"><img src="platformer_title.png" alt="The title screen with the route home; Verda runs behind it"/><span>The title screen with the route home; Verda runs behind it</span></div>
 <div class="astra-figure"><img src="platformer_level2.png" alt="The Crystal Moon, a Tiled map: a bat, and a moving platform over the lava"/><span>The Crystal Moon, a Tiled map: a bat, and a moving platform over the lava</span></div>
@@ -37,7 +50,7 @@ the next planet.
 <div class="astra-summary"><b>In short</b>
 <ul>
 <li>A complete game with four planets, three kinds of enemies, moving platforms, springs, hazards, checkpoints, sound and a HUD, written only against the public API.</li>
-<li>1,919 lines of code, 19 % of the engine's size; its level loading and movement rules are unit-tested.</li>
+<li>2,014 lines of code, 20 % of the engine's size; its level loading and movement rules are unit-tested.</li>
 <li>Shows Scene systems, physics signals, collision groups, kinematic bodies, coyote time and jump buffering, and Tiled maps working together.</li>
 </ul></div>
 
@@ -65,13 +78,13 @@ The game is split by what each part does, and the parts that do not draw are uni
 
 | File | Lines | What |
 |---|---|---|
-| `level.hpp/.cpp` | 541 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
+| `level.hpp/.cpp` | 556 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
 | `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, jump cut, coyote time, jump buffering |
-| `game.cpp` | 1,452 | The game: entities, systems, physics events, camera, HUD, sound, game states |
-| `looks.hpp` | 103 | How each planet looks: sky colours, stars, the planet in the sky, ground tint, parallax layers |
+| `game.cpp` | 1,506 | The game: entities, systems, physics events, camera, HUD, sound, game states |
+| `looks.hpp` | 140 | Each planet: gravity, weather, sky colours, stars, the planet in the sky, ground tint, parallax layers |
 | `main.cpp`, `game.hpp` | 79 | Entry point |
 
-About 2,310 lines of game code (1,919 without comments and blank lines, see @ref evaluation) on
+About 2,420 lines of game code (2,014 without comments and blank lines, see @ref evaluation) on
 about 10,100 lines of engine code: the engine does the
 window, input mapping, fixed timestep, rendering, animation, the ECS, physics, collision events,
 level file parsing and audio, and the game only says what happens.
@@ -153,7 +166,9 @@ layer, interpolated between fixed steps, and the HUD in screen space with the ve
 one bar along the top (hearts, coins, planet, time) and a panel behind the text of the title, pause,
 lift-off, game-over and victory screens. The title and victory screens show the whole route as a row
 of planets. Trauma-based camera shake marks stomps and hits, and
-dust puffs mark jumps, landings and springs.
+dust puffs mark jumps, landings and springs. The planet's weather is a few dozen small squares that
+drift with their own speed and sway and are wrapped into the camera's view, so they fill it
+wherever the camera goes without being spawned or removed.
 
 ## Levels
 
@@ -199,8 +214,8 @@ standard library (CC0):
 - `textures/platformer.png`: the astronaut (idle, run, jump, fall, hurt), crawlers, bats,
   spikers, coins, hearts, the rocket and its exhaust, beacons, springs, the moving platform,
   sparkles and dust;
-  `textures/tiles.png`: 22 tiles (ground, stone, brick, planks, clouds, spikes, lava and
-  decoration). Both use 1-texel extruded borders, so neighbouring frames never bleed in.
+  `textures/tiles.png`: 27 tiles (grass and dirt, stone, ice, basalt, brick, planks, clouds,
+  spikes, lava and decoration such as crystals and alien plants). Both use 1-texel extruded borders, so neighbouring frames never bleed in.
 - `textures/clouds.png`, `cave.png`, `volcanoes.png` and `stars.png`: parallax backgrounds that tile
   without seams, drawn light enough to be tinted per planet (the mountains and hills are shared
   with the sandbox).

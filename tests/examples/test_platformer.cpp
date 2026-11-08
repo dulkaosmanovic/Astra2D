@@ -78,6 +78,17 @@ TEST(PlatformerLevelTests, ParsesATextLevel)
     EXPECT_EQ(level.count(ThingKind::Goal), 1);
 }
 
+TEST(PlatformerLevelTests, IceAndBasaltGetATopAndCollide)
+{
+    const Level level = platformer::parseTextLevel("map:\nP.aF\nIIRR\nIIRR\n");
+    EXPECT_EQ(level.at(level.ground, 0, 1), tile::kIceTop);
+    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kIce);
+    EXPECT_EQ(level.at(level.ground, 3, 1), tile::kBasaltTop);
+    EXPECT_EQ(level.at(level.ground, 3, 0), tile::kBasalt);
+    EXPECT_EQ(level.solid.at(2, 0), astra2d::TileCollision::Solid);
+    EXPECT_EQ(level.at(level.decor, 2, 2), tile::kAlienPlant);
+}
+
 TEST(PlatformerLevelTests, ReadsEnemiesPlatformsAndClouds)
 {
     const Level level = platformer::parseTextLevel("map:\n.v.H..\nPkjMVF\n~~#c..\n");

@@ -146,7 +146,7 @@ Measured in a release build; the full tables, method and machine are in
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **2.6× faster** than objects with a virtual `update()`, **5× faster** when the objects are scattered in memory; at 10k objects there is no real difference |
 | **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (0.92 vs. 62.4 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Towers of 5–20 boxes stand for 10 s with no sideways drift or rotation; a ball with restitution 1 keeps its energy within 2 % |
-| **E5** | Is the API usable? | The whole platformer is 1,919 lines, 19 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 2,014 lines, 20 % of the engine's size; compared with raylib and Godot in the docs |
 
 Tests cover 78 % of the engine's lines, 90 % or more in the modules that do not use OpenGL.
 
@@ -174,7 +174,7 @@ tutorial; read them in this order:
 | `./build/examples/coin_collector` | A small complete game on the Scene/ECS: systems, triggers, collisions, states, score, lives, shake; F3 physics view, F2 frame statistics |
 | `./build/examples/scene` | Entities and systems, hierarchy, signals, saving and loading scenes (F5/F9) |
 | `./build/examples/physics_playground` | Spawn and drag bodies, stacks, bullets, one-way platforms, tile map, trigger zone; switch broad phase (B), debug draw (D), frame statistics (F2) |
-| `./build/examples/platformer` | **Astra Run**: an astronaut's way home across four planets (text map and Tiled maps), a rocket at the end of each, coins, crawlers, bats, spikers, moving platforms, springs, hazards, checkpoints, music. A/D run, Space jump, S+Space drop, P pause, M mute, F3 physics view, F2 frame statistics; `platformer 2` starts at level 2 |
+| `./build/examples/platformer` | **Astra Run**: an astronaut's way home across four planets, each with its own gravity, ground and weather (text map and Tiled maps), a rocket at the end of each, coins, crawlers, bats, spikers, moving platforms, springs, hazards, checkpoints, music. A/D run, Space jump, S+Space drop, P pause, M mute, F3 physics view, F2 frame statistics; `platformer 2` starts at level 2 |
 | `./build/examples/Sandbox` | Everything at once: a Scene with interpolated movement, parallax, rotation, CRT effect, hot reloading |
 | `./build/examples/renderer_stress` | Benchmark E1: thousands of sprites, batched or not (B, Up/Down, V) |
 

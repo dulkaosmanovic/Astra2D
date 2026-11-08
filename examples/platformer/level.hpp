@@ -44,6 +44,11 @@ inline constexpr int kTuft = 18;
 inline constexpr int kTorch = 19;
 inline constexpr int kCloud = 20;
 inline constexpr int kPine = 21;
+inline constexpr int kIceTop = 22;
+inline constexpr int kIce = 23;
+inline constexpr int kBasaltTop = 24;
+inline constexpr int kBasalt = 25;
+inline constexpr int kAlienPlant = 26;
 } // namespace tile
 
 /// Something that starts somewhere in the level.
