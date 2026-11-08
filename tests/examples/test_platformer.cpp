@@ -74,8 +74,32 @@ TEST(PlatformerLevelTests, ParsesATextLevel)
 
     EXPECT_EQ(level.playerStart(), glm::vec2(1.5F * 16.0F, 1.5F * 16.0F));
     EXPECT_EQ(level.count(ThingKind::Coin), 1);
-    EXPECT_EQ(level.count(ThingKind::Enemy), 1);
+    EXPECT_EQ(level.count(ThingKind::Crawler), 1);
     EXPECT_EQ(level.count(ThingKind::Goal), 1);
+}
+
+TEST(PlatformerLevelTests, IceAndBasaltGetATopAndCollide)
+{
+    const Level level = platformer::parseTextLevel("map:\nP.aF\nIIRR\nIIRR\n");
+    EXPECT_EQ(level.at(level.ground, 0, 1), tile::kIceTop);
+    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kIce);
+    EXPECT_EQ(level.at(level.ground, 3, 1), tile::kBasaltTop);
+    EXPECT_EQ(level.at(level.ground, 3, 0), tile::kBasalt);
+    EXPECT_EQ(level.solid.at(2, 0), astra2d::TileCollision::Solid);
+    EXPECT_EQ(level.at(level.decor, 2, 2), tile::kAlienPlant);
+}
+
+TEST(PlatformerLevelTests, ReadsEnemiesPlatformsAndClouds)
+{
+    const Level level = platformer::parseTextLevel("map:\n.v.H..\nPkjMVF\n~~#c..\n");
+    for (const ThingKind kind : {ThingKind::Flyer, ThingKind::Spiker, ThingKind::Spring,
+                                 ThingKind::Heart, ThingKind::Platform, ThingKind::Lift}) {
+        EXPECT_EQ(level.count(kind), 1);
+    }
+    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kCloud);
+    EXPECT_EQ(level.platforms.at(1, 0), astra2d::TileCollision::OneWay); // clouds are one-way
+    EXPECT_EQ(level.solid.at(1, 0), astra2d::TileCollision::Empty);
+    EXPECT_EQ(level.at(level.decor, 3, 0), tile::kCrystal);
 }
 
 TEST(PlatformerLevelTests, GroundGetsGrassOnTopAndDirtBelow)
@@ -181,13 +205,15 @@ TEST(PlatformerLevelTests, TiledLevelErrors)
 TEST(PlatformerLevelTests, ShippedLevelsAreValid)
 {
     const std::filesystem::path levels = std::filesystem::path(ASTRA2D_ASSETS_DIR) / "levels";
-    for (const char* file : {"level1.txt", "level2.tmj", "level3.tmj"}) {
+    for (const char* file : {"level1.txt", "level2.tmj", "level3.tmj", "level4.tmj"}) {
         SCOPED_TRACE(file);
         const Level level = platformer::loadLevel(levels / file);
         EXPECT_FALSE(level.name.empty());
         EXPECT_FALSE(level.hint.empty());
         EXPECT_GE(level.count(ThingKind::Coin), 10);
-        EXPECT_GE(level.count(ThingKind::Enemy), 2);
+        EXPECT_GE(level.count(ThingKind::Crawler) + level.count(ThingKind::Flyer) +
+                      level.count(ThingKind::Spiker),
+                  3);
         EXPECT_GE(level.count(ThingKind::Checkpoint), 1);
         for (const platformer::Thing& thing : level.things) {
             EXPECT_GT(thing.position.x, 0.0F);

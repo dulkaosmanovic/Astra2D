@@ -31,6 +31,7 @@
 #include <astra2d/scene/serializer.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/geometric.hpp>
@@ -145,8 +146,8 @@ protected:
             "click: collect  space: spawn  R: reset\n"
             "F5: save  F9: load  {}",
             m_scene.registry().alive(), m_scene.registry().count<Pickup>(), m_collected, m_status);
-        m_renderer.drawText(m_font, hud, {16.0F, static_cast<float>(height) - 16.0F}, 16.0F, kText,
-                            1.5F);
+        examples::drawTextPanel(m_renderer, m_font, hud,
+                                {24.0F, static_cast<float>(height) - 24.0F}, 16.0F, kText, 1.5F);
         m_renderer.end();
     }
 

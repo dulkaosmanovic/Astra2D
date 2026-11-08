@@ -1,8 +1,10 @@
 #include "game.hpp"
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 #include "controller.hpp"
 #include "level.hpp"
+#include "looks.hpp"
 
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/audio/audio_engine.hpp>
@@ -24,7 +26,9 @@
 
 #include <glad/gl.h>
 #include <glm/common.hpp>
+#include <glm/gtc/constants.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
 #include <algorithm>
@@ -51,20 +55,34 @@ using astra2d::Transform;
 // ---------------------------------------------------------------------------------------------
 // Tuning
 
-constexpr std::array<std::string_view, 3> kLevelFiles = {"levels/level1.txt", "levels/level2.tmj",
-                                                         "levels/level3.tmj"};
+constexpr std::array<std::string_view, 4> kLevelFiles = {"levels/level1.txt", "levels/level2.tmj",
+                                                         "levels/level3.tmj", "levels/level4.tmj"};
 constexpr float kViewHeight = 224.0F; // world units shown vertically (14 tiles)
+constexpr float kGravity = 1200.0F;   // Earth's, in world units/s²; each planet scales it
 constexpr int kMaxHearts = 3;
 constexpr float kInvulnerableTime = 1.5F; // after a hit
+constexpr float kHurtPoseTime = 0.35F;    // the hurt frame is shown this long after a hit
 constexpr glm::vec2 kKnockback{150.0F, 230.0F};
-constexpr float kEnemySpeed = 32.0F;
+constexpr float kCrawlerSpeed = 32.0F;
+constexpr float kSpikerSpeed = 22.0F;
+constexpr float kFlyerSpeed = 30.0F;
+constexpr float kFlyerRange = 3.0F * kTileSize; // flies this far to each side of its start
+constexpr float kFlyerBob = 6.0F;               // and this far up and down
+constexpr float kSpringSpeed = 600.0F;          // about 9 tiles high (at any gravity, see launch())
+constexpr glm::vec2 kPlatformTravel{4.0F * kTileSize, 0.0F};
+constexpr glm::vec2 kLiftTravel{0.0F, 4.0F * kTileSize};
+constexpr float kMoverPeriod = 4.0F;     // seconds there and back
+constexpr float kLandingSpeed = -220.0F; // landing faster than this raises dust
 constexpr float kSquashTime = 0.6F;
 constexpr float kDropTime = 0.25F; // planks ignored after dropping through one
 constexpr float kFallLimit = -3.0F * kTileSize;
-constexpr float kLevelClearTime = 2.5F;
-constexpr float kBannerTime = 3.5F;  // level name shown at the start
-constexpr float kLookAhead = 28.0F;  // the camera looks this far ahead of the player
-constexpr float kCameraSpeed = 6.0F; // how quickly the camera catches up (1/s)
+constexpr float kLevelClearTime = 4.0F;
+constexpr float kLiftOffPanelTime = 1.8F; // the panel waits until the rocket has flown out of view
+constexpr float kLiftOffDelay = 0.5F;     // the rocket waits this long after the player boards
+constexpr float kLiftOffAccel = 260.0F;   // then speeds up like this
+constexpr float kBannerTime = 3.5F;       // level name shown at the start
+constexpr float kLookAhead = 28.0F;       // the camera looks this far ahead of the player
+constexpr float kCameraSpeed = 6.0F;      // how quickly the camera catches up (1/s)
 constexpr glm::vec2 kSpriteSize{kTileSize};
 
 constexpr glm::vec4 kWhite{1.0F};
@@ -103,18 +121,11 @@ constexpr int kCheckpointOn = 19;
 constexpr int kHeartFull = 15;
 constexpr int kHeartEmpty = 20;
 constexpr int kCoinIcon = 11;
-
-// How each level looks behind the tiles.
-struct Look {
-    glm::vec4 sky;
-    bool hills; // parallax mountains and hills
-    glm::vec4 tint;
-};
-constexpr std::array<Look, 3> kLooks = {{
-    {.sky = {0.45F, 0.70F, 0.92F, 1.0F}, .hills = true, .tint = {1.0F, 1.0F, 1.0F, 1.0F}},
-    {.sky = {0.07F, 0.06F, 0.12F, 1.0F}, .hills = false, .tint = {1.0F, 1.0F, 1.0F, 1.0F}},
-    {.sky = {0.96F, 0.62F, 0.46F, 1.0F}, .hills = true, .tint = {0.85F, 0.65F, 0.80F, 1.0F}},
-}};
+constexpr int kRocketTop = 38; // drawn one tile above the rocket's lower half (the goal)
+constexpr int kExhaust = 39;
+constexpr float kPlanetSize = 32.0F; // texels of a frame of planets.png
+constexpr int kSpringFrame = 30;
+constexpr int kPlatformLeft = 35; // then the middle and the right end
 
 // ---------------------------------------------------------------------------------------------
 // Components of this game: plain data. The engine's Transform, SpriteRenderer, Animator,
@@ -123,13 +134,38 @@ constexpr std::array<Look, 3> kLooks = {{
 struct Player {
     JumpController jump;
     bool grounded = false;
+    bool wasGrounded = true; // in the step before, to notice landings
     bool facingLeft = false;
+    bool launched = false;     // thrown up by a spring: releasing jump does not cut it short
     float invulnerable = 0.0F; // seconds left
     float dropTime = 0.0F;     // seconds left of falling through planks
+    float carryX = 0.0F;       // horizontal speed of the moving platform stood on
+    float lastVelocityY = 0.0F;
 };
 
+// Hurts the player on touch; from above it is stomped, unless it is spiky.
 struct Enemy {
+    bool stompable = true;
+};
+
+// Walks along its floor and turns at walls and ledges (crawlers, spikers).
+struct Walker {
+    float speed = kCrawlerSpeed;
     float direction = -1.0F; // -1 left, 1 right
+};
+
+// Flies back and forth around where it started, bobbing up and down (bats).
+struct Flyer {
+    glm::vec2 home{0.0F};
+    float direction = -1.0F;
+    float time = 0.0F;
+};
+
+// A kinematic platform that goes from origin to origin + travel and back.
+struct Mover {
+    glm::vec2 origin{0.0F};
+    glm::vec2 travel{0.0F};
+    float time = 0.0F;
 };
 
 struct Squashed {
@@ -137,7 +173,15 @@ struct Squashed {
 };
 
 struct Coin {};
-struct Goal {};
+struct HeartPickup {};
+struct Spring {};
+// The parked rocket: its lower half is the goal's trigger, the nose and exhaust are separate
+// sprites that move with it when it lifts off.
+struct Goal {
+    glm::vec2 base{0.0F};
+    Entity top;
+    Entity exhaust;
+};
 struct HazardTile {};
 struct Effect {}; // a one-shot animation, removed when it ends
 
@@ -161,18 +205,26 @@ public:
                   {examples::kSpriteFrame, examples::kSpriteFrame},
                   {examples::kSpriteMargin, examples::kSpriteMargin},
                   {examples::kSpriteSpacing, examples::kSpriteSpacing})
-        , m_mountains(m_assets.texture("textures/mountains.png", kRepeat))
-        , m_hills(m_assets.texture("textures/hills.png", kRepeat))
+        , m_planets(m_assets.texture("textures/planets.png"), {kPlanetSize, kPlanetSize},
+                    {examples::kSpriteMargin, examples::kSpriteMargin},
+                    {examples::kSpriteSpacing, examples::kSpriteSpacing})
         , m_font(astra2d::Font::fromFile(m_assets.resolve("fonts/PressStart2P-Regular.ttf"), 8.0F))
         , m_camera(kViewHeight, framebufferSize())
         , m_shake({.maxOffset = {6.0F, 6.0F}, .maxAngle = 0.02F})
         , m_random(std::random_device{}())
         // World units are texels of the 16x16 art, so the tolerances are scaled to 16 per metre.
-        , m_physics(m_scene, {.gravity = {0.0F, -1200.0F}, .lengthUnitsPerMeter = kTileSize})
+        , m_physics(m_scene, {.gravity = {0.0F, -kGravity}, .lengthUnitsPerMeter = kTileSize})
     {
-        // All levels are loaded up front, so a broken level file stops the game at once.
+        // All levels and backgrounds are loaded up front, so a broken file stops the game at once.
         for (const std::string_view file : kLevelFiles) {
             m_levels.push_back(loadLevel(m_assets.resolve(file)));
+        }
+        for (const Look& look : kLooks) {
+            for (const Layer& layer : look.layers) {
+                if (!layer.texture.empty()) {
+                    (void)m_assets.texture(layer.texture, kRepeat);
+                }
+            }
         }
         if (firstLevel < 0 || std::cmp_greater_equal(firstLevel, m_levels.size())) {
             throw std::out_of_range(
@@ -249,6 +301,7 @@ protected:
             break;
         case State::LevelClear:
             m_stateTime -= dt;
+            liftOff(kLevelClearTime - m_stateTime - kLiftOffDelay);
             if (m_stateTime <= 0.0F) {
                 nextLevel();
             }
@@ -268,6 +321,7 @@ protected:
         m_shake.update(dt);
         m_audio.update();
         m_banner = std::max(m_banner - dt, 0.0F);
+        driftWeather(dt);
         m_time += dt;
         followPlayer(dt, false);
         ++m_frame;
@@ -277,8 +331,8 @@ protected:
 
     void onRender() override
     {
-        const Look& look = kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
-        glClearColor(look.sky.r, look.sky.g, look.sky.b, 1.0F);
+        const Look& look = currentLook();
+        glClearColor(look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // Whole screen pixels, so the art does not shimmer while the camera moves.
@@ -286,16 +340,18 @@ protected:
         const glm::vec2 snapped = glm::round(m_cameraPosition * scale) / scale;
         m_shake.apply(m_camera, snapped);
 
-        if (look.hills) {
-            drawBackgroundLayer(m_mountains, look.tint * glm::vec4(0.23F, 0.26F, 0.43F, 1.0F),
-                                {0.15F, 0.3F}, 70.0F, look.tint);
-            drawBackgroundLayer(m_hills, look.tint * glm::vec4(0.13F, 0.29F, 0.24F, 1.0F),
-                                {0.4F, 0.5F}, 40.0F, look.tint);
+        drawSky(look);
+        for (const Layer& layer : look.layers) {
+            if (!layer.texture.empty()) {
+                drawBackgroundLayer(layer);
+            }
         }
         m_renderer.begin(m_camera);
-        drawTiles(m_level.decor);
-        drawTiles(m_level.ground);
+        drawTiles(m_level.decor, look.ground);
+        drawTiles(m_level.ground, look.ground);
+        drawMovers();
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
+        drawWeather(look.weather);
         if (m_showPhysics) {
             // Sizes in world units, where a tile is 16. Shows the merged tile boxes (inner edges
             // faint), triggers, contacts and velocities.
@@ -383,10 +439,14 @@ private:
         // fixed step and its event handlers (connectPhysicsEvents) run inside it. The systems
         // below react to where it left the bodies; the velocities they set move the bodies in the
         // next step.
+        // Movers first, so the player is carried at the speed the platform moves next.
+        m_scene.addSystem(SystemPhase::FixedUpdate, "movers", moveMovers);
         m_scene.addSystem(SystemPhase::FixedUpdate, "player control",
                           [this](Scene&, float dt) { controlPlayer(dt); });
-        m_scene.addSystem(SystemPhase::FixedUpdate, "enemy patrol",
-                          [this](Scene& scene, float) { patrolEnemies(scene); });
+        m_scene.addSystem(SystemPhase::FixedUpdate, "walkers",
+                          [this](Scene& scene, float) { moveWalkers(scene); });
+        m_scene.addSystem(SystemPhase::FixedUpdate, "flyers",
+                          [this](Scene& scene, float dt) { moveFlyers(scene, dt); });
         m_scene.addSystem(SystemPhase::FixedUpdate, "dangers",
                           [this](Scene&, float dt) { checkDangers(dt); });
 
@@ -434,8 +494,21 @@ private:
         const bool down = m_actions.axis("move_y", in) < -0.5F;
         bool jumpPressed = takeJumpPress();
 
-        player.grounded = m_physics.isGrounded(m_player) && body.velocity.y <= 1.0F;
-        if (jumpPressed && down && player.grounded && onPlank()) {
+        // Standing on a moving platform carries the player along with it.
+        const auto below = m_physics.rayCast(feet(), {0.0F, -3.0F}, kPlatformGroup);
+        glm::vec2 carry{0.0F};
+        if (below && registry.has<Mover>(below->entity)) {
+            carry = registry.get<astra2d::RigidBody>(below->entity).velocity;
+        }
+        // On a rising lift the player moves up too, and still counts as standing. The tolerance
+        // covers a lift slowing down: its speed for the next step is a little below the player's.
+        player.grounded =
+            m_physics.isGrounded(m_player) && body.velocity.y <= std::max(carry.y, 0.0F) + 4.0F;
+        if (player.grounded && !player.wasGrounded && player.lastVelocityY < kLandingSpeed) {
+            spawnEffect(registry.get<Transform>(m_player).position, m_dustAnimation);
+        }
+        player.wasGrounded = player.grounded;
+        if (jumpPressed && down && player.grounded && below) {
             player.dropTime = kDropTime; // drop through instead of jumping
             jumpPressed = false;
         }
@@ -451,35 +524,56 @@ private:
         collider.mask = mask; // applied by the physics only when it changes
 
         const bool jumping = player.jump.update(dt, player.grounded, jumpPressed);
-        body.velocity.x = horizontalVelocity(body.velocity.x, moveX, player.grounded, m_tuning, dt);
-        body.velocity.y =
-            verticalVelocity(body.velocity.y, jumping, m_actions.isHeld("jump", in), m_tuning);
+        // The platform's speed is added on top of the player's own, which accelerates as usual.
+        body.velocity.x = horizontalVelocity(body.velocity.x - player.carryX, moveX,
+                                             player.grounded, m_tuning, dt) +
+                          carry.x;
+        player.carryX = carry.x;
+        player.launched = player.launched && body.velocity.y > 0.0F;
+        body.velocity.y = verticalVelocity(
+            body.velocity.y, jumping, m_actions.isHeld("jump", in) || player.launched, m_tuning);
         body.gravityScale = body.velocity.y < 0.0F ? m_tuning.fallGravityScale : 1.0F;
+        player.lastVelocityY = body.velocity.y;
         if (moveX != 0.0F) {
             player.facingLeft = moveX < 0.0F;
         }
         if (jumping) {
             playSound(*m_sounds.jump, 0.5F);
+            if (player.grounded) {
+                spawnEffect(registry.get<Transform>(m_player).position, m_dustAnimation);
+            }
         }
     }
 
-    // True if the player stands on a one-way plank (a short ray from the feet hits one).
-    [[nodiscard]] bool onPlank() const
+    // Just below the bottom of the player's box.
+    [[nodiscard]] glm::vec2 feet() const
     {
-        const glm::vec2 feet =
-            m_scene.registry().get<Transform>(m_player).position - glm::vec2{0.0F, 7.5F};
-        return m_physics.rayCast(feet, {0.0F, -3.0F}, kPlatformGroup).has_value();
+        return m_scene.registry().get<Transform>(m_player).position - glm::vec2{0.0F, 7.5F};
     }
 
-    void patrolEnemies(Scene& scene)
+    // Moves each platform along a smooth back-and-forth path. A kinematic body moves only by its
+    // velocity, so the velocity is the one that reaches the next point of the path in one step.
+    static void moveMovers(Scene& scene, float dt)
     {
-        // Crawlers walk until a wall or the end of their floor, then turn around. Rays look ahead:
+        scene.registry().view<Mover, astra2d::RigidBody, Transform>().each(
+            [dt](Mover& mover, astra2d::RigidBody& body, const Transform& transform) {
+            mover.time += dt;
+            const float phase =
+                0.5F - (0.5F * std::cos(2.0F * glm::pi<float>() * mover.time / kMoverPeriod));
+            body.velocity = (mover.origin + (mover.travel * phase) - transform.position) / dt;
+        });
+    }
+
+    void moveWalkers(Scene& scene)
+    {
+        // Walkers go until a wall or the end of their floor, then turn around. Rays look ahead:
         // one forward at body height, one down just in front of the feet.
-        scene.registry().view<Enemy, astra2d::RigidBody, Transform, astra2d::SpriteRenderer>().each(
-            [&](Entity entity, Enemy& enemy, astra2d::RigidBody& body, const Transform& transform,
-                astra2d::SpriteRenderer& sprite) {
+        scene.registry()
+            .view<Walker, astra2d::RigidBody, Transform, astra2d::SpriteRenderer>()
+            .each([&](Entity entity, Walker& walker, astra2d::RigidBody& body,
+                      const Transform& transform, astra2d::SpriteRenderer& sprite) {
             const glm::vec2 p = transform.position;
-            const float d = enemy.direction;
+            const float d = walker.direction;
             if (m_physics.isGrounded(entity)) {
                 const bool wall =
                     m_physics.rayCast(p + glm::vec2{0.0F, -3.0F}, {d * 8.0F, 0.0F}, kWorldGroup)
@@ -488,14 +582,34 @@ private:
                     m_physics.rayCast(p + glm::vec2{d * 7.0F, -4.0F}, {0.0F, -10.0F}, kGround)
                         .has_value();
                 if (wall || !floor) {
-                    enemy.direction = -d;
+                    walker.direction = -d;
                 }
             }
-            body.velocity.x = enemy.direction * kEnemySpeed;
-            sprite.flipX = enemy.direction < 0.0F; // the art faces right
+            body.velocity.x = walker.direction * walker.speed;
+            sprite.flipX = walker.direction < 0.0F; // the art faces right
             if (p.y < kFallLimit) {
                 scene.destroyLater(entity);
             }
+        });
+    }
+
+    void moveFlyers(Scene& scene, float dt)
+    {
+        // Flyers are kinematic: they go through nothing but turn at walls and at the end of their
+        // range, and bob on a sine wave.
+        constexpr float kBobSpeed = 3.0F; // radians per second
+        scene.registry().view<Flyer, astra2d::RigidBody, Transform>().each(
+            [&](Flyer& flyer, astra2d::RigidBody& body, const Transform& transform) {
+            flyer.time += dt;
+            const float offset = transform.position.x - flyer.home.x;
+            const bool wall =
+                m_physics.rayCast(transform.position, {flyer.direction * 9.0F, 0.0F}, kWorldGroup)
+                    .has_value();
+            if (wall || (std::abs(offset) > kFlyerRange && offset * flyer.direction > 0.0F)) {
+                flyer.direction = -flyer.direction;
+            }
+            body.velocity = {flyer.direction * kFlyerSpeed,
+                             kFlyerBob * kBobSpeed * std::cos(kBobSpeed * flyer.time)};
         });
     }
 
@@ -524,15 +638,20 @@ private:
             .view<Player, astra2d::RigidBody, astra2d::Animator, astra2d::SpriteRenderer>()
             .each([&](const Player& player, const astra2d::RigidBody& body,
                       astra2d::Animator& animator, astra2d::SpriteRenderer& sprite) {
-            if (player.grounded) {
-                animator.player.play(std::abs(body.velocity.x) > 8.0F ? m_runAnimation
-                                                                      : m_idleAnimation);
+            if (player.invulnerable > kInvulnerableTime - kHurtPoseTime) {
+                animator.player.play(m_hurtAnimation);
+            } else if (player.grounded) {
+                // Running relative to the platform stood on, not to the world.
+                animator.player.play(std::abs(body.velocity.x - player.carryX) > 8.0F
+                                         ? m_runAnimation
+                                         : m_idleAnimation);
             } else {
                 animator.player.play(body.velocity.y > 0.0F ? m_jumpAnimation : m_fallAnimation);
             }
             sprite.flipX = player.facingLeft;
-            // Blink while invulnerable.
-            sprite.visible = player.invulnerable <= 0.0F || std::fmod(m_time, 0.16F) < 0.08F;
+            // Blink while invulnerable; hidden once inside the rocket.
+            sprite.visible = m_state != State::LevelClear && m_state != State::Victory &&
+                             (player.invulnerable <= 0.0F || std::fmod(m_time, 0.16F) < 0.08F);
         });
     }
 
@@ -553,7 +672,8 @@ private:
         }));
     }
 
-    // The player touched a crawler: from above it is stomped, otherwise the player is hurt.
+    // The player touched an enemy: from above it is stomped (unless it is spiky), otherwise the
+    // player is hurt.
     void onCollision(const astra2d::CollisionEvent& event)
     {
         auto& registry = m_scene.registry();
@@ -561,12 +681,13 @@ private:
             return;
         }
         const Entity other = event.other(m_player);
-        if (!registry.valid(other) || !registry.has<Enemy>(other)) {
+        const auto* enemy = registry.tryGet<Enemy>(other);
+        if (enemy == nullptr) {
             return;
         }
         // The normal points from a to b; turned to point from the enemy to the player.
         const glm::vec2 fromEnemy = event.a == other ? event.normal : -event.normal;
-        if (fromEnemy.y > 0.5F) {
+        if (fromEnemy.y > 0.5F && enemy->stompable) {
             stomp(other);
         } else if (registry.get<Player>(m_player).invulnerable <= 0.0F) {
             const float side = registry.get<Transform>(m_player).position.x <
@@ -590,35 +711,69 @@ private:
             m_scene.destroyLater(thing);
             ++m_coins;
             playSound(*m_sounds.coin, 0.45F);
-            spawnSparkle(position);
+            spawnEffect(position, m_sparkleAnimation);
+        } else if (registry.has<HeartPickup>(thing)) {
+            registry.remove<HeartPickup>(thing);
+            m_scene.destroyLater(thing);
+            m_hearts = std::min(m_hearts + 1, kMaxHearts);
+            m_audio.play(*m_sounds.coin, {.volume = 0.5F, .pitch = 0.75F});
+            spawnEffect(position, m_sparkleAnimation);
+        } else if (registry.has<Spring>(thing)) {
+            launch(thing);
         } else if (registry.has<HazardTile>(thing)) {
             ++m_hazardContacts;
         } else if (auto* checkpoint = registry.tryGet<Checkpoint>(thing);
                    checkpoint != nullptr && !checkpoint->active) {
             checkpoint->active = true;
-            registry.get<astra2d::SpriteRenderer>(thing).sprite = m_sheet.frame(kCheckpointOn);
+            registry.get<astra2d::Animator>(thing).player.play(m_checkpointOnAnimation);
             m_respawn = position;
             playSound(*m_sounds.checkpoint, 0.6F);
-            spawnSparkle(position + glm::vec2{0.0F, 6.0F});
+            spawnEffect(position + glm::vec2{0.0F, 6.0F}, m_sparkleAnimation);
         } else if (registry.has<Goal>(thing)) {
+            // The player boards the rocket (and is hidden), which lifts off to the next planet.
             m_state = State::LevelClear;
             m_stateTime = kLevelClearTime;
+            m_rocket = thing;
             m_totalCoins += m_coins;
             m_totalTime += m_levelTime;
             m_audio.play(*m_sounds.win, {.volume = 0.6F});
-            spawnSparkle(position + glm::vec2{0.0F, 8.0F});
+            spawnEffect(position + glm::vec2{0.0F, 8.0F}, m_sparkleAnimation);
         }
+    }
+
+    // Moves the boarded rocket @p time seconds into its lift-off (nothing before 0).
+    void liftOff(float time)
+    {
+        auto& registry = m_scene.registry();
+        const auto* goal = registry.tryGet<Goal>(m_rocket);
+        if (goal == nullptr || time <= 0.0F) {
+            return;
+        }
+        auto& exhaust = registry.get<astra2d::SpriteRenderer>(goal->exhaust);
+        if (!exhaust.visible) { // the first frame of the lift-off
+            exhaust.visible = true;
+            spawnEffect(goal->base, m_dustAnimation);
+            playSound(*m_sounds.stomp, 0.8F);
+        }
+        m_shake.addTrauma(time < 1.0F ? 0.03F : 0.0F);
+        const glm::vec2 at = goal->base + glm::vec2{0.0F, 0.5F * kLiftOffAccel * time * time};
+        registry.get<Transform>(m_rocket).position = at;
+        registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kTileSize};
+        registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kTileSize - 2.0F};
     }
 
     void stomp(Entity enemy)
     {
         auto& registry = m_scene.registry();
         // Without a body and collider it is no longer simulated; it stays squashed for a moment.
+        const bool flyer = registry.remove<Flyer>(enemy);
+        registry.remove<Walker>(enemy);
         registry.remove<Enemy>(enemy);
         registry.remove<astra2d::RigidBody>(enemy);
         registry.remove<astra2d::Collider>(enemy);
         registry.emplace<Squashed>(enemy);
-        registry.get<astra2d::Animator>(enemy).player.play(m_squashAnimation);
+        registry.get<astra2d::Animator>(enemy).player.play(flyer ? m_stunnedAnimation
+                                                                 : m_squashAnimation);
 
         auto& player = registry.get<Player>(m_player);
         auto& body = registry.get<astra2d::RigidBody>(m_player);
@@ -628,7 +783,25 @@ private:
         player.jump.reset();
         playSound(*m_sounds.stomp, 0.7F);
         m_shake.addTrauma(0.25F);
-        spawnSparkle(registry.get<Transform>(enemy).position);
+        spawnEffect(registry.get<Transform>(enemy).position, m_sparkleAnimation);
+    }
+
+    // The player landed on (or walked into) a spring: thrown up high.
+    void launch(Entity spring)
+    {
+        auto& registry = m_scene.registry();
+        auto& body = registry.get<astra2d::RigidBody>(m_player);
+        if (body.velocity.y > 0.0F) {
+            return; // on the way up already, e.g. jumping past it
+        }
+        auto& player = registry.get<Player>(m_player);
+        // Scaled with the planet's gravity, so a spring throws as high on every planet.
+        body.velocity.y = kSpringSpeed * std::sqrt(currentLook().gravity);
+        player.launched = true;
+        player.jump.reset();
+        registry.get<astra2d::Animator>(spring).player.play(m_springAnimation, true);
+        m_audio.play(*m_sounds.jump, {.volume = 0.6F, .pitch = 0.7F});
+        spawnEffect(registry.get<Transform>(spring).position, m_dustAnimation);
     }
 
     void hurt(glm::vec2 knockback)
@@ -690,6 +863,14 @@ private:
         m_levelTime = 0.0F;
         m_hazardContacts = 0;
         m_banner = kBannerTime;
+        // Each planet has its own gravity and weather.
+        m_physics.world().settings().gravity = {0.0F, -kGravity * currentLook().gravity};
+        m_weather.resize(static_cast<std::size_t>(currentLook().weather.count));
+        std::uniform_real_distribution<float> unit(0.0F, 1.0F);
+        for (glm::vec3& particle : m_weather) { // x, y in a view-sized box; z: a phase
+            particle = {unit(m_random) * 400.0F, unit(m_random) * kViewHeight,
+                        unit(m_random) * 6.28F};
+        }
         m_jumpQueued = false; // e.g. the Space that confirmed a menu
         m_shake.reset();
         auto& registry = m_scene.registry();
@@ -707,23 +888,7 @@ private:
             spawnHazard(hazard);
         }
         for (const Thing& thing : m_level.things) {
-            switch (thing.kind) {
-            case ThingKind::Player:
-                spawnPlayer(thing.position);
-                break;
-            case ThingKind::Coin:
-                spawnCoin(thing.position);
-                break;
-            case ThingKind::Enemy:
-                spawnEnemy(thing.position);
-                break;
-            case ThingKind::Checkpoint:
-                spawnCheckpoint(thing.position);
-                break;
-            case ThingKind::Goal:
-                spawnGoal(thing.position);
-                break;
-            }
+            spawn(thing);
         }
         followPlayer(0.0F, true);
     }
@@ -750,61 +915,127 @@ private:
         registry.emplace<astra2d::Interpolated>(m_player);
     }
 
-    void spawnCoin(glm::vec2 position)
+    void spawn(const Thing& thing)
     {
-        const Entity coin = m_scene.createEntity("coin", position);
         auto& registry = m_scene.registry();
-        registry.emplace<Coin>(coin);
-        registry.emplace<astra2d::SpriteRenderer>(
-            coin, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 1});
-        registry.emplace<astra2d::Animator>(coin, astra2d::Animator{.sheet = &m_sheet})
-            .player.play(m_spinAnimation);
-        registry.emplace<astra2d::Collider>(coin, trigger({5.0F, 6.0F}, {}, kPickupGroup));
+        const glm::vec2 at = thing.position;
+        switch (thing.kind) {
+        case ThingKind::Player:
+            spawnPlayer(at);
+            break;
+        case ThingKind::Coin:
+            registry.emplace<Coin>(spawnAnimated("coin", at, m_spinAnimation, 1));
+            break;
+        case ThingKind::Heart:
+            registry.emplace<HeartPickup>(spawnAnimated("heart", at, m_heartAnimation, 1));
+            break;
+        case ThingKind::Crawler:
+            spawnWalker(spawnAnimated("crawler", at, m_crawlAnimation, 2), kCrawlerSpeed,
+                        {6.0F, 4.5F}, true);
+            break;
+        case ThingKind::Spiker:
+            spawnWalker(spawnAnimated("spiker", at, m_spikerAnimation, 2), kSpikerSpeed,
+                        {6.0F, 5.0F}, false);
+            break;
+        case ThingKind::Flyer:
+            spawnFlyer(at);
+            break;
+        case ThingKind::Spring: {
+            const Entity spring = spawnAnimated("spring", at, m_springIdleAnimation, 1);
+            registry.emplace<Spring>(spring);
+            registry.get<astra2d::Collider>(spring) = trigger({6.0F, 4.0F}, {0.0F, -3.0F});
+            break;
+        }
+        case ThingKind::Platform:
+            spawnMover(at, kPlatformTravel);
+            break;
+        case ThingKind::Lift:
+            spawnMover(at, kLiftTravel);
+            break;
+        case ThingKind::Checkpoint: {
+            const Entity checkpoint = spawnAnimated("checkpoint", at, m_checkpointAnimation, 1);
+            registry.emplace<Checkpoint>(checkpoint);
+            registry.get<astra2d::Collider>(checkpoint) = trigger({5.0F, 8.0F});
+            break;
+        }
+        case ThingKind::Goal: {
+            const Entity goal = spawnAnimated("rocket", at, m_rocketAnimation, 1);
+            const Entity top = spawnAnimated("rocket top", at + glm::vec2{0.0F, kTileSize},
+                                             m_rocketTopAnimation, 1);
+            const Entity exhaust = spawnAnimated("exhaust", at, m_exhaustAnimation, 1);
+            registry.remove<astra2d::Collider>(top);
+            registry.remove<astra2d::Collider>(exhaust);
+            registry.get<astra2d::SpriteRenderer>(exhaust).visible = false;
+            registry.emplace<Goal>(goal, Goal{.base = at, .top = top, .exhaust = exhaust});
+            registry.get<astra2d::Collider>(goal) = trigger({5.0F, 8.0F});
+            break;
+        }
+        }
     }
 
-    void spawnEnemy(glm::vec2 position)
+    // An entity with a sprite playing @p animation and, for pickups, a small trigger (changed or
+    // replaced by the caller where needed).
+    Entity spawnAnimated(std::string_view name, glm::vec2 position,
+                         const astra2d::SpriteAnimation& animation, int layer)
     {
-        const Entity enemy = m_scene.createEntity("crawler", position);
+        const Entity entity = m_scene.createEntity(name, position);
         auto& registry = m_scene.registry();
-        registry.emplace<Enemy>(enemy);
         registry.emplace<astra2d::SpriteRenderer>(
-            enemy, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 2});
-        registry.emplace<astra2d::Animator>(enemy, astra2d::Animator{.sheet = &m_sheet})
-            .player.play(m_crawlAnimation);
+            entity, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = layer});
+        registry.emplace<astra2d::Animator>(entity, astra2d::Animator{.sheet = &m_sheet})
+            .player.play(animation);
+        registry.emplace<astra2d::Collider>(entity, trigger({5.0F, 6.0F}));
+        return entity;
+    }
+
+    void spawnWalker(Entity entity, float speed, glm::vec2 halfExtents, bool stompable)
+    {
+        auto& registry = m_scene.registry();
+        registry.emplace<Enemy>(entity, Enemy{.stompable = stompable});
+        registry.emplace<Walker>(entity, Walker{.speed = speed});
         registry.emplace<astra2d::RigidBody>(
-            enemy, astra2d::RigidBody{.fixedRotation = true, .allowSleep = false});
-        // Enemies pass through each other, so two never get stuck turning back and forth.
-        registry.emplace<astra2d::Collider>(
-            enemy, astra2d::Collider{.halfExtents = {6.0F, 4.5F},
-                                     .offset = {0.0F, -3.5F},
-                                     .friction = 0.0F,
-                                     .category = kEnemyGroup,
-                                     .mask = anyOf(kGround, kPlayerGroup)});
-        registry.emplace<astra2d::Interpolated>(enemy);
+            entity, astra2d::RigidBody{.fixedRotation = true, .allowSleep = false});
+        // Feet at the bottom of the tile. Enemies pass through each other, so two never get stuck
+        // turning back and forth.
+        registry.get<astra2d::Collider>(entity) =
+            astra2d::Collider{.halfExtents = halfExtents,
+                              .offset = {0.0F, halfExtents.y - 8.0F},
+                              .friction = 0.0F,
+                              .category = kEnemyGroup,
+                              .mask = anyOf(kGround, kPlayerGroup)};
+        registry.emplace<astra2d::Interpolated>(entity);
     }
 
-    void spawnCheckpoint(glm::vec2 position)
+    void spawnFlyer(glm::vec2 position)
     {
-        const Entity checkpoint = m_scene.createEntity("checkpoint", position);
+        const Entity entity = spawnAnimated("bat", position, m_flyAnimation, 2);
         auto& registry = m_scene.registry();
-        registry.emplace<Checkpoint>(checkpoint);
-        registry.emplace<astra2d::SpriteRenderer>(
-            checkpoint, astra2d::SpriteRenderer{.sprite = m_sheet.frame(kCheckpointOff),
-                                                .size = kSpriteSize,
-                                                .layer = 1});
-        registry.emplace<astra2d::Collider>(checkpoint, trigger({5.0F, 8.0F}, {}, kPickupGroup));
+        registry.emplace<Enemy>(entity);
+        registry.emplace<Flyer>(entity, Flyer{.home = position});
+        registry.emplace<astra2d::RigidBody>(
+            entity, astra2d::RigidBody{.type = astra2d::BodyType::Kinematic, .allowSleep = false});
+        registry.get<astra2d::Collider>(entity) = astra2d::Collider{
+            .halfExtents = {5.0F, 4.0F}, .category = kEnemyGroup, .mask = kPlayerGroup};
+        registry.emplace<astra2d::Interpolated>(entity);
     }
 
-    void spawnGoal(glm::vec2 position)
+    // A kinematic one-way platform, 3 tiles wide, in the planks' group (so the player can drop
+    // through it too). Drawn by drawMovers().
+    void spawnMover(glm::vec2 position, glm::vec2 travel)
     {
-        const Entity goal = m_scene.createEntity("goal", position);
+        const Entity entity = m_scene.createEntity("mover", position);
         auto& registry = m_scene.registry();
-        registry.emplace<Goal>(goal);
-        registry.emplace<astra2d::SpriteRenderer>(
-            goal, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 1});
-        registry.emplace<astra2d::Animator>(goal, astra2d::Animator{.sheet = &m_sheet})
-            .player.play(m_waveAnimation);
-        registry.emplace<astra2d::Collider>(goal, trigger({5.0F, 8.0F}, {}, kPickupGroup));
+        registry.emplace<Mover>(entity, Mover{.origin = position, .travel = travel});
+        registry.emplace<astra2d::RigidBody>(
+            entity, astra2d::RigidBody{.type = astra2d::BodyType::Kinematic, .allowSleep = false});
+        // The art is the top 7 rows of the tile.
+        registry.emplace<astra2d::Collider>(entity, astra2d::Collider{.halfExtents = {24.0F, 3.5F},
+                                                                      .offset = {0.0F, 4.5F},
+                                                                      .friction = 0.0F,
+                                                                      .oneWay = true,
+                                                                      .category = kPlatformGroup,
+                                                                      .mask = kPlayerGroup});
+        registry.emplace<astra2d::Interpolated>(entity);
     }
 
     void spawnHazard(const Hazard& hazard)
@@ -820,20 +1051,21 @@ private:
                         : trigger({6.5F, 3.0F}, {0.0F, -5.0F}, kHazardGroup));
     }
 
-    void spawnSparkle(glm::vec2 position)
+    // A one-shot animation (sparkle, dust) that removes itself when it ends.
+    void spawnEffect(glm::vec2 position, const astra2d::SpriteAnimation& animation)
     {
-        const Entity sparkle = m_scene.createEntity({}, position);
+        const Entity effect = m_scene.createEntity({}, position);
         auto& registry = m_scene.registry();
-        registry.emplace<Effect>(sparkle);
+        registry.emplace<Effect>(effect);
         registry.emplace<astra2d::SpriteRenderer>(
-            sparkle, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 4});
-        registry.emplace<astra2d::Animator>(sparkle, astra2d::Animator{.sheet = &m_sheet})
-            .player.play(m_sparkleAnimation);
+            effect, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 4});
+        registry.emplace<astra2d::Animator>(effect, astra2d::Animator{.sheet = &m_sheet})
+            .player.play(animation);
     }
 
     // A static trigger box that only the player sets off.
-    static astra2d::Collider trigger(glm::vec2 halfExtents, glm::vec2 offset,
-                                     std::uint16_t category)
+    static astra2d::Collider trigger(glm::vec2 halfExtents, glm::vec2 offset = {},
+                                     std::uint16_t category = kPickupGroup)
     {
         return {.halfExtents = halfExtents,
                 .offset = offset,
@@ -874,28 +1106,118 @@ private:
             std::clamp(m_cameraPosition.y, half.y, std::max(half.y, size.y - half.y));
     }
 
-    // An endless strip of a tiling texture that scrolls slower than the world (parallax), filled
-    // below with @p fill.
-    void drawBackgroundLayer(const astra2d::Texture2D& texture, glm::vec4 fill, glm::vec2 parallax,
-                             float y, glm::vec4 tint)
+    // The sky as horizontal bands from skyTop to skyBottom, in screen space (a stepped gradient
+    // that suits the pixel art), then the stars and the planet in it.
+    void drawSky(const Look& look)
     {
-        const astra2d::OrthographicCamera layer = m_camera.withParallax(parallax);
-        const glm::vec2 min = layer.visibleMin();
-        const glm::vec2 max = layer.visibleMax();
+        constexpr int kBands = 24;
+        const glm::vec2 screen(framebufferSize());
+        const float band = std::ceil(screen.y / kBands);
+        m_renderer.begin(
+            astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+        for (int i = 0; i < kBands; ++i) {
+            const float t = static_cast<float>(i) / static_cast<float>(kBands - 1);
+            const float top = screen.y - (band * static_cast<float>(i));
+            m_renderer.drawQuad({screen.x * 0.5F, top - (band * 0.5F)}, {screen.x, band},
+                                glm::mix(look.skyTop, look.skyBottom, t));
+        }
+        m_renderer.end();
+        if (look.stars) {
+            drawBackgroundLayer(kStars);
+        }
+        if (look.skyPlanet != planet::kNone) {
+            // The next stop of the route, far away: it drifts only a little as the camera moves.
+            const auto scale = static_cast<float>(m_pixelScale);
+            const glm::vec2 at{(screen.x * 0.72F) - (m_cameraPosition.x * 0.03F * scale),
+                               screen.y * 0.72F};
+            m_renderer.begin(
+                astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+            m_renderer.drawSprite(glm::round(at), glm::vec2{1.5F * kPlanetSize * scale},
+                                  m_planets.frame(look.skyPlanet));
+            m_renderer.end();
+        }
+    }
+
+    // An endless strip of a tiling texture that scrolls slower than the world (parallax), filled
+    // below with its fill colour; or, for a layer that fills the view, the texture everywhere.
+    void drawBackgroundLayer(const Layer& layer)
+    {
+        const astra2d::Texture2D& texture = m_assets.texture(layer.texture, kRepeat);
+        const astra2d::OrthographicCamera camera = m_camera.withParallax(layer.parallax);
+        const glm::vec2 min = camera.visibleMin();
+        const glm::vec2 max = camera.visibleMax();
         const glm::vec2 tile(texture.size());
         const float width = max.x - min.x;
         const float centerX = (min.x + max.x) * 0.5F;
-        const float bottom = y - (tile.y * 0.5F);
-        m_renderer.begin(layer);
-        m_renderer.drawTiled({centerX, y}, {width, tile.y}, texture, tile, tint, {0.0F, bottom});
-        if (bottom > min.y) {
-            m_renderer.drawQuad({centerX, (bottom + min.y) * 0.5F}, {width, bottom - min.y}, fill);
+        m_renderer.begin(camera);
+        if (layer.fillsView) {
+            m_renderer.drawTiled((min + max) * 0.5F, max - min, texture, tile, layer.tint);
+        } else {
+            // Half a texel short at the top: the texture repeats vertically too, and its top edge
+            // could otherwise sample the opposite (bottom) row, a dark line across the sky.
+            const float bottom = layer.y - (tile.y * 0.5F);
+            const float height = tile.y - 0.5F;
+            m_renderer.drawTiled({centerX, bottom + (height * 0.5F)}, {width, height}, texture,
+                                 tile, layer.tint, {0.0F, bottom});
+            if (layer.fill.a > 0.0F && bottom > min.y) {
+                m_renderer.drawQuad({centerX, (bottom + min.y) * 0.5F}, {width, bottom - min.y},
+                                    layer.fill);
+            }
         }
         m_renderer.end();
     }
 
-    // The tiles of @p layer that the camera sees.
-    void drawTiles(const std::vector<int>& layer)
+    // Moving platforms are three sprites wide, so they are drawn here rather than by the scene.
+    void drawMovers()
+    {
+        const float alpha = interpolationAlpha();
+        m_scene.registry().view<Mover>().each([&](Entity entity, const Mover&) {
+            const glm::vec2 center = m_scene.worldTransform(entity, alpha).position;
+            for (int i = 0; i < 3; ++i) {
+                m_renderer.drawSprite(center +
+                                          glm::vec2{kTileSize * static_cast<float>(i - 1), 0.0F},
+                                      kSpriteSize, m_sheet.frame(kPlatformLeft + i));
+            }
+        });
+    }
+
+    [[nodiscard]] const Look& currentLook() const
+    {
+        return kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
+    }
+
+    void driftWeather(float dt)
+    {
+        const Weather& weather = currentLook().weather;
+        for (glm::vec3& particle : m_weather) {
+            particle.x +=
+                (weather.velocity.x + (weather.sway * std::sin((m_time * 1.3F) + particle.z))) * dt;
+            particle.y += weather.velocity.y * dt;
+        }
+    }
+
+    // The weather particles, wrapped into the camera's view so they fill it wherever it goes.
+    void drawWeather(const Weather& weather)
+    {
+        const glm::vec2 min = m_camera.visibleMin();
+        const glm::vec2 size = m_camera.visibleSize();
+        const auto wrap = [](float value, float range) {
+            const float r = std::fmod(value, range);
+            return r < 0.0F ? r + range : r;
+        };
+        for (const glm::vec3& particle : m_weather) {
+            glm::vec4 color = weather.color;
+            if (weather.flicker) {
+                color.a *= 0.55F + (0.45F * std::sin((m_time * 4.0F) + (particle.z * 3.0F)));
+            }
+            const glm::vec2 at =
+                min + glm::vec2{wrap(particle.x - min.x, size.x), wrap(particle.y - min.y, size.y)};
+            m_renderer.drawQuad(at, glm::vec2{weather.size}, color);
+        }
+    }
+
+    // The tiles of @p layer that the camera sees, tinted for the planet.
+    void drawTiles(const std::vector<int>& layer, glm::vec4 tint)
     {
         const glm::vec2 min = m_camera.visibleMin() / kTileSize;
         const glm::vec2 max = m_camera.visibleMax() / kTileSize;
@@ -907,7 +1229,7 @@ private:
             for (int x = x0; x <= x1; ++x) {
                 if (const int frame = m_level.at(layer, x, y); frame != tile::kNone) {
                     m_renderer.drawSprite(m_level.cellCenter(x, y), kSpriteSize,
-                                          m_tiles.frame(frame));
+                                          m_tiles.frame(frame), tint);
                 }
             }
         }
@@ -940,38 +1262,19 @@ private:
         const float s = std::max(
             1.0F, std::min(static_cast<float>(m_pixelScale), std::floor(screen.x / 320.0F)));
         const float text = 8.0F * s;
-        const float top = screen.y - (8.0F * s);
         m_renderer.begin(
             astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
         if (m_state != State::Title) {
-            for (int i = 0; i < kMaxHearts; ++i) {
-                const glm::vec2 at{(16.0F + (18.0F * static_cast<float>(i))) * s, top - (8.0F * s)};
-                m_renderer.drawSprite(at, glm::vec2{16.0F * s},
-                                      m_sheet.frame(i < m_hearts ? kHeartFull : kHeartEmpty));
-            }
-            m_renderer.drawSprite({16.0F * s, top - (28.0F * s)}, glm::vec2{16.0F * s},
-                                  m_sheet.frame(kCoinIcon));
-            drawText(std::format("{}/{}", m_coins, m_level.count(ThingKind::Coin)),
-                     {28.0F * s, top - (24.0F * s)}, text, kGold);
-            const std::string time =
-                std::format("TIME {}:{:02}", static_cast<int>(m_levelTime) / 60,
-                            static_cast<int>(m_levelTime) % 60);
-            const float width = m_font.atlas().measure(time, text).x;
-            drawText(time, {screen.x - width - (12.0F * s), top - (4.0F * s)}, text, kWhite);
-            drawText(std::format("LEVEL {}", m_levelIndex + 1),
-                     {screen.x - m_font.atlas().measure("LEVEL 1", text).x - (12.0F * s),
-                      top - (18.0F * s)},
-                     text, kWhite);
-        }
-        if (m_audio.muted()) {
-            drawText("MUTED", {12.0F * s, 16.0F * s}, text, kWhite);
+            drawStatusBar(screen, s);
         }
         const float middle = screen.y * 0.5F;
         switch (m_state) {
         case State::Title:
-            dim(screen, 0.35F);
+            dim(screen, 0.25F);
+            drawRoute(screen, middle + (86.0F * s), s);
+            panel(screen, 196.0F * s, middle - (80.0F * s), middle + (60.0F * s), s);
             drawCentered("ASTRA RUN", middle + (48.0F * s), 32.0F * s, kGold);
-            drawCentered("a tiny astronaut, three worlds, one flag each", middle, text, kWhite);
+            drawCentered("a stranded astronaut, four planets, one way home", middle, text, kWhite);
             drawCentered("RUN  A/D   JUMP  SPACE   DROP  S+SPACE", middle - (22.0F * s), text,
                          kWhite);
             drawCentered("PAUSE  P   RESTART  R   MUTE  M", middle - (36.0F * s), text, kWhite);
@@ -982,32 +1285,54 @@ private:
         case State::Playing:
             if (m_banner > 0.0F) {
                 const float alpha = std::min(m_banner, 1.0F);
-                drawCentered(m_level.name, top - (40.0F * s), 16.0F * s,
+                const float top = screen.y - (36.0F * s);
+                drawCentered(m_level.name, top - (16.0F * s), 16.0F * s,
                              {kGold.r, kGold.g, kGold.b, alpha});
-                drawCentered(m_level.hint, top - (64.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
+                drawCentered(m_level.hint, top - (40.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
+                drawCentered(std::format("gravity {:.1f} g", currentLook().gravity),
+                             top - (56.0F * s), text, {kGold.r, kGold.g, kGold.b, alpha});
             }
             break;
         case State::Paused:
-            dim(screen, 0.5F);
+            dim(screen, 0.4F);
+            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (18.0F * s), s);
             drawCentered("PAUSED", middle + (8.0F * s), 16.0F * s, kWhite);
             drawCentered("P or ENTER to continue", middle - (16.0F * s), text, kWhite);
             break;
-        case State::LevelClear:
-            drawCentered("LEVEL CLEAR!", middle + (24.0F * s), 16.0F * s, kGold);
+        case State::LevelClear: {
+            if (kLevelClearTime - m_stateTime < kLiftOffPanelTime) {
+                break; // watching the rocket go
+            }
+            // The next planet of the route; after the last level, Earth.
+            const int next = m_levelIndex + 1;
+            const std::string_view nextName =
+                std::cmp_less(next, m_levels.size())
+                    ? std::string_view(m_levels[static_cast<std::size_t>(next)].name)
+                    : "Earth";
+            panel(screen, 150.0F * s, middle - (52.0F * s), middle + (40.0F * s), s);
+            drawCentered("LIFT OFF!", middle + (30.0F * s), 16.0F * s, kGold);
+            m_renderer.drawSprite({std::round(screen.x * 0.5F), middle}, glm::vec2{kPlanetSize * s},
+                                  m_planets.frame(std::min(next, planet::kEarth)));
+            drawCentered(std::format("next stop: {}", nextName), middle - (22.0F * s), text,
+                         kWhite);
             drawCentered(std::format("coins {}/{}", m_coins, m_level.count(ThingKind::Coin)),
-                         middle - (4.0F * s), text, kWhite);
+                         middle - (36.0F * s), text, kGold);
             break;
+        }
         case State::GameOver:
-            dim(screen, 0.55F);
+            dim(screen, 0.45F);
+            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (34.0F * s), s);
             drawCentered("GAME OVER", middle + (24.0F * s), 24.0F * s, kRed);
             drawCentered("ENTER to try again   ESC to quit", middle - (16.0F * s), text, kWhite);
             break;
         case State::Victory: {
-            dim(screen, 0.55F);
+            dim(screen, 0.45F);
+            panel(screen, 150.0F * s, middle - (58.0F * s), middle + (50.0F * s), s);
             int allCoins = 0;
             for (const Level& level : m_levels) {
                 allCoins += level.count(ThingKind::Coin);
             }
+            drawRoute(screen, middle + (86.0F * s), s);
             drawCentered("YOU MADE IT HOME!", middle + (40.0F * s), 16.0F * s, kGold);
             drawCentered(std::format("coins {}/{}", m_totalCoins, allCoins), middle + (8.0F * s),
                          text, kWhite);
@@ -1019,6 +1344,72 @@ private:
         }
         }
         m_renderer.end();
+    }
+
+    // One bar along the top: hearts and coins on the left, the level in the middle, the time on
+    // the right. @p s is the HUD's pixel scale.
+    void drawStatusBar(glm::vec2 screen, float s)
+    {
+        const float text = 8.0F * s;
+        const float row = screen.y - (14.0F * s); // centre line of the bar
+        const float textTop = row + (4.0F * s);
+        examples::drawPanel(m_renderer, {-s, screen.y - (28.0F * s)}, {screen.x + s, screen.y + s},
+                            s);
+
+        for (int i = 0; i < kMaxHearts; ++i) {
+            m_renderer.drawSprite({(14.0F + (18.0F * static_cast<float>(i))) * s, row},
+                                  glm::vec2{16.0F * s},
+                                  m_sheet.frame(i < m_hearts ? kHeartFull : kHeartEmpty));
+        }
+        const float coinX = (14.0F + (18.0F * static_cast<float>(kMaxHearts)) + 8.0F) * s;
+        m_renderer.drawSprite({coinX, row}, glm::vec2{16.0F * s}, m_sheet.frame(kCoinIcon));
+        const std::string coins = std::format("{}/{}", m_coins, m_level.count(ThingKind::Coin));
+        drawText(coins, {coinX + (12.0F * s), textTop}, text, kGold);
+        const float leftEnd = coinX + (12.0F * s) + m_font.atlas().measure(coins, text).x;
+
+        std::string right = std::format("TIME {}:{:02}", static_cast<int>(m_levelTime) / 60,
+                                        static_cast<int>(m_levelTime) % 60);
+        if (m_audio.muted()) {
+            right = "MUTED  " + right;
+        }
+        const float rightStart = screen.x - (12.0F * s) - m_font.atlas().measure(right, text).x;
+        drawText(right, {rightStart, textTop}, text, kWhite);
+
+        // The level's name too, if it fits between the two sides.
+        std::string level = std::format("{} \u00b7 {}", m_levelIndex + 1, m_level.name);
+        if (m_font.atlas().measure(level, text).x > rightStart - leftEnd - (24.0F * s)) {
+            level = std::format("LEVEL {}", m_levelIndex + 1);
+        }
+        const float width = m_font.atlas().measure(level, text).x; // centred in the free space
+        drawText(level, {std::round((leftEnd + rightStart - width) * 0.5F), textTop}, text, kWhite);
+    }
+
+    // The route across the top: every planet, linked by a dotted line, with Earth at the end.
+    void drawRoute(glm::vec2 screen, float y, float s)
+    {
+        const float step = 44.0F * s;
+        const float first = (screen.x * 0.5F) - (step * (planet::kCount - 1) * 0.5F);
+        for (int i = 0; i + 1 < planet::kCount; ++i) { // the dots between two planets
+            for (int dot = 1; dot < 4; ++dot) {
+                const float x =
+                    first + (step * (static_cast<float>(i) + (0.25F * static_cast<float>(dot))));
+                m_renderer.drawQuad({std::round(x), y}, glm::vec2{2.0F * s},
+                                    {1.0F, 1.0F, 1.0F, 0.6F});
+            }
+        }
+        for (int i = 0; i < planet::kCount; ++i) {
+            m_renderer.drawSprite({std::round(first + (step * static_cast<float>(i))), y},
+                                  glm::vec2{kPlanetSize * s}, m_planets.frame(i));
+        }
+    }
+
+    // A panel centred horizontally, @p halfWidth to each side (at most the window's width), from
+    // @p bottom to @p top.
+    void panel(glm::vec2 screen, float halfWidth, float bottom, float top, float s)
+    {
+        halfWidth = std::min(halfWidth, (screen.x * 0.5F) - (4.0F * s));
+        examples::drawPanel(m_renderer, {(screen.x * 0.5F) - halfWidth, bottom},
+                            {(screen.x * 0.5F) + halfWidth, top}, s);
     }
 
     void dim(glm::vec2 screen, float alpha)
@@ -1033,8 +1424,7 @@ private:
     Sounds m_sounds;
     astra2d::SpriteSheet m_sheet;
     astra2d::SpriteSheet m_tiles;
-    const astra2d::Texture2D& m_mountains;
-    const astra2d::Texture2D& m_hills;
+    astra2d::SpriteSheet m_planets; // the route, see looks.hpp
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;
     astra2d::CameraShake m_shake;
@@ -1052,9 +1442,25 @@ private:
     const astra2d::SpriteAnimation m_squashAnimation{.frames = {10}};
     const astra2d::SpriteAnimation m_spinAnimation{.frames = {11, 12, 13, 14},
                                                    .frameDuration = 0.12F};
-    const astra2d::SpriteAnimation m_waveAnimation{.frames = {16, 17}, .frameDuration = 0.3F};
+    const astra2d::SpriteAnimation m_rocketAnimation{.frames = {16, 17}, .frameDuration = 0.5F};
+    const astra2d::SpriteAnimation m_rocketTopAnimation{.frames = {kRocketTop}};
+    const astra2d::SpriteAnimation m_exhaustAnimation{.frames = {kExhaust}};
     const astra2d::SpriteAnimation m_sparkleAnimation{
         .frames = {21, 22, 23}, .frameDuration = 0.07F, .loop = false};
+    const astra2d::SpriteAnimation m_hurtAnimation{.frames = {29}};
+    const astra2d::SpriteAnimation m_heartAnimation{.frames = {kHeartFull}};
+    const astra2d::SpriteAnimation m_flyAnimation{.frames = {24, 25}, .frameDuration = 0.14F};
+    const astra2d::SpriteAnimation m_stunnedAnimation{.frames = {26}};
+    const astra2d::SpriteAnimation m_spikerAnimation{.frames = {27, 28}, .frameDuration = 0.25F};
+    const astra2d::SpriteAnimation m_springIdleAnimation{.frames = {kSpringFrame}};
+    const astra2d::SpriteAnimation m_springAnimation{
+        .frames = {kSpringFrame + 1, kSpringFrame + 1, kSpringFrame},
+        .frameDuration = 0.07F,
+        .loop = false};
+    const astra2d::SpriteAnimation m_dustAnimation{
+        .frames = {32, 33, 34}, .frameDuration = 0.08F, .loop = false};
+    const astra2d::SpriteAnimation m_checkpointAnimation{.frames = {kCheckpointOff}};
+    const astra2d::SpriteAnimation m_checkpointOnAnimation{.frames = {kCheckpointOn}};
     Scene m_scene;
     astra2d::PhysicsSystem m_physics; // after the scene: it must be destroyed first
     std::vector<astra2d::Connection> m_connections;
@@ -1064,6 +1470,7 @@ private:
     Level m_level; // the one being played
     int m_levelIndex = 0;
     Entity m_player;
+    Entity m_rocket; // the goal the player boarded
     glm::vec2 m_respawn{0.0F};
     glm::vec2 m_cameraPosition{0.0F};
     int m_pixelScale = 1;
@@ -1082,6 +1489,7 @@ private:
     float m_totalTime = 0.0F;
     float m_banner = 0.0F;
     float m_time = 0.0F;
+    std::vector<glm::vec3> m_weather; // see driftWeather()
     std::uint64_t m_frame = 0;
     std::uint64_t m_jumpFrame = ~std::uint64_t{0};
     bool m_jumpQueued = false;

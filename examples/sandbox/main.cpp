@@ -33,6 +33,7 @@
 #include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/common.hpp>
@@ -62,7 +63,6 @@ constexpr glm::vec4 kGrassDark{0.17F, 0.27F, 0.21F, 1.0F};
 constexpr glm::vec4 kDebugGreen{0.3F, 1.0F, 0.4F, 1.0F};
 constexpr glm::vec4 kDebugYellow{1.0F, 0.85F, 0.2F, 0.8F};
 constexpr glm::vec4 kHudText{0.95F, 0.95F, 0.85F, 1.0F};
-constexpr glm::vec4 kHudShadow{0.0F, 0.0F, 0.0F, 0.6F};
 
 constexpr astra2d::TextureSettings kPixelRepeat{.filter = astra2d::TextureFilter::Nearest,
                                                 .wrap = astra2d::TextureWrap::Repeat};
@@ -354,19 +354,16 @@ private:
             "batching {} (B)  CRT {} (P)\n"
             "move WASD  rotate Q/E  zoom wheel\n"
             "click: shake  edit crt.frag live\n"
-            "gamepad: {}\n"
-            "{}",
+            "gamepad: {}{}{}",
             m_frameStats.report().fps, m_frameStats.report().averageMs, scene.drawCalls,
             scene.quads, m_renderer.batching() ? "on" : "off", m_postProcessing ? "on" : "off",
-            input().isGamepadConnected(0) ? "connected" : "none",
+            input().isGamepadConnected(0) ? "connected" : "none", m_noticeTime > 0.0F ? "\n" : "",
             m_noticeTime > 0.0F ? m_notice : "");
 
         m_renderer.begin(astra2d::OrthographicCamera::screenSpace(size.x, size.y));
-        const glm::vec2 topLeft{16.0F, static_cast<float>(size.y) - 16.0F};
-        constexpr float kLineSpacing = 1.5F;
-        m_renderer.drawText(m_font, lines, topLeft + glm::vec2{2.0F, -2.0F}, kTextSize, kHudShadow,
-                            kLineSpacing);
-        m_renderer.drawText(m_font, lines, topLeft, kTextSize, kHudText, kLineSpacing);
+        examples::drawTextPanel(m_renderer, m_font, lines,
+                                {24.0F, static_cast<float>(size.y) - 24.0F}, kTextSize, kHudText,
+                                1.5F);
         m_renderer.end();
     }
 

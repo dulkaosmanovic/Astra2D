@@ -1485,6 +1485,8 @@ HTML_EXTRA_FILES       = @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awes
                          @SOURCE_ROOT@/docs/images/screenshots/physics_playground.png \
                          @SOURCE_ROOT@/docs/images/screenshots/platformer_debug.png \
                          @SOURCE_ROOT@/docs/images/screenshots/platformer_level2.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/platformer_level3.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/platformer_level4.png \
                          @SOURCE_ROOT@/docs/images/screenshots/platformer_title.png \
                          @SOURCE_ROOT@/docs/images/screenshots/post_processing.png \
                          @SOURCE_ROOT@/docs/images/screenshots/renderer_stress.jpg \

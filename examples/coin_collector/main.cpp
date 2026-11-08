@@ -38,6 +38,7 @@
 #include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/common.hpp>
@@ -500,16 +501,29 @@ private:
 
     void drawHud()
     {
-        const float top = kArenaHalf.y + 40.0F;
+        // A bar above the arena: score on the left, a slime per life in the middle, time on the
+        // right.
+        const float bottom = kArenaHalf.y + 12.0F;
+        const float middle = bottom + 18.0F;
+        const float textTop = middle + (kTextSize * 0.5F);
         if (m_state != State::Title) {
-            m_renderer.drawText(m_font, std::format("SCORE {}", m_score), {-kArenaHalf.x, top},
-                                kTextSize, kGold);
-            const std::string lives(static_cast<std::size_t>(std::max(m_lives, 0)), '*');
-            drawCentered(std::format("LIVES {}", lives), top - 8.0F, kTextSize, kSpikeColor);
+            examples::drawPanel(m_renderer, {-kArenaHalf.x - 4.0F, bottom},
+                                {kArenaHalf.x + 4.0F, bottom + 36.0F});
+            m_renderer.drawText(m_font, std::format("SCORE {}", m_score),
+                                {-kArenaHalf.x + 12.0F, textTop}, kTextSize, kGold);
+            for (int i = 0; i < kLives; ++i) {
+                const float x = (static_cast<float>(i) - (kLives - 1) * 0.5F) * 28.0F;
+                m_renderer.drawSprite({x, middle}, glm::vec2{24.0F}, m_sheet.frame(0),
+                                      {1.0F, 1.0F, 1.0F, i < m_lives ? 1.0F : 0.2F});
+            }
             const std::string time =
                 std::format("TIME {:2}", static_cast<int>(std::ceil(std::max(m_timeLeft, 0.0F))));
             const float width = m_font.atlas().measure(time, kTextSize).x;
-            m_renderer.drawText(m_font, time, {kArenaHalf.x - width, top}, kTextSize, kWhite);
+            m_renderer.drawText(m_font, time, {kArenaHalf.x - 12.0F - width, textTop}, kTextSize,
+                                m_timeLeft < 5.0F ? kSpikeColor : kWhite);
+        }
+        if (m_state != State::Playing) {
+            examples::drawPanel(m_renderer, {-260.0F, -100.0F}, {260.0F, 100.0F}, 4.0F, kBorder);
         }
         switch (m_state) {
         case State::Title:

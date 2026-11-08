@@ -16,6 +16,7 @@
 #include <astra2d/renderer/renderer2d.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/vec2.hpp>
@@ -100,8 +101,10 @@ protected:
         m_renderer.begin(astra2d::OrthographicCamera::screenSpace(width, height));
         const std::string hud = std::format("zoom {:.2f} (wheel)   {} draw calls last frame",
                                             m_camera.zoom(), m_drawCalls);
-        m_renderer.drawText(m_font, hud, {16.0F, static_cast<float>(height) - 16.0F}, 16.0F,
-                            {0.9F, 0.9F, 0.9F, 1.0F});
+        // Small, in the bottom-right corner: the demo text fills the middle of the window.
+        examples::drawTextPanel(
+            m_renderer, m_font, hud,
+            {static_cast<float>(width) - m_font.atlas().measure(hud, 8.0F).x - 14.0F, 22.0F}, 8.0F);
         m_renderer.end();
 
         m_drawCalls = m_renderer.stats().drawCalls;
