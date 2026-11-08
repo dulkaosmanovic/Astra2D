@@ -37,9 +37,46 @@ float clampVolume(float volume)
     return std::clamp(volume, 0.0F, 1.0F);
 }
 
-std::string describe(ma_result result)
+// Decoded audio: interleaved 32-bit floats at the file's own rate and channel count.
+struct Decoded {
+    std::vector<float> samples;
+    std::uint32_t channels = 0;
+    std::uint32_t sampleRate = 0;
+};
+
+Decoded decodeFile(const std::filesystem::path& file)
 {
-    return ma_result_description(result);
+    const ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 0, 0);
+    ma_decoder decoder;
+    const ma_result result = ma_decoder_init_file(file.c_str(), &config, &decoder);
+    if (result != MA_SUCCESS) {
+        throw std::runtime_error(std::format("Cannot load sound '{}': {}", file.string(),
+                                             ma_result_description(result)));
+    }
+    Decoded decoded{
+        .samples = {}, .channels = decoder.outputChannels, .sampleRate = decoder.outputSampleRate};
+    ma_uint64 length = 0;
+    if (ma_decoder_get_length_in_pcm_frames(&decoder, &length) == MA_SUCCESS && length > 0) {
+        decoded.samples.reserve(static_cast<std::size_t>(length) * decoded.channels);
+    }
+    // Read in chunks until the end: the length is not known in advance for every format.
+    constexpr ma_uint64 kChunk = 4096;
+    std::vector<float> chunk(static_cast<std::size_t>(kChunk) * decoded.channels);
+    for (;;) {
+        ma_uint64 read = 0;
+        const ma_result status = ma_decoder_read_pcm_frames(&decoder, chunk.data(), kChunk, &read);
+        decoded.samples.insert(decoded.samples.end(), chunk.begin(),
+                               chunk.begin() +
+                                   static_cast<std::ptrdiff_t>(read * decoded.channels));
+        if (status != MA_SUCCESS || read < kChunk) {
+            break;
+        }
+    }
+    ma_decoder_uninit(&decoder);
+    if (decoded.samples.empty()) {
+        throw std::runtime_error(std::format("Sound '{}' has no audio", file.string()));
+    }
+    return decoded;
 }
 
 } // namespace
@@ -80,7 +117,7 @@ struct AudioEngine::Impl {
         ma_result result = ma_audio_buffer_ref_init(
             ma_format_f32, sound.channels(), sound.samples().data(), sound.frames(), &voice.buffer);
         if (result != MA_SUCCESS) {
-            ASTRA_CORE_ERROR("Audio: cannot play a sound: {}", describe(result));
+            ASTRA_CORE_ERROR("Audio: cannot play a sound: {}", ma_result_description(result));
             return false;
         }
         // The data is resampled from its own rate (0, the default, would mean the engine's).
@@ -89,7 +126,7 @@ struct AudioEngine::Impl {
             &engine, &voice.buffer, MA_SOUND_FLAG_NO_SPATIALIZATION, &group, &voice.sound);
         if (result != MA_SUCCESS) {
             ma_audio_buffer_ref_uninit(&voice.buffer);
-            ASTRA_CORE_ERROR("Audio: cannot play a sound: {}", describe(result));
+            ASTRA_CORE_ERROR("Audio: cannot play a sound: {}", ma_result_description(result));
             return false;
         }
         ma_sound_set_volume(&voice.sound, std::max(options.volume, 0.0F));
@@ -167,7 +204,7 @@ AudioEngine::AudioEngine(const AudioSettings& settings, std::filesystem::path ro
             a.device = true;
         } else {
             ASTRA_CORE_WARN("Audio: no output device ({}); continuing without sound",
-                            describe(result));
+                            ma_result_description(result));
         }
     }
     if (!a.device) {
@@ -175,7 +212,7 @@ AudioEngine::AudioEngine(const AudioSettings& settings, std::filesystem::path ro
         result = ma_engine_init(&config, &a.engine);
         if (result != MA_SUCCESS) {
             throw std::runtime_error(
-                std::format("Audio: cannot start the mixer: {}", describe(result)));
+                std::format("Audio: cannot start the mixer: {}", ma_result_description(result)));
         }
     }
     if (ma_sound_group_init(&a.engine, 0, nullptr, &a.effects) != MA_SUCCESS ||
@@ -214,41 +251,12 @@ const Sound& AudioEngine::sound(const std::filesystem::path& path)
         return *it->second;
     }
 
-    // Decoded to 32-bit floats at the file's own rate and channel count.
-    const ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 0, 0);
-    ma_decoder decoder;
-    const ma_result result = ma_decoder_init_file(full.c_str(), &config, &decoder);
-    if (result != MA_SUCCESS) {
-        throw std::runtime_error(
-            std::format("Cannot load sound '{}': {}", full.string(), describe(result)));
-    }
-    const std::uint32_t channels = decoder.outputChannels;
-    const std::uint32_t sampleRate = decoder.outputSampleRate;
-    std::vector<float> samples;
-    ma_uint64 length = 0;
-    if (ma_decoder_get_length_in_pcm_frames(&decoder, &length) == MA_SUCCESS && length > 0) {
-        samples.reserve(static_cast<std::size_t>(length) * channels);
-    }
-    // Read in chunks until the end: the length is not known in advance for every format.
-    constexpr ma_uint64 kChunk = 4096;
-    std::vector<float> chunk(static_cast<std::size_t>(kChunk) * channels);
-    for (;;) {
-        ma_uint64 read = 0;
-        const ma_result status = ma_decoder_read_pcm_frames(&decoder, chunk.data(), kChunk, &read);
-        samples.insert(samples.end(), chunk.begin(),
-                       chunk.begin() + static_cast<std::ptrdiff_t>(read * channels));
-        if (status != MA_SUCCESS || read < kChunk) {
-            break;
-        }
-    }
-    ma_decoder_uninit(&decoder);
-    if (samples.empty()) {
-        throw std::runtime_error(std::format("Sound '{}' has no audio", full.string()));
-    }
+    Decoded decoded = decodeFile(full);
     auto& slot = a.sounds[key];
-    slot = std::make_unique<Sound>(Sound::Key{}, std::move(samples), channels, sampleRate);
+    slot = std::make_unique<Sound>(Sound::Key{}, std::move(decoded.samples), decoded.channels,
+                                   decoded.sampleRate);
     ASTRA_CORE_TRACE("Audio: loaded '{}' ({:.2f} s, {} Hz, {} ch)", key, slot->duration(),
-                     sampleRate, channels);
+                     decoded.sampleRate, decoded.channels);
     return *slot;
 }
 
@@ -261,10 +269,13 @@ const Sound& AudioEngine::addSound(const std::string& name, std::vector<float> s
     if (samples.size() % channels != 0) {
         throw std::invalid_argument("Sound sample count must be a multiple of the channels");
     }
-    auto& slot = m_impl->sounds[name];
-    ASTRA_ASSERT(slot == nullptr, "a sound with this name exists already");
-    slot = std::make_unique<Sound>(Sound::Key{}, std::move(samples), channels, sampleRate);
-    return *slot;
+    // Replacing a sound would free samples that voices may still be playing.
+    const auto [it, added] = m_impl->sounds.try_emplace(name);
+    if (!added) {
+        throw std::invalid_argument(std::format("A sound named '{}' exists already", name));
+    }
+    it->second = std::make_unique<Sound>(Sound::Key{}, std::move(samples), channels, sampleRate);
+    return *it->second;
 }
 
 std::size_t AudioEngine::soundCount() const
@@ -452,11 +463,6 @@ std::size_t AudioEngine::readFrames(std::span<float> out)
     ma_uint64 read = 0;
     ma_engine_read_pcm_frames(&m_impl->engine, out.data(), frames, &read);
     return static_cast<std::size_t>(read);
-}
-
-const std::filesystem::path& AudioEngine::root() const
-{
-    return m_impl->root;
 }
 
 } // namespace astra2d

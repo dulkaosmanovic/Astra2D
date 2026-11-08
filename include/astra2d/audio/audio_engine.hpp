@@ -123,8 +123,8 @@ public:
     const Sound& sound(const std::filesystem::path& path);
     /// Adds a sound made by the game, e.g. synthesized at run time: @p samples are interleaved
     /// 32-bit floats in [-1, 1]. Stored under @p name, which sound() then finds too.
-    /// @throws std::invalid_argument if channels or sampleRate is 0, or the sample count is not a
-    ///         multiple of @p channels.
+    /// @throws std::invalid_argument if channels or sampleRate is 0, the sample count is not a
+    ///         multiple of @p channels, or a sound named @p name exists already.
     const Sound& addSound(const std::string& name, std::vector<float> samples,
                           std::uint32_t channels, std::uint32_t sampleRate);
     /// Number of sounds loaded or added.
@@ -188,9 +188,6 @@ public:
     /// into @p out (interleaved floats) and returns the number of frames written. With a device the
     /// device pulls the audio itself and this returns 0.
     std::size_t readFrames(std::span<float> out);
-
-    /// The directory relative sound paths are resolved against.
-    [[nodiscard]] const std::filesystem::path& root() const;
 
 private:
     struct Impl;
