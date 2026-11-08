@@ -86,7 +86,7 @@ m_camera.fitArea({640.0F, 360.0F});
 ```
 
 The camera computes everything on the CPU and has no OpenGL state, so its maths is unit-tested
-(`tests/test_camera.cpp`). A view height of 720 with a 720-pixel-high window maps one world unit
+(`tests/renderer/test_camera.cpp`). A view height of 720 with a 720-pixel-high window maps one world unit
 to one pixel; a game with 16-pixel tiles might instead use a view height of 15 and size its
 sprites 1×1, so that one world unit is one tile.
 
@@ -165,7 +165,7 @@ shader therefore selects the texture with a `switch` over the slot, in which eve
 constant index, instead of the common but technically undefined `uTextures[vSlot]`.
 
 The batching rules contain no OpenGL calls; they live in an internal `QuadBatch` class that is
-unit-tested directly (`tests/test_quad_batch.cpp`): slot assignment, a full batch, all slots taken.
+unit-tested directly (`tests/renderer/test_quad_batch.cpp`): slot assignment, a full batch, all slots taken.
 
 ### Measuring it: renderer_stress
 
@@ -293,7 +293,7 @@ m_renderer.end();
 - Pixel fonts stay sharp when baked at their design size, drawn at whole multiples of it and placed
   on whole pixels with `TextureFilter::Nearest`. Smooth fonts look best baked at the size they are
   drawn at, with `Linear`.
-- Layout and measurement run on the CPU and are unit-tested (`tests/test_font.cpp`).
+- Layout and measurement run on the CPU and are unit-tested (`tests/renderer/test_font.cpp`).
 
 The example font is *Press Start 2P* by CodeMan38, under the SIL Open Font License
 (`examples/assets/fonts/OFL.txt`). Kerning is not applied; it matters little for pixel and monospaced fonts.

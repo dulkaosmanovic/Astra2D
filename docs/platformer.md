@@ -48,7 +48,7 @@ collects coins, stomps crawlers, avoids spikes and lava, and reaches the flag.
 ## Code structure
 
 The game is split by what each part does, and the parts that do not draw are unit-tested
-(`tests/test_platformer.cpp`):
+(`tests/examples/test_platformer.cpp`):
 
 | File | Lines | What |
 |---|---|---|

@@ -81,8 +81,6 @@ public:
 
     /// Number of textures currently loaded.
     [[nodiscard]] std::size_t textureCount() const { return m_textures.size(); }
-    /// Number of shaders currently loaded.
-    [[nodiscard]] std::size_t shaderCount() const { return m_shaders.size(); }
 
     /// Where a texture loaded by this cache came from.
     struct TextureSource {
@@ -101,6 +99,10 @@ private:
     // Remembers how to reload an asset when one of its files changes.
     void watch(const std::vector<std::filesystem::path>& files, const std::string& description,
                const std::function<void()>& reload);
+    // Loads into @p cache on first use and watches @p files to reload it in place.
+    template <typename T, typename Load>
+    T& loadWatched(ResourceCache<T>& cache, const std::string& key, const Load& load,
+                   const std::vector<std::filesystem::path>& files, const std::string& description);
 
     struct Reloader {
         std::string description;

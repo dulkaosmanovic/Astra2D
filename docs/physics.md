@@ -97,7 +97,7 @@ Every point carries a **feature id** (which faces and corners made it), so the s
 with the same point in the next step.
 
 All pair tests are in `include/astra2d/physics/collision.hpp` and are tested on their own
-(`tests/test_collision.cpp`), including the agreement of the AABB fast paths with the general
+(`tests/physics/test_collision.cpp`), including the agreement of the AABB fast paths with the general
 polygon code.
 
 ## Broad phase (E3)
@@ -257,7 +257,7 @@ it. So it is opt-in, for projectiles. A test shoots a ball at 300 m/s at a 10 cm
 
 The world gives the same result for the same inputs: bodies, shapes and contacts are kept in
 creation and key order, pairs are sorted before the narrow phase, and nothing depends on hash order
-or addresses. Replays and lockstep networking need this; `tests/test_physics.cpp` checks that two
+or addresses. Replays and lockstep networking need this; `tests/physics/test_physics.cpp` checks that two
 runs, and runs with the three broad phases, give bit-identical positions. (Different compilers,
 flags or CPUs may round differently.)
 

@@ -150,7 +150,7 @@ once it is pressed again.
 
 @ref astra2d::Window installs the GLFW callbacks and forwards each event to `Input::onKey()`,
 `onMouseButton()` and so on. Because `Input` itself knows nothing about GLFW, its behaviour is
-fully covered by unit tests that feed it synthetic events (`tests/test_input.cpp`). The @ref
+fully covered by unit tests that feed it synthetic events (`tests/core/test_input.cpp`). The @ref
 astra2d::Key and @ref astra2d::MouseButton values equal the GLFW codes, which is checked at compile
 time, so no translation table is needed.
 
@@ -199,7 +199,7 @@ velocity.x = actions.axis("move_x", input()) * speed;
 Each map reads one gamepad, so local multiplayer uses one map per player. Asking for an action that
 was never bound fails an assertion in debug builds: such a name is almost always a typo, which would
 otherwise silently do nothing. The class is plain logic over Input and is unit-tested
-(`tests/test_actions.cpp`).
+(`tests/core/test_actions.cpp`).
 
 ## Events
 

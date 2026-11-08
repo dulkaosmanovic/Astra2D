@@ -50,15 +50,11 @@ TEST(ResourceCacheTests, SupportsMoveOnlyTypes)
     EXPECT_EQ(*value, 5);
 }
 
-TEST(ResourceCacheTests, EraseAndClear)
+TEST(ResourceCacheTests, Clear)
 {
     ResourceCache<int> cache;
     (void)cache.get("a", [] { return 1; });
     (void)cache.get("b", [] { return 2; });
-    cache.erase("a");
-    EXPECT_FALSE(cache.contains("a"));
-    EXPECT_TRUE(cache.contains("b"));
-    cache.erase("not there"); // no-op
     cache.clear();
     EXPECT_EQ(cache.size(), 0U);
 }

@@ -33,20 +33,29 @@ void AssetCache::watch(const std::vector<std::filesystem::path>& files,
     }
 }
 
+template <typename T, typename Load>
+T& AssetCache::loadWatched(ResourceCache<T>& cache, const std::string& key, const Load& load,
+                           const std::vector<std::filesystem::path>& files,
+                           const std::string& description)
+{
+    const bool loaded = cache.contains(key);
+    T& asset = cache.get(key, load);
+    if (!loaded) {
+        watch(files, description, [&cache, key, load] { *cache.find(key) = load(); });
+    }
+    return asset;
+}
+
 Texture2D& AssetCache::texture(const std::filesystem::path& path, const TextureSettings& settings)
 {
     const std::filesystem::path file = resolve(path);
     const std::string key =
         std::format("{}|{}|{}", file.string(), static_cast<int>(settings.filter),
                     static_cast<int>(settings.wrap));
-    const bool loaded = m_textures.contains(key);
-    Texture2D& texture = m_textures.get(key, [&] { return Texture2D::fromFile(file, settings); });
-    if (!loaded) {
-        m_textureSources[&texture] = {.path = path, .settings = settings};
-        watch({file}, "texture " + file.string(), [this, key, file, settings] {
-            *m_textures.find(key) = Texture2D::fromFile(file, settings);
-        });
-    }
+    Texture2D& texture = loadWatched(m_textures, key, [file, settings] {
+        return Texture2D::fromFile(file, settings);
+    }, {file}, "texture " + file.string());
+    m_textureSources.try_emplace(&texture, path, settings); // keeps the first spelling
     return texture;
 }
 
@@ -56,27 +65,17 @@ Shader& AssetCache::shader(const std::filesystem::path& vertexPath,
     const std::filesystem::path vertex = resolve(vertexPath);
     const std::filesystem::path fragment = resolve(fragmentPath);
     const std::string key = vertex.string() + "|" + fragment.string();
-    const bool loaded = m_shaders.contains(key);
-    Shader& shader = m_shaders.get(key, [&] { return Shader::fromFiles(vertex, fragment); });
-    if (!loaded) {
-        watch({vertex, fragment}, "shader " + key, [this, key, vertex, fragment] {
-            *m_shaders.find(key) = Shader::fromFiles(vertex, fragment);
-        });
-    }
-    return shader;
+    return loadWatched(m_shaders, key, [vertex, fragment] {
+        return Shader::fromFiles(vertex, fragment);
+    }, {vertex, fragment}, "shader " + key);
 }
 
 Shader& AssetCache::effect(const std::filesystem::path& fragmentPath)
 {
     const std::filesystem::path fragment = resolve(fragmentPath);
-    const std::string key = "effect|" + fragment.string();
-    const bool loaded = m_shaders.contains(key);
-    Shader& shader = m_shaders.get(key, [&] { return PostProcess::loadEffect(fragment); });
-    if (!loaded) {
-        watch({fragment}, "effect " + fragment.string(),
-              [this, key, fragment] { *m_shaders.find(key) = PostProcess::loadEffect(fragment); });
-    }
-    return shader;
+    return loadWatched(m_shaders, "effect|" + fragment.string(), [fragment] {
+        return PostProcess::loadEffect(fragment);
+    }, {fragment}, "effect " + fragment.string());
 }
 
 std::size_t AssetCache::reloadChanged()
