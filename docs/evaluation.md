@@ -11,7 +11,7 @@ they can be repeated; the numbers on this page come from one run of `scripts/ben
 <li>**E2:** at 1M objects the ECS updates 2.6× faster than OOP objects, 5× faster than scattered ones.</li>
 <li>**E3:** at 5,000 bodies the uniform grid makes the physics step 68× faster than brute force.</li>
 <li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
-<li>**E5:** the complete platformer is 15 % of the engine's size.</li>
+<li>**E5:** the complete platformer is 19 % of the engine's size.</li>
 </ul></div>
 
 Setup of the runs:
@@ -175,7 +175,7 @@ bouncing ball neither dies down nor climbs.
 
 ## E5: Is the engine usable?
 
-The platformer (@ref platformer_guide) is a complete game with three levels, enemies, hazards,
+The platformer (@ref platformer_guide) is a complete game with four planets (levels), enemies, hazards,
 sound and a HUD, written only against the public API. `scripts/bench_usability.py` counts its code
 against the engine's and lists the engine names it uses.
 
@@ -184,11 +184,11 @@ against the engine's and lists the engine names it uses.
 | part | code lines | comment lines |
 |---|---:|---:|
 | engine (include/ + src/) | 10,089 | 2,136 |
-| unit tests | 4,969 | 249 |
-| platformer (the game) | 1,531 | 159 |
+| unit tests | 4,983 | 249 |
+| platformer (the game) | 1,919 | 203 |
 | other examples | 42 to 520 each | |
 
-**The game is 15 % of the engine's size.** It uses 43 engine names from all eight modules: most
+**The game is 19 % of the engine's size.** It uses 44 engine names from all eight modules: most
 from the scene (19: entities, components, the physics system, Tiled maps) and the renderer (10),
 and only a few from the lower layers (`Application`, `ActionMap`, `AudioEngine`, `AssetCache`). That
 is the intended shape: a game works with the high-level API and does not touch OpenGL, the physics
@@ -200,7 +200,7 @@ the size of the engine, which is what made the refactorings during development s
 
 | Check | Result |
 |---|---|
-| Unit tests (GoogleTest), AddressSanitizer + UndefinedBehaviorSanitizer | 319 passed, 2 skipped (a locale that is not installed; the assert test, which is skipped when asserts are on) |
+| Unit tests (GoogleTest), AddressSanitizer + UndefinedBehaviorSanitizer | 320 passed, 2 skipped (a locale that is not installed; the assert test, which is skipped when asserts are on) |
 | The same tests under Valgrind (memcheck, leak check) | no errors, no definite or indirect leaks (the 7 death tests are left out: they abort on purpose) |
 | GCC and Clang with `-Dwerror=true` | no warnings |
 | clang-format and clang-tidy (bugprone, cppcoreguidelines, modernize, performance, readability, static analyzer) | no findings |

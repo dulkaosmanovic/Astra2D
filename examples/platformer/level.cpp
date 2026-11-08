@@ -35,6 +35,31 @@ constexpr bool isSolidFrame(int frame)
     }
 }
 
+constexpr bool isOneWayFrame(int frame)
+{
+    return frame == tile::kPlank || frame == tile::kCloud;
+}
+
+// How a thing is written in a text map and named in a Tiled map.
+struct ThingCode {
+    char symbol;
+    std::string_view name;
+    ThingKind kind;
+};
+constexpr std::array<ThingCode, 11> kThingCodes = {{
+    {.symbol = 'P', .name = "player", .kind = ThingKind::Player},
+    {.symbol = 'o', .name = "coin", .kind = ThingKind::Coin},
+    {.symbol = 'e', .name = "crawler", .kind = ThingKind::Crawler},
+    {.symbol = 'v', .name = "flyer", .kind = ThingKind::Flyer},
+    {.symbol = 'k', .name = "spiker", .kind = ThingKind::Spiker},
+    {.symbol = 'j', .name = "spring", .kind = ThingKind::Spring},
+    {.symbol = 'H', .name = "heart", .kind = ThingKind::Heart},
+    {.symbol = 'M', .name = "platform", .kind = ThingKind::Platform},
+    {.symbol = 'V', .name = "lift", .kind = ThingKind::Lift},
+    {.symbol = 'C', .name = "checkpoint", .kind = ThingKind::Checkpoint},
+    {.symbol = 'F', .name = "goal", .kind = ThingKind::Goal},
+}};
+
 // The rows of a text map, top first, all the same width.
 class TextGrid {
 public:
@@ -92,6 +117,8 @@ int textTile(const TextGrid& grid, int x, int y)
         return tile::kBrick;
     case 'L':
         return tile::kLava;
+    case '~':
+        return tile::kCloud;
     default:
         return tile::kNone;
     }
@@ -108,31 +135,18 @@ int decorTile(char c)
         return tile::kRock;
     case 's':
         return tile::kSign;
+    case 'c':
+        return tile::kCrystal;
+    case 'u':
+        return tile::kMushroom;
+    case 'g':
+        return tile::kTuft;
+    case 't':
+        return tile::kTorch;
+    case 'y':
+        return tile::kPine;
     default:
         return tile::kNone;
-    }
-}
-
-bool thingKind(char c, ThingKind& kind)
-{
-    switch (c) {
-    case 'P':
-        kind = ThingKind::Player;
-        return true;
-    case 'o':
-        kind = ThingKind::Coin;
-        return true;
-    case 'e':
-        kind = ThingKind::Enemy;
-        return true;
-    case 'C':
-        kind = ThingKind::Checkpoint;
-        return true;
-    case 'F':
-        kind = ThingKind::Goal;
-        return true;
-    default:
-        return false;
     }
 }
 
@@ -251,8 +265,8 @@ void addTextCell(Level& level, const TextGrid& grid, int x, int row, int line)
     const char c = grid.at(x, row);
     const int frame = textTile(grid, x, row);
     const int decor = decorTile(c);
-    ThingKind kind{};
-    const bool isThing = thingKind(c, kind);
+    const auto* const thing = std::ranges::find(kThingCodes, c, &ThingCode::symbol);
+    const bool isThing = thing != kThingCodes.end();
     if (frame == tile::kNone && decor == tile::kNone && !isThing && c != '.' && c != ' ') {
         fail(std::format("line {}, column {}: unknown tile '{}'", line, x + 1, c));
     }
@@ -260,13 +274,13 @@ void addTextCell(Level& level, const TextGrid& grid, int x, int row, int line)
     level.decor[cell(level, x, y)] = decor;
     if (isSolidFrame(frame)) {
         level.solid.set(x, y, astra2d::TileCollision::Solid);
-    } else if (frame == tile::kPlank) {
+    } else if (isOneWayFrame(frame)) {
         level.platforms.set(x, y, astra2d::TileCollision::OneWay);
     } else if (frame == tile::kSpikes || frame == tile::kLava) {
         level.hazards.push_back({.x = x, .y = y, .frame = frame});
     }
     if (isThing) {
-        level.things.push_back({.kind = kind, .position = level.cellCenter(x, y)});
+        level.things.push_back({.kind = thing->kind, .position = level.cellCenter(x, y)});
     }
 }
 
@@ -296,19 +310,13 @@ void readTiledObjects(const astra2d::TiledMap& map, Level& level)
     if (objects == nullptr) {
         return;
     }
-    using Kind = std::pair<std::string_view, ThingKind>;
-    static constexpr std::array<Kind, 5> kKinds = {{{"player", ThingKind::Player},
-                                                    {"coin", ThingKind::Coin},
-                                                    {"enemy", ThingKind::Enemy},
-                                                    {"checkpoint", ThingKind::Checkpoint},
-                                                    {"goal", ThingKind::Goal}}};
     for (const astra2d::TiledObject& object : objects->objects) {
-        const auto* const kind = std::ranges::find(kKinds, object.type, &Kind::first);
-        if (kind == kKinds.end()) {
+        const auto* const thing = std::ranges::find(kThingCodes, object.type, &ThingCode::name);
+        if (thing == kThingCodes.end()) {
             fail(std::format("object {} has the unknown class '{}'", object.id, object.type));
         }
         level.things.push_back(
-            {.kind = kind->second, .position = map.objectCenter(object, kTileSize)});
+            {.kind = thing->kind, .position = map.objectCenter(object, kTileSize)});
     }
 }
 

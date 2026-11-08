@@ -1,5 +1,6 @@
-// Astra Run: the showcase platformer of Astra2D. Guide a stranded astronaut through three levels:
-// run, jump, collect coins, stomp crawlers, avoid spikes and lava, and reach the flag.
+// Astra Run: the showcase platformer of Astra2D. Guide a stranded astronaut home across four
+// planets: run, jump, collect coins, stomp crawlers and bats, avoid spikers, spikes and lava, ride
+// moving platforms and springs, and reach the rocket that flies to the next planet.
 //
 // Controls (keyboard / gamepad):
 //   A D, arrows / left stick, d-pad    run
@@ -16,8 +17,9 @@
 // `platformer 2` starts at level 2 (handy while editing a level).
 //
 // The code is split by what it does:
-//   level.hpp/.cpp        levels as data: text maps (level1.txt) and Tiled maps (level2/3.tmj)
+//   level.hpp/.cpp        levels as data: text maps (level1.txt) and Tiled maps (level2-4.tmj)
 //   controller.hpp/.cpp   movement rules: acceleration, jump, coyote time, jump buffering
+//   looks.hpp             how each planet looks: sky, stars, planet in the sky, parallax layers
 //   game.cpp              the game: entities, systems, physics events, camera, HUD, sound
 // level and controller do not use OpenGL and are unit-tested in tests/examples/test_platformer.cpp.
 // The assets are made by scripts/generate_platformer_assets.py (original, CC0).

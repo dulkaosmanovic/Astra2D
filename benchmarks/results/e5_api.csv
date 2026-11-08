@@ -11,6 +11,7 @@ core,Key,astra2d/core/input.hpp
 debug,FrameStats,astra2d/debug/frame_stats.hpp
 debug,drawPhysicsDebug,astra2d/debug/physics_debug_draw.hpp
 ecs,Entity,astra2d/ecs/entity.hpp
+physics,BodyType,astra2d/physics/world.hpp
 physics,TileCollision,astra2d/physics/tilemap.hpp
 physics,TileGrid,astra2d/physics/tilemap.hpp
 renderer,CameraShake,astra2d/renderer/camera_shake.hpp

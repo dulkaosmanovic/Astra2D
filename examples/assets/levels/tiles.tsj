@@ -5,10 +5,10 @@
  "name": "tiles",
  "image": "../textures/tiles.png",
  "imagewidth": 144,
- "imageheight": 36,
+ "imageheight": 54,
  "tilewidth": 16,
  "tileheight": 16,
- "tilecount": 16,
+ "tilecount": 24,
  "columns": 8,
  "margin": 1,
  "spacing": 2,
@@ -130,6 +130,16 @@
      "name": "hazard",
      "type": "bool",
      "value": true
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "properties": [
+    {
+     "name": "collision",
+     "type": "string",
+     "value": "oneway"
     }
    ]
   }

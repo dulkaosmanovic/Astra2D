@@ -46,7 +46,7 @@ coloured lines without touching OpenGL, so `tests/debug/test_debug.cpp` checks t
 each line with the batched renderer, so a few thousand debug lines cost one or two draw calls.
 
 <div class="astra-figures">
-<div class="astra-figure"><img src="platformer_debug.png" alt="The platformer with F3: the player's box and velocity (cyan), coin and lava triggers (yellow), the one-way plank, the crawler's contacts (red)"/><span>The platformer with F3: the player's box and velocity (cyan), coin and lava triggers (yellow), the one-way plank, the crawler's contacts (red)</span></div>
+<div class="astra-figure"><img src="platformer_debug.png" alt="The platformer with F3: the player's box and its contacts (red), coin and lava triggers (yellow), the bat (kinematic, blue), the moving platform and the plank (one-way, orange)"/><span>The platformer with F3: the player's box and its contacts (red), coin and lava triggers (yellow), the bat (kinematic, blue), the moving platform and the plank (one-way, orange)</span></div>
 <div class="astra-figure"><img src="physics_playground.png" alt="physics_playground with D: a bullet hitting the pyramid, a tower of boxes, bounding boxes of the static shapes"/><span>physics_playground with D: a bullet hitting the pyramid, a tower of boxes, bounding boxes of the static shapes</span></div>
 </div>
 

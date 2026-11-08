@@ -38,10 +38,28 @@ inline constexpr int kCrate = 12;
 inline constexpr int kBrick = 13;
 inline constexpr int kGrassSingle = 14;
 inline constexpr int kLava = 15;
+inline constexpr int kCrystal = 16;
+inline constexpr int kMushroom = 17;
+inline constexpr int kTuft = 18;
+inline constexpr int kTorch = 19;
+inline constexpr int kCloud = 20;
+inline constexpr int kPine = 21;
 } // namespace tile
 
 /// Something that starts somewhere in the level.
-enum class ThingKind { Player, Coin, Enemy, Checkpoint, Goal };
+enum class ThingKind {
+    Player,     ///< Where the player starts.
+    Coin,       ///< A coin to collect.
+    Crawler,    ///< Walks along its floor; can be stomped.
+    Flyer,      ///< A bat that flies back and forth; can be stomped.
+    Spiker,     ///< Walks like a crawler, but hurts from above too.
+    Spring,     ///< Launches the player high up.
+    Heart,      ///< Gives back a heart.
+    Platform,   ///< A moving platform: goes 4 tiles to the right and back.
+    Lift,       ///< A moving platform that goes 4 tiles up and back.
+    Checkpoint, ///< A beacon: where the player comes back after a fall.
+    Goal,       ///< The rocket that ends the level.
+};
 
 /// A ThingKind at a world position (the centre of its tile).
 struct Thing {
@@ -66,9 +84,10 @@ struct Level {
     std::vector<int> ground; ///< Tile frame per cell (tile::kNone for empty), row 0 at the bottom.
     std::vector<int> decor;  ///< Decoration drawn behind the ground, same layout.
     astra2d::TileGrid solid; ///< Tiles that collide from every side.
-    astra2d::TileGrid platforms; ///< One-way planks (their own collider, so the player can drop).
+    astra2d::TileGrid platforms; ///< One-way planks and clouds (their own collider, so the player
+                                 ///< can drop through them).
     std::vector<Hazard> hazards; ///< Spikes and lava.
-    std::vector<Thing> things;   ///< Player start, coins, enemies, checkpoints and goals.
+    std::vector<Thing> things;   ///< Player start, coins, enemies, platforms, goals and more.
 
     /// Tile frame of @p layer at column @p x, row @p y; tile::kNone outside the level.
     [[nodiscard]] int at(const std::vector<int>& layer, int x, int y) const;
@@ -89,8 +108,8 @@ struct Level {
 
 /// Makes a level from a Tiled map: tile layers "ground" (required; tiles with the property
 /// `collision` "solid" / "oneway" collide, tiles with `hazard` hurt) and "decor" (optional), an
-/// object layer "objects" whose objects have the class player, coin, enemy, checkpoint or goal,
-/// and the map properties `name` and `hint`.
+/// object layer "objects" whose objects have the class player, coin, crawler, flyer, spiker,
+/// spring, heart, platform, lift, checkpoint or goal, and the map properties `name` and `hint`.
 /// @throws std::runtime_error as parseTextLevel(), or if a layer is missing or the tiles are not
 ///         16x16.
 [[nodiscard]] Level levelFromTiled(const astra2d::TiledMap& map);
