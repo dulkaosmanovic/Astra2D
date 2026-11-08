@@ -151,9 +151,6 @@ public:
     /// Sets the counters to zero, e.g. at the start of every frame.
     void resetStats();
 
-    /// Texture units a batch can use (at most 16; slot 0 holds the white texture).
-    [[nodiscard]] int textureSlots() const;
-
 private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;
