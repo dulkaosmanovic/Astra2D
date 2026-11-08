@@ -5,72 +5,39 @@
 <div class="astra-summary"><b>In short</b>
 <ul>
 <li>Eight modules in three layers. A module uses modules in its own or a lower layer, never a higher one.</li>
-<li>`ecs`, `physics` and `audio` do not touch OpenGL, so they are tested and benchmarked without a GPU.</li>
+<li>The ECS, physics and audio modules do not touch OpenGL, so they are tested and benchmarked without a GPU.</li>
 <li>Games include only the public headers in `include/astra2d/`.</li>
 </ul></div>
 
 ## Layers
 
-The engine is split into modules arranged in layers. A module may use modules in the same or a
-lower layer, never a higher one. Games use only the public headers in `include/astra2d/`.
+The engine is split into eight modules arranged in layers. A module may use modules in the same or
+a lower layer, never a higher one. Games use only the public headers in `include/astra2d/`.
 
-@dot
-digraph layers {
-    rankdir=TB;
-    nodesep=0.25;
-    ranksep=0.35;
-    node [shape=box, style="rounded,filled", fontname="Helvetica,Arial,sans-serif", fontsize=11,
-          color="#2a7fae", fillcolor="#eaf4fa", width=1.6];
-    edge [color="#5a7b91", arrowsize=0.7];
+<div class="astra-layers">
+<div class="astra-layer"><span class="astra-layer-name">Games</span><div class="astra-layer-modules"><span class="astra-module game">examples/ and your game</span></div></div>
+<div class="astra-layer"><span class="astra-layer-name">High level</span><div class="astra-layer-modules">@ref scene "scene" @ref debug "debug"</div></div>
+<div class="astra-layer"><span class="astra-layer-name">Systems</span><div class="astra-layer-modules">@ref renderer "renderer" @ref assets "assets" @ref ecs "ecs" @ref physics "physics" @ref audio "audio"</div></div>
+<div class="astra-layer"><span class="astra-layer-name">Foundation</span><div class="astra-layer-modules">@ref core "core"</div></div>
+</div>
 
-    game     [label="Games and demos\nexamples/", fillcolor="#2a7fae", fontcolor="white"];
-
-    subgraph cluster_high {
-        label="High level"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
-        style="rounded,dashed"; color="#9fbfd3";
-        scene [label="scene", fillcolor="#1a2f55", fontcolor="white", URL="\ref scene"];
-        debug [label="debug", fillcolor="#1a2f55", fontcolor="white", URL="\ref debug"];
-    }
-    subgraph cluster_systems {
-        label="Systems"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
-        style="rounded,dashed"; color="#9fbfd3";
-        ecs      [label="ecs", fillcolor="#1a2f55", fontcolor="white", URL="\ref ecs"];
-        physics  [label="physics", fillcolor="#1a2f55", fontcolor="white", URL="\ref physics"];
-        renderer [label="renderer", fillcolor="#1a2f55", fontcolor="white", URL="\ref renderer"];
-        assets   [label="assets", fillcolor="#1a2f55", fontcolor="white", URL="\ref assets"];
-        audio    [label="audio", fillcolor="#1a2f55", fontcolor="white", URL="\ref audio"];
-    }
-    subgraph cluster_base {
-        label="Foundation"; fontname="Helvetica,Arial,sans-serif"; fontsize=10; fontcolor="#5a7b91";
-        style="rounded,dashed"; color="#9fbfd3";
-        core [label="core", fillcolor="#1a2f55", fontcolor="white", URL="\ref core"];
-    }
-
-    game -> scene; game -> debug; game -> audio;
-    scene -> ecs; scene -> physics; scene -> renderer; scene -> assets;
-    debug -> renderer; debug -> physics;
-    assets -> renderer;
-    renderer -> core; assets -> core; ecs -> core; audio -> core; physics -> core;
-}
-@enddot
-
-| Module | Responsibility | Uses OpenGL | Status |
+| Module | Responsibility | Uses | OpenGL |
 |---|---|---|---|
-| @ref core "core" | Application, main loop, window, input, timestep, logging, assertions | yes | ready |
-| @ref assets "assets" | Load each texture and shader file once | yes | ready |
-| @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, debug lines | yes | ready |
-| @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | no | ready |
-| @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | no | ready |
-| @ref audio "audio" | Sound effects and music: decoding, voices, buses, headless mixing | no | ready |
-| @ref scene "scene" | Scene with systems, components, hierarchy, sprite rendering, scene files, Tiled maps | rendering only | ready |
-| @ref debug "debug" | Physics debug view, frame statistics | drawing only | ready |
+| @ref core "core" | Application, main loop, window, input, timestep, logging, assertions | GLFW, GLAD, spdlog | yes |
+| @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, text | core | yes |
+| @ref assets "assets" | Load each texture, shader and font once; hot reloading | renderer, core | yes |
+| @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | core | no |
+| @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | core, GLM | no |
+| @ref audio "audio" | Sound effects and music: decoding, voices, buses, headless mixing | core, miniaudio | no |
+| @ref scene "scene" | Systems, components, hierarchy, sprite rendering, scene files, Tiled maps | ecs, physics, renderer, assets | for drawing |
+| @ref debug "debug" | Physics debug view, frame statistics | physics, renderer | for drawing |
 
-There is no separate math module (the plan had one): GLM's vector types are used directly
-throughout the API, and the 2D geometry the engine needs (rotations, poses, bounding boxes, convex
-polygons) lives in `physics/geometry.hpp`, the only place that uses it beyond GLM.
+Because the ECS, physics and audio modules do not depend on OpenGL, they are unit-tested and benchmarked
+headless, which is what the evaluation relies on.
 
-`ecs`, `physics` and `audio` do not depend on OpenGL. They can be unit-tested and benchmarked
-headless, which is what the evaluation chapter relies on.
+There is no separate math module: GLM's vector types are used directly throughout the API, and the
+2D geometry the engine needs (rotations, poses, bounding boxes, convex polygons) lives in
+`physics/geometry.hpp`.
 
 ## One frame through the modules
 
@@ -180,7 +147,8 @@ the unit tests, which, like the examples, are skipped when Astra2D is a subproje
   context creation) throw exceptions.
 - Formatting follows `.clang-format` (4 spaces, 100 columns, function braces on their own line) and
   the code passes the `.clang-tidy` checks (bugprone, cppcoreguidelines, modernize, performance,
-  readability, the clang static analyzer, and more). Both are enforced in CI.
+  readability, the clang static analyzer, and more). Both are enforced in CI; run
+  `scripts/docker-entrypoint.sh lint` before pushing, or let the editor format on save.
 
 <div class="astra-pager">
 <span class="astra-pager-prev">← @ref getting-started "Getting started"</span>

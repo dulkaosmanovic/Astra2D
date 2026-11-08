@@ -1,4 +1,4 @@
-# Renderer: camera, batching, sprites and text {#renderer_guide}
+# Renderer {#renderer_guide}
 
 [TOC]
 
@@ -51,6 +51,11 @@ ones, and alpha blending is on. All sizes and positions are in world units, with
 | @ref astra2d::Renderer2D::drawSprite "drawSprite()" | a Sprite (a texture region, e.g. a sprite sheet frame), optionally mirrored |
 | @ref astra2d::Renderer2D::draw "draw(Quad)" | any quad, with every option as a designated initializer |
 | @ref astra2d::Renderer2D::drawLine "drawLine()", @ref astra2d::Renderer2D::drawRect "drawRect()", @ref astra2d::Renderer2D::drawCircle "drawCircle()" | debug outlines of a given thickness |
+
+<div class="astra-figures">
+<div class="astra-figure"><img src="shapes.png" alt="<code>examples/shapes</code>: quads, rotation, alpha blending and debug outlines"/><span><code>examples/shapes</code>: quads, rotation, alpha blending and debug outlines</span></div>
+<div class="astra-figure"><img src="sprites.png" alt="<code>examples/sprites</code>: sprite sheet frames and a walk animation"/><span><code>examples/sprites</code>: sprite sheet frames and a walk animation</span></div>
+</div>
 
 ## Camera and coordinates
 
@@ -260,6 +265,12 @@ drawHud();                               // 3. HUD on top, unaffected by the eff
 The sandbox's CRT effect (`examples/assets/shaders/crt.frag`) combines colour fringes, scanlines and a
 vignette; P toggles it.
 
+<div class="astra-figures">
+<div class="astra-figure"><img src="post_processing.png" alt="<code>examples/post_processing</code>: the scene drawn into a framebuffer, then through an effect"/><span><code>examples/post_processing</code>: the scene drawn into a framebuffer, then through an effect</span></div>
+<div class="astra-figure"><img src="sandbox.png" alt="The Sandbox: parallax layers, a tiled background and the HUD, with the CRT effect"/><span>The Sandbox: parallax layers, a tiled background and the HUD, with the CRT effect</span></div>
+</div>
+
+
 ## Text
 
 Text is drawn from a **font atlas**: @ref astra2d::FontAtlas rasterizes the characters of a
@@ -286,6 +297,10 @@ m_renderer.end();
 
 The example font is *Press Start 2P* by CodeMan38, under the SIL Open Font License
 (`examples/assets/fonts/OFL.txt`). Kerning is not applied; it matters little for pixel and monospaced fonts.
+
+<div class="astra-figures single">
+<div class="astra-figure"><img src="text.png" alt="<code>examples/text</code>: a baked pixel font, Latin Extended characters, a colour per character"/><span><code>examples/text</code>: a baked pixel font, Latin Extended characters, a colour per character</span></div>
+</div>
 
 ## Textures
 

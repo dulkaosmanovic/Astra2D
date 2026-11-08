@@ -24,15 +24,8 @@ On Arch Linux, `scripts/setup.sh` installs everything, fetches the submodules an
 development build. On other distributions, install a compiler, Meson and Ninja; Meson downloads
 missing libraries (GLFW, GLM, spdlog, GoogleTest) from the wraps in `subprojects/`.
 
-## Clone
-
-The documentation theme is a git submodule, so clone recursively:
-
-```bash
-git clone --recurse-submodules https://github.com/dulkaosmanovic/Astra2D.git
-# or, in an existing clone:
-git submodule update --init
-```
+The documentation theme is a git submodule. In a clone made without `--recurse-submodules`, run
+`git submodule update --init`.
 
 ## Build
 
@@ -84,40 +77,28 @@ Add `-Dwerror=true` to any variant to treat warnings as errors, as CI does. `-Dt
 `-Dexamples=disabled` and `-Dbenchmarks=disabled` skip the unit tests, the examples and the
 benchmark programs.
 
-## Run
+## Examples
 
-Run the examples from the repository root. Each is one commented `main.cpp` in `examples/`, so
-they double as a tutorial; the table lists them from the simplest to the complete game.
+Each example is one commented `main.cpp` in `examples/`, so together they form a tutorial. Run them
+from the repository root, e.g. `./build/examples/shapes`. Start with `hello_window`, the smallest
+program (just the application loop), then go through them in this order:
 
-| Command | What it does |
-|---|---|
-| `./build/examples/hello_window` | The smallest program: a window and the application loop |
-| `./build/examples/shapes` | Quads, lines, rectangles and circles; drag to pan, wheel to zoom |
-| `./build/examples/sprites` | Textures, sprite sheets and frame animation; A/D walk |
-| `./build/examples/text` | Fonts, UTF-8 text in the world and on the screen |
-| `./build/examples/input` | Action mapping, gamepads, rebinding at run time (R), game events |
-| `./build/examples/post_processing` | Render targets and effects: 1-4 switch the effect, Tab low resolution |
-| `./build/examples/coin_collector` | A small complete game built on the Scene and ECS: title, score, lives, timer, shake, events; coins and spikes through the physics; F3 physics view, F2 frame statistics in the log |
-| `./build/examples/scene` | Entities, systems, hierarchy and signals; F5 saves and F9 loads the scene |
-| `./build/examples/physics_playground` | Physics: click spawns (1/2/3 box, circle, polygon), drag pulls, right click deletes, Space shoots a bullet, P/T build a pyramid/tower, B switches the broad phase, D debug draw, F2 frame statistics in the log |
-| `./build/examples/platformer` | **Astra Run**, the showcase game: run and jump through three levels (a text map and two Tiled maps), coins, crawlers, spikes, checkpoints, music; A/D run, Space jump, S+Space drop, P pause, M mute, F3 physics view, F2 frame statistics. `platformer 2` starts at level 2. See @ref platformer_guide |
-| `./build/examples/Sandbox` | Everything at once, with its world in a Scene: WASD / left stick move, Q/E rotate the camera, wheel zooms, click shakes, P toggles the CRT effect, B batching, Space resets. Edit `examples/assets/shaders/crt.frag` while it runs to see hot reloading |
-| `./build/examples/renderer_stress` | Thousands of moving sprites: B toggles batching, Up/Down doubles or halves the count, V toggles vsync |
-| `meson test -C build` | Runs the unit tests |
-| `ninja -C build docs` | Generates this documentation into `build/docs/html` |
+<div class="astra-gallery">
+<div class="astra-example"><img src="shapes.png" alt="shapes"/><div class="astra-example-body"><span class="astra-example-name">shapes</span><span class="astra-example-text">Quads, lines, rectangles and circles</span><span class="astra-keys">drag pans · wheel zooms</span></div></div>
+<div class="astra-example"><img src="sprites.png" alt="sprites"/><div class="astra-example-body"><span class="astra-example-name">sprites</span><span class="astra-example-text">Textures, sprite sheets and animation</span><span class="astra-keys">A/D walk</span></div></div>
+<div class="astra-example"><img src="text.png" alt="text"/><div class="astra-example-body"><span class="astra-example-name">text</span><span class="astra-example-text">Fonts and UTF-8 text, in the world and on screen</span></div></div>
+<div class="astra-example"><img src="input.png" alt="input"/><div class="astra-example-body"><span class="astra-example-name">input</span><span class="astra-example-text">Action mapping, gamepads, rebinding</span><span class="astra-keys">R rebinds jump</span></div></div>
+<div class="astra-example"><img src="post_processing.png" alt="post_processing"/><div class="astra-example-body"><span class="astra-example-name">post_processing</span><span class="astra-example-text">Render targets and effects</span><span class="astra-keys">1–4 effect · Tab low resolution</span></div></div>
+<div class="astra-example"><img src="scene.png" alt="scene"/><div class="astra-example-body"><span class="astra-example-name">scene</span><span class="astra-example-text">Entities, hierarchy, signals, scene files</span><span class="astra-keys">F5 save · F9 load</span></div></div>
+<div class="astra-example"><img src="coin_collector.png" alt="coin_collector"/><div class="astra-example-body"><span class="astra-example-name">coin_collector</span><span class="astra-example-text">A small game on the Scene and ECS</span><span class="astra-keys">F3 physics view · F2 statistics</span></div></div>
+<div class="astra-example"><img src="physics_playground.png" alt="physics_playground"/><div class="astra-example-body"><span class="astra-example-name">physics_playground</span><span class="astra-example-text">Bodies, stacks, bullets, one-way platforms</span><span class="astra-keys">click spawns · drag pulls · B broad phase · D debug</span></div></div>
+<div class="astra-example"><img src="platformer_level2.png" alt="platformer"/><div class="astra-example-body"><span class="astra-example-name">platformer</span><span class="astra-example-text"><b>Astra Run</b>, the complete game (@ref platformer_guide "guide")</span><span class="astra-keys">A/D run · Space jump · F3 physics view</span></div></div>
+<div class="astra-example"><img src="sandbox.png" alt="Sandbox"/><div class="astra-example-body"><span class="astra-example-name">Sandbox</span><span class="astra-example-text">Everything at once; edit <code>crt.frag</code> while it runs</span><span class="astra-keys">WASD · Q/E rotate · P CRT effect</span></div></div>
+<div class="astra-example"><img src="renderer_stress.jpg" alt="renderer_stress"/><div class="astra-example-body"><span class="astra-example-name">renderer_stress</span><span class="astra-example-text">Thousands of sprites, batched or not (E1)</span><span class="astra-keys">B batching · Up/Down count</span></div></div>
+</div>
 
-## Code style
-
-The code is formatted with clang-format ([`.clang-format`](https://github.com/dulkaosmanovic/Astra2D/blob/main/.clang-format))
-and checked with clang-tidy ([`.clang-tidy`](https://github.com/dulkaosmanovic/Astra2D/blob/main/.clang-tidy)).
-CI rejects unformatted code and any clang-tidy finding. Before pushing, run:
-
-```bash
-scripts/docker-entrypoint.sh lint
-```
-
-Reformat a file with `clang-format -i <file>`, or let the editor format on save (VS Code, CLion and
-others pick up `.clang-format` automatically).
+`meson test -C build` runs the unit tests; `ninja -C build docs` generates this documentation into
+`build/docs/html`.
 
 ## Your first application
 

@@ -1,4 +1,4 @@
-# ECS and scenes: entities, components, systems {#ecs_guide}
+# ECS and scenes {#ecs_guide}
 
 [TOC]
 
@@ -287,6 +287,11 @@ slower in allocation order and 5 to 6 times slower shuffled, because each object
 and carries data the update does not need. @ref evaluation has the chart and the discussion.
 
 ## Examples
+
+<div class="astra-figures">
+<div class="astra-figure"><img src="scene.png" alt="<code>examples/scene</code>: hierarchy, pickups with signals, saving and loading"/><span><code>examples/scene</code>: hierarchy, pickups with signals, saving and loading</span></div>
+<div class="astra-figure"><img src="coin_collector.png" alt="<code>examples/coin_collector</code>: a small game built from entities and systems"/><span><code>examples/coin_collector</code>: a small game built from entities and systems</span></div>
+</div>
 
 `./build/examples/coin_collector` is a small complete game on the Scene: the player, coins,
 spikes and effects are entities with engine components (Transform, SpriteRenderer, Animator,

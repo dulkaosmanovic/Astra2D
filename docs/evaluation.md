@@ -3,19 +3,7 @@
 [TOC]
 
 Each experiment answers one question about the engine's design. All of them run from scripts, so
-they can be repeated; the numbers on this page come from one run of `scripts/bench_all.sh`:
-
-| | |
-|---|---|
-| Machine | AMD Ryzen 5 3500U (4 cores, 8 threads), Radeon Vega 8 (integrated), 2019 laptop |
-| System | Arch Linux, kernel 7.2.11, Mesa 26.2.5 (radeonsi), OpenGL 4.6 core profile |
-| Build | GCC 16.2.1, `--buildtype=release` (`-O3`), commit `5bcaf36` |
-| Method | release build, vsync off, warm-up ignored, 3 to 5 runs per case as separate processes, mean ± sample standard deviation |
-
-The raw results are CSV files in `benchmarks/results/` with a `*.machine.txt` next to each;
-`benchmarks/results/summary.md` has every case, and `benchmarks/README.md` describes the programs
-and the columns. These runs were made in a normal desktop session; the final numbers for a report
-should come from a run on an otherwise idle machine (`scripts/bench_all.sh`, about ten minutes).
+they can be repeated; the numbers on this page come from one run of `scripts/bench_all.sh`.
 
 <div class="astra-summary"><b>In short</b>
 <ul>
@@ -25,6 +13,19 @@ should come from a run on an otherwise idle machine (`scripts/bench_all.sh`, abo
 <li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
 <li>**E5:** the complete platformer is 15 % of the engine's size.</li>
 </ul></div>
+
+Setup of the runs:
+
+- **Machine:** AMD Ryzen 5 3500U (4 cores, 8 threads), Radeon Vega 8 (integrated), 2019 laptop
+- **System:** Arch Linux, kernel 7.2.11, Mesa 26.2.5 (radeonsi), OpenGL 4.6 core profile
+- **Build:** GCC 16.2.1, `--buildtype=release` (`-O3`), commit `5bcaf36`
+- **Method:** release build, vsync off, warm-up ignored, 3 to 5 runs per case as separate processes, mean ± sample standard deviation
+
+The raw results are CSV files in `benchmarks/results/` with a `*.machine.txt` next to each;
+`benchmarks/results/summary.md` has every case, and `benchmarks/README.md` describes the programs
+and the columns. These runs were made in a normal desktop session; the final numbers for a report
+should come from a run on an otherwise idle machine (`scripts/bench_all.sh`, about ten minutes).
+
 
 ## E1: How much does batching help?
 
@@ -37,6 +38,10 @@ draw call with its own uniforms per sprite). Three times are measured per frame:
 - *CPU*: from `begin()` to `end()` without waiting for the GPU: building the vertices and handing
   them and the draw calls to the driver;
 - *GPU*: the GPU's own time for the same commands, from an OpenGL timer query (`GL_TIME_ELAPSED`).
+
+<div class="astra-figures single">
+<div class="astra-figure"><img src="renderer_stress.jpg" alt="<code>renderer_stress</code> with 10,000 moving sprites; B switches between batched and naive drawing"/><span><code>renderer_stress</code> with 10,000 moving sprites; B switches between batched and naive drawing</span></div>
+</div>
 
 E1 was run again at commit `7c8f862` when the CPU and GPU times were added; the other experiments
 are from `5bcaf36` (the engine code they measure did not change).
