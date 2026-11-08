@@ -1029,12 +1029,14 @@ WARN_LOGFILE           =
 INPUT                  = @SOURCE_ROOT@/docs/introduction.md \
                          @SOURCE_ROOT@/docs/getting-started.md \
                          @SOURCE_ROOT@/docs/architecture.md \
+                         @SOURCE_ROOT@/docs/guides.md \
                          @SOURCE_ROOT@/docs/core.md \
                          @SOURCE_ROOT@/docs/renderer.md \
                          @SOURCE_ROOT@/docs/ecs.md \
                          @SOURCE_ROOT@/docs/physics.md \
                          @SOURCE_ROOT@/docs/audio.md \
                          @SOURCE_ROOT@/docs/debug.md \
+                         @SOURCE_ROOT@/docs/results.md \
                          @SOURCE_ROOT@/docs/platformer.md \
                          @SOURCE_ROOT@/docs/evaluation.md \
                          @SOURCE_ROOT@/docs/comparison.md \
@@ -1875,7 +1877,7 @@ SHOW_ENUM_VALUES       = NO
 # Minimum value: 0, maximum value: 1500, default value: 250.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-TREEVIEW_WIDTH         = 300
+TREEVIEW_WIDTH         = 340
 
 # If the EXT_LINKS_IN_WINDOW option is set to YES, Doxygen will open links to
 # external symbols imported via tag files in a separate window.
