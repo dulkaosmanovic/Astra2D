@@ -29,15 +29,8 @@ public:
     /// Starts watching @p file. Its current modification time is the reference, so only later
     /// changes are reported. Watching a file twice has no effect.
     void watch(const std::filesystem::path& file);
-    /// Stops watching @p file.
-    void unwatch(const std::filesystem::path& file);
     /// Stops watching all files.
     void clear() { m_files.clear(); }
-
-    /// True if @p file is watched.
-    [[nodiscard]] bool isWatching(const std::filesystem::path& file) const;
-    /// Number of watched files.
-    [[nodiscard]] std::size_t size() const { return m_files.size(); }
 
     /// Files whose modification time changed since they were watched or last reported.
     [[nodiscard]] std::vector<std::filesystem::path> poll();

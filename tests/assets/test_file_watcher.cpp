@@ -87,15 +87,12 @@ TEST_F(FileWatcherTest, FileCreatedAfterWatchingIsReported)
     EXPECT_EQ(watcher.poll().size(), 1U);
 }
 
-TEST_F(FileWatcherTest, UnwatchAndDuplicates)
+TEST_F(FileWatcherTest, FileWatchedTwiceIsReportedOnce)
 {
     FileWatcher watcher;
     const fs::path file = write("a.frag", "1");
     watcher.watch(file);
     watcher.watch(file);
-    EXPECT_EQ(watcher.size(), 1U);
-    watcher.unwatch(file);
-    EXPECT_FALSE(watcher.isWatching(file));
     touchLater(file, 2);
-    EXPECT_TRUE(watcher.poll().empty());
+    EXPECT_EQ(watcher.poll().size(), 1U);
 }

@@ -468,7 +468,7 @@ Astra2D/
 ├── include/astra2d/  # Public engine API, one folder per module
 ├── src/              # Engine implementation
 ├── examples/         # Example programs, from hello_window to the platformer, and their assets/
-├── tests/            # Unit tests (GoogleTest)
+├── tests/            # Unit tests (GoogleTest), one folder per module like src/
 ├── benchmarks/       # Headless benchmark programs and their results (CSV, summary.md)
 ├── docs/             # Doxygen configuration, guides, screenshots and evaluation charts
 ├── scripts/          # Setup, benchmark, chart, coverage and asset generation scripts

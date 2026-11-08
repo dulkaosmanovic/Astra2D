@@ -1,8 +1,8 @@
 // The platformer example's game logic, which does not need OpenGL: text and Tiled levels (and the
 // shipped levels themselves), and the movement rules with coyote time and jump buffering.
 
-#include "../examples/platformer/controller.hpp"
-#include "../examples/platformer/level.hpp"
+#include "../../examples/platformer/controller.hpp"
+#include "../../examples/platformer/level.hpp"
 
 #include <astra2d/scene/tiled_map.hpp>
 

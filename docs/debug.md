@@ -41,7 +41,7 @@ m_renderer.end();
 measured in metres keeps the defaults, one measured in pixels scales them up.
 
 The work is split in two. @ref astra2d::collectPhysicsDebug turns the world into a list of
-coloured lines without touching OpenGL, so `tests/test_debug.cpp` checks the geometry exactly
+coloured lines without touching OpenGL, so `tests/debug/test_debug.cpp` checks the geometry exactly
 (corners, rotation, circle rims, colours, contact and arrow counts). drawPhysicsDebug() then draws
 each line with the batched renderer, so a few thousand debug lines cost one or two draw calls.
 

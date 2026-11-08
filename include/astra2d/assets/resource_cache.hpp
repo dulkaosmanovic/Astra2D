@@ -15,8 +15,8 @@ namespace astra2d {
 
 /// Loads each resource once and hands out references to it.
 ///
-/// Resources are stored behind stable pointers, so references stay valid until the entry is
-/// erased or the cache is cleared or destroyed. A failed load (the loader throws) stores nothing,
+/// Resources are stored behind stable pointers, so references stay valid until the cache is cleared
+/// or destroyed. A failed load (the loader throws) stores nothing,
 /// so the next request tries again.
 ///
 /// @code
@@ -54,14 +54,6 @@ public:
     [[nodiscard]] bool contains(std::string_view key) const
     {
         return m_resources.find(key) != m_resources.end();
-    }
-
-    /// Removes the resource under @p key, if any. References to it become dangling.
-    void erase(std::string_view key)
-    {
-        if (const auto it = m_resources.find(key); it != m_resources.end()) {
-            m_resources.erase(it);
-        }
     }
 
     /// Removes all resources. All references become dangling.

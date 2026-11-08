@@ -106,7 +106,7 @@ digraph frame {
 ```text
 include/astra2d/<module>/   public headers: the engine API
 src/<module>/               implementation
-tests/                      unit tests (GoogleTest), one file per class or feature
+tests/<module>/             unit tests (GoogleTest), one file per class or feature; tests/examples/ for the platformer
 examples/                   example programs, from hello_window to the platformer game
 examples/assets/            textures, shaders, fonts, sounds and levels used by the examples
 docs/                       Doxygen configuration, these pages and the theme

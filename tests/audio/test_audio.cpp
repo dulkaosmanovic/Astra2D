@@ -264,6 +264,8 @@ TEST(AudioEngineTests, AddSoundValidates)
     EXPECT_THROW(audio.addSound("c", {}, 1, 0), std::invalid_argument);
     const Sound& empty = audio.addSound("empty", {}, 1, kRate);
     EXPECT_TRUE(audio.play(empty).isNull()); // nothing to play
+    EXPECT_THROW(audio.addSound("empty", {0.5F}, 1, kRate), std::invalid_argument);
+    EXPECT_EQ(&audio.sound("empty"), &empty); // the first one is kept
 }
 
 TEST_F(AudioFileTest, LoadsWavFilesOnce)

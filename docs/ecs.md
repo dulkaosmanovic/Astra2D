@@ -115,7 +115,7 @@ iterating, it is therefore safe to:
 Destroying *other* entities, or adding components of the iterated types, can move an entity that
 was already visited into a position still ahead, so it would be visited twice. For that,
 @ref astra2d::Scene::destroyLater "Scene::destroyLater()" queues the entity and destroys it after
-the systems have run. The tests in `tests/test_ecs.cpp` check each of these cases.
+the systems have run. The tests in `tests/ecs/test_ecs.cpp` check each of these cases.
 
 ## Signals
 
@@ -133,7 +133,7 @@ astra2d::Connection connection = registry.onDestroy<Pickup>().connect(
 A @ref astra2d::Connection disconnects its handler when destroyed, like an event subscription.
 
 Handlers run in the middle of a change to the registry, so a few rules keep that change consistent.
-The tests in `tests/test_ecs.cpp` cover each of them:
+The tests in `tests/ecs/test_ecs.cpp` cover each of them:
 
 - Handlers may create and destroy entities, and add or remove components of other entities. That
   includes component types used for the first time.

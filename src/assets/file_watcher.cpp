@@ -20,16 +20,6 @@ void FileWatcher::watch(const std::filesystem::path& file)
     m_files.try_emplace(file.string(), Entry{.path = file, .modified = modificationTime(file)});
 }
 
-void FileWatcher::unwatch(const std::filesystem::path& file)
-{
-    m_files.erase(file.string());
-}
-
-bool FileWatcher::isWatching(const std::filesystem::path& file) const
-{
-    return m_files.contains(file.string());
-}
-
 std::vector<std::filesystem::path> FileWatcher::poll()
 {
     std::vector<std::filesystem::path> changed;

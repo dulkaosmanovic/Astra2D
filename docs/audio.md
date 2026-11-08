@@ -62,7 +62,7 @@ std::vector<float> out(1024 * audio.channels());
 audio.readFrames(out); // the mixed samples a device would get
 ```
 
-`tests/test_audio.cpp` uses this to test mixing, volumes, pitch, looping, the voice limit, the music
+`tests/audio/test_audio.cpp` uses this to test mixing, volumes, pitch, looping, the voice limit, the music
 bus and WAV decoding, all without sound hardware, also under Valgrind.
 
 ## Example
