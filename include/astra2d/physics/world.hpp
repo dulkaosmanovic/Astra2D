@@ -65,9 +65,8 @@ struct BodyDef {
     /// guide). Costs a little more and can catch on corners it passes closely, so use it for fast
     /// projectiles only.
     bool bullet = false;
-    bool allowSleep = true;     ///< May fall asleep when at rest.
-    bool awake = true;          ///< Start awake.
-    std::uint64_t userData = 0; ///< Free for the game, e.g. the entity id.
+    bool allowSleep = true; ///< May fall asleep when at rest.
+    bool awake = true;      ///< Start awake.
 };
 
 /// The geometry of a shape.
@@ -96,7 +95,6 @@ struct ShapeDef {
     /// Edges that can give a contact normal (bit i = edge i; see kBoxBottom). Clear the bits of
     /// edges shared with a neighbour, e.g. between tiles (done by addTileShapes()).
     std::uint8_t edgeMask = 0xFF;
-    std::uint64_t userData = 0; ///< Free for the game.
 
     /// A box of half size @p halfExtents centred at @p center.
     [[nodiscard]] static ShapeDef makeBox(glm::vec2 halfExtents,
@@ -266,14 +264,11 @@ public:
     void setDamping(BodyId body, float linear, float angular); ///< Sets the drag.
     [[nodiscard]] bool fixedRotation(BodyId body) const;       ///< True if it never rotates.
     void setFixedRotation(BodyId body, bool fixed);            ///< Locks or unlocks rotation.
-    [[nodiscard]] bool isBullet(BodyId body) const;            ///< True with continuous collision.
     void setBullet(BodyId body, bool bullet);      ///< Turns continuous collision on or off.
     [[nodiscard]] bool isAwake(BodyId body) const; ///< False while asleep.
     /// Wakes the body up or puts it to sleep now (with zero velocity).
     void setAwake(BodyId body, bool awake);
-    void setAllowSleep(BodyId body, bool allow);             ///< Whether it may fall asleep.
-    [[nodiscard]] std::uint64_t userData(BodyId body) const; ///< BodyDef::userData.
-    void setUserData(BodyId body, std::uint64_t data);       ///< Replaces the user data.
+    void setAllowSleep(BodyId body, bool allow); ///< Whether it may fall asleep.
 
     /// Adds @p force (units·mass/s²) at the world point @p point for the next step.
     void applyForce(BodyId body, glm::vec2 force, glm::vec2 point);

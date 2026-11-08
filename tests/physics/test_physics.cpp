@@ -702,6 +702,36 @@ TEST(PhysicsWorldTests, RemoveShapesEndsContactsAndKeepsTheBody)
     EXPECT_NEAR(world.position(right).y, 0.5F, 0.02F);
 }
 
+TEST(PhysicsWorldTests, RemoveShapeEndsOnlyItsContactsAndUpdatesTheMass)
+{
+    PhysicsWorld world;
+    addGround(world);
+    const BodyId level = world.createBody({.type = BodyType::Static});
+    const ShapeId leftStep = world.addShape(level, ShapeDef::makeBox({0.5F, 0.5F}, {-3.0F, 0.5F}));
+    world.addShape(level, ShapeDef::makeBox({0.5F, 0.5F}, {3.0F, 0.5F}));
+    const BodyId left = addBox(world, {-3.0F, 1.5F}, glm::vec2(0.5F));
+    const BodyId right = addBox(world, {3.0F, 1.5F}, glm::vec2(0.5F));
+    run(world, 1.0F);
+    world.removeShape(leftStep);
+    EXPECT_FALSE(world.valid(leftStep));
+    EXPECT_EQ(world.shapes(level).size(), 1U);
+    world.step(kDt);
+    ASSERT_EQ(world.contactEndEvents().size(), 1U);
+    const astra2d::ContactEndEvent& ended = world.contactEndEvents()[0];
+    EXPECT_TRUE(ended.shapeA == leftStep || ended.shapeB == leftStep);
+    run(world, 1.0F);
+    EXPECT_NEAR(world.position(left).y, 0.5F, 0.02F);  // fell onto the ground
+    EXPECT_NEAR(world.position(right).y, 1.5F, 0.02F); // still on its step
+
+    // A dynamic body's centre of mass follows the shapes it has left.
+    const BodyId pair = world.createBody({.position = {0.0F, 20.0F}});
+    const ShapeId first = world.addShape(pair, ShapeDef::makeCircle(0.5F, {-1.0F, 0.0F}));
+    world.addShape(pair, ShapeDef::makeCircle(0.5F, {1.0F, 0.0F}));
+    EXPECT_NEAR(world.worldCenter(pair).x, 0.0F, 1e-5F);
+    world.removeShape(first);
+    EXPECT_NEAR(world.worldCenter(pair).x, 1.0F, 1e-5F);
+}
+
 TEST(PhysicsWorldTests, MovingABodyWakesWhatTouchesItBeforeTheNextQuery)
 {
     PhysicsWorld world;

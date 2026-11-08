@@ -23,6 +23,8 @@ engine_sources = files(
   'physics/broad_phase.cpp',
   'physics/collision.cpp',
   'physics/geometry.cpp',
+  'physics/solver.cpp',
+  'physics/step.cpp',
   'physics/tilemap.cpp',
   'physics/world.cpp',
   'scene/physics_system.cpp',

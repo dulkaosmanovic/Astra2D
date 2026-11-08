@@ -75,10 +75,6 @@ struct Aabb {
     glm::vec2 min{0.0F}; ///< Lower-left corner.
     glm::vec2 max{0.0F}; ///< Upper-right corner.
 
-    /// The centre.
-    [[nodiscard]] glm::vec2 center() const { return 0.5F * (min + max); }
-    /// Half the size.
-    [[nodiscard]] glm::vec2 halfExtents() const { return 0.5F * (max - min); }
     /// True if the boxes overlap or touch.
     [[nodiscard]] bool overlaps(const Aabb& other) const
     {

@@ -174,8 +174,7 @@ void PhysicsSystem::createBody(Entity entity, Record& record, const RigidBody& w
                                       .angularDamping = wanted.angularDamping,
                                       .fixedRotation = wanted.fixedRotation,
                                       .bullet = wanted.bullet,
-                                      .allowSleep = wanted.allowSleep,
-                                      .userData = entity.value()});
+                                      .allowSleep = wanted.allowSleep});
     m_entities[bodyKey(record.body)] = entity;
     record.shapes.clear();
     rebuildShapes(entity, record);
@@ -239,10 +238,8 @@ void PhysicsSystem::rebuildShapes(Entity entity, Record& record)
     const auto* tilemap = registry.tryGet<TilemapCollider>(entity);
     record.collider = collider != nullptr ? std::optional(*collider) : std::nullopt;
     record.tilemap = tilemap != nullptr ? std::optional(*tilemap) : std::nullopt;
-    const std::uint64_t userData = entity.value();
     if (collider != nullptr) {
-        if (auto def = toShapeDef(*collider)) {
-            def->userData = userData;
+        if (const auto def = toShapeDef(*collider)) {
             record.shapes.push_back(m_world.addShape(record.body, *def));
         }
     }
@@ -255,7 +252,6 @@ void PhysicsSystem::rebuildShapes(Entity entity, Record& record)
         material.restitution = tilemap->restitution;
         material.category = tilemap->category;
         material.mask = tilemap->mask;
-        material.userData = userData;
         const auto shapes = addTileShapes(m_world, record.body, tilemap->grid, material);
         record.shapes.insert(record.shapes.end(), shapes.begin(), shapes.end());
     }
