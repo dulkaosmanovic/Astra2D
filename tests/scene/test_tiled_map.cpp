@@ -93,6 +93,11 @@ TEST(TiledMapTests, ReadsTheMapAndItsProperties)
     EXPECT_TRUE(map.properties.boolean("dark"));
     EXPECT_FALSE(map.properties.has("missing"));
     EXPECT_EQ(map.properties.integer("missing", 7), 7);
+    astra2d::TiledProperties big;
+    big.values["seed"] = "123456789"; // more digits than a float holds
+    big.values["half"] = "2.5";
+    EXPECT_EQ(big.integer("seed"), 123456789);
+    EXPECT_EQ(big.integer("half"), 3);
     EXPECT_FLOAT_EQ(map.properties.number("title", -1.0F), -1.0F); // not a number
 }
 

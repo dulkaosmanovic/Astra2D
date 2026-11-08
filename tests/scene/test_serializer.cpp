@@ -322,4 +322,10 @@ TEST(SerializerTests, OnlyTheSizeTheColliderShapeUsesIsChecked)
           {"id": 1, "parent": null, "components": {"Collider":
             {"shape": "box", "halfExtents": [1, 1], "radius": 0}}}]})")));
     EXPECT_EQ(scene.registry().storage<astra2d::Collider>().size(), 2U);
+    // A polygon is checked like the physics will build it: two points have no area.
+    EXPECT_THROW(serializer.load(scene, json::parse(R"({"format": "astra2d-scene", "version": 1,
+        "entities": [{"id": 0, "parent": null, "components": {"Collider":
+            {"shape": "polygon", "points": [[0, 0], [1, 1]]}}}]})")),
+                 std::runtime_error);
+    EXPECT_EQ(scene.registry().storage<astra2d::Collider>().size(), 2U); // nothing was added
 }

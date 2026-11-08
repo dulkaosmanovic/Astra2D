@@ -184,6 +184,12 @@ TEST(HierarchyTests, ChildrenKeepAttachOrderAndCanBeDetached)
     EXPECT_EQ(scene.children(parent), std::vector<Entity>{c});
     EXPECT_EQ(scene.registry().get<Relationship>(parent).children, 1U);
     EXPECT_TRUE(scene.parent(a).isNull());
+
+    scene.setParent(c, astra2d::kNullEntity); // last (and only): the parent is empty again
+    EXPECT_TRUE(scene.children(parent).empty());
+    scene.setParent(b, parent);
+    scene.setParent(a, parent); // appended after b, not after the detached c
+    EXPECT_EQ(scene.children(parent), (std::vector<Entity>{b, a}));
 }
 
 TEST(HierarchyTests, ReparentingMovesBetweenParents)

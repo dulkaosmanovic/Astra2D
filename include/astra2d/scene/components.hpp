@@ -149,6 +149,7 @@ struct TilemapCollider {
 struct Relationship {
     Entity parent;            ///< Parent, or the null entity for a root.
     Entity firstChild;        ///< First child, or null.
+    Entity lastChild;         ///< Last child, or null (children are appended in O(1)).
     Entity previousSibling;   ///< Previous child of the same parent, or null.
     Entity nextSibling;       ///< Next child of the same parent, or null.
     std::size_t children = 0; ///< Number of direct children.

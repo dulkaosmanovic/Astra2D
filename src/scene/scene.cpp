@@ -1,32 +1,22 @@
 #include "astra2d/scene/scene.hpp"
 
 #include "astra2d/core/assert.hpp"
+#include "astra2d/physics/geometry.hpp"
 #include "astra2d/renderer/renderer2d.hpp"
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <ranges>
 #include <utility>
 
 namespace astra2d {
 
-namespace {
-
-glm::vec2 rotate(glm::vec2 v, float angle)
-{
-    const float c = std::cos(angle);
-    const float s = std::sin(angle);
-    return {(c * v.x) - (s * v.y), (s * v.x) + (c * v.y)};
-}
-
-} // namespace
-
 Transform compose(const Transform& parent, const Transform& local)
 {
-    return {.position = parent.position + rotate(local.position * parent.scale, parent.rotation),
+    return {.position = parent.position +
+                        Rotation::fromAngle(parent.rotation).apply(local.position * parent.scale),
             .rotation = parent.rotation + local.rotation,
             .scale = parent.scale * local.scale};
 }
@@ -40,9 +30,12 @@ Transform interpolate(const Transform& from, const Transform& to, float alpha)
 
 Transform relativeTo(const Transform& parent, const Transform& world)
 {
-    return {.position = rotate(world.position - parent.position, -parent.rotation) / parent.scale,
-            .rotation = world.rotation - parent.rotation,
-            .scale = world.scale / parent.scale};
+    return {
+        .position =
+            Rotation::fromAngle(parent.rotation).applyInverse(world.position - parent.position) /
+            parent.scale,
+        .rotation = world.rotation - parent.rotation,
+        .scale = world.scale / parent.scale};
 }
 
 Scene::Scene()
@@ -170,20 +163,16 @@ void Scene::setParent(Entity child, Entity parent, bool keepWorldTransform)
         }
         // Append after the last child.
         auto& parentLinks = m_registry.get<Relationship>(parent);
-        Entity last = kNullEntity;
-        for (Entity c = parentLinks.firstChild; !c.isNull();
-             c = m_registry.get<Relationship>(c).nextSibling) {
-            last = c;
-        }
         auto& childLinks = m_registry.get<Relationship>(child);
         childLinks.parent = parent;
-        childLinks.previousSibling = last;
+        childLinks.previousSibling = parentLinks.lastChild;
         childLinks.nextSibling = kNullEntity;
-        if (last.isNull()) {
+        if (parentLinks.lastChild.isNull()) {
             parentLinks.firstChild = child;
         } else {
-            m_registry.get<Relationship>(last).nextSibling = child;
+            m_registry.get<Relationship>(parentLinks.lastChild).nextSibling = child;
         }
+        parentLinks.lastChild = child;
         ++parentLinks.children;
     }
     if (keepWorldTransform) {
@@ -202,6 +191,9 @@ void Scene::detach(Entity child)
     if (auto* parentLinks = m_registry.tryGet<Relationship>(links->parent)) {
         if (parentLinks->firstChild == child) {
             parentLinks->firstChild = links->nextSibling;
+        }
+        if (parentLinks->lastChild == child) {
+            parentLinks->lastChild = links->previousSibling;
         }
         --parentLinks->children;
     }
@@ -230,6 +222,7 @@ void Scene::onRelationshipDestroyed(Entity entity)
         child = next;
     }
     links.firstChild = kNullEntity;
+    links.lastChild = kNullEntity;
     links.children = 0;
 }
 
