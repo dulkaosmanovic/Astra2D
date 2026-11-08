@@ -73,9 +73,6 @@ public:
     /// Application::run() does this for its window before the first frame.
     void makeContextCurrent();
 
-    /// True if this window's OpenGL context is the current one.
-    [[nodiscard]] bool isContextCurrent() const;
-
     /// Turns vertical sync on or off (e.g. off for benchmarks, to measure the real frame time).
     /// Applies to this window; the current context is left unchanged.
     void setVsync(bool enabled);
@@ -88,9 +85,6 @@ public:
 
     /// Height of the framebuffer in pixels.
     [[nodiscard]] int framebufferHeight() const { return m_framebufferHeight; }
-
-    /// Framebuffer width / height, or 1 while the window is minimized.
-    [[nodiscard]] float aspectRatio() const;
 
     /// True while the framebuffer has zero size (window minimized).
     [[nodiscard]] bool isMinimized() const

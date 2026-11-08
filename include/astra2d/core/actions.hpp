@@ -76,9 +76,6 @@ public:
     /// Value of the axis action @p axis in [-1, 1]: the binding with the largest magnitude wins.
     [[nodiscard]] float axis(std::string_view axis, const Input& input) const;
 
-    /// The gamepad that gamepad bindings read.
-    [[nodiscard]] int gamepad() const { return m_gamepad; }
-
 private:
     struct ButtonPair {
         Button negative;
