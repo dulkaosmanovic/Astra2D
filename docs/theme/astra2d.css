@@ -24,7 +24,7 @@ html {
     --note-color-darker: #1a4e6e;
 
     /* Must match TREEVIEW_WIDTH in the Doxyfile. */
-    --side-nav-fixed-width: 300px;
+    --side-nav-fixed-width: 340px;
     --top-height: 132px;
 
     --content-maxwidth: 1000px;
