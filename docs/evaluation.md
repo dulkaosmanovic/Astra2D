@@ -183,17 +183,17 @@ against the engine's and lists the engine names it uses.
 
 | part | code lines | comment lines |
 |---|---:|---:|
-| engine (include/ + src/) | 10,233 | 2,163 |
-| unit tests | 4,954 | 250 |
-| platformer (the game) | 1,508 | 154 |
-| other examples | 42 to 518 each | |
+| engine (include/ + src/) | 10,089 | 2,136 |
+| unit tests | 4,969 | 249 |
+| platformer (the game) | 1,531 | 159 |
+| other examples | 42 to 520 each | |
 
 **The game is 15 % of the engine's size.** It uses 43 engine names from all eight modules: most
 from the scene (19: entities, components, the physics system, Tiled maps) and the renderer (10),
 and only a few from the lower layers (`Application`, `ActionMap`, `AudioEngine`, `AssetCache`). That
 is the intended shape: a game works with the high-level API and does not touch OpenGL, the physics
 world or the ECS storage directly. The smaller examples show the same at a smaller scale: a window
-is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 467. The tests are half
+is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 479. The tests are half
 the size of the engine, which is what made the refactorings during development safe.
 
 ## Correctness

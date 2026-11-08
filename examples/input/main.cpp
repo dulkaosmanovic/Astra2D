@@ -22,6 +22,7 @@
 #include <astra2d/renderer/renderer2d.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/vec2.hpp>
@@ -149,7 +150,7 @@ protected:
             std::format("move_x {:+.2f}\njump: {} (R rebinds)\njumps: {}\ngamepad: {}",
                         m_actions.axis("move_x", input()), m_jumpOnEnter ? "Enter" : "Space",
                         m_jumps, input().isGamepadConnected(0) ? "connected" : "none");
-        m_renderer.drawText(m_font, info, {-440.0F, 230.0F}, 16.0F, kText, 1.6F);
+        examples::drawTextPanel(m_renderer, m_font, info, {-440.0F, 230.0F}, 16.0F, kText, 1.6F);
         m_renderer.end();
     }
 

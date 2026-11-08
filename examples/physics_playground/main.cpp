@@ -33,6 +33,7 @@
 #include <astra2d/scene/scene.hpp>
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 
 #include <glad/gl.h>
 #include <glm/geometric.hpp>
@@ -556,11 +557,13 @@ private:
             std::format("in trigger zone {}  bullet hits {}", m_inZone.size(), m_hardHits),
             "click spawn/drag  right click delete  Space shoot  P pyramid  T tower  R reset",
         };
-        float y = static_cast<float>(height) - 16.0F;
+        std::string text;
         for (const std::string& line : lines) {
-            m_renderer.drawText(m_font, line, {16.0F, y}, 16.0F, kText);
-            y -= 24.0F;
+            text += (text.empty() ? "" : "\n") + line;
         }
+        // Inside the walls, which start 16 pixels in at the default zoom.
+        examples::drawTextPanel(m_renderer, m_font, text,
+                                {80.0F, static_cast<float>(height) - 40.0F}, 16.0F, kText, 1.5F);
         m_renderer.end();
     }
 

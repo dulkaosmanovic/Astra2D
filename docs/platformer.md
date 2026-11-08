@@ -32,7 +32,7 @@ collects coins, stomps crawlers, avoids spikes and lava, and reaches the flag.
 <div class="astra-summary"><b>In short</b>
 <ul>
 <li>A complete game with three levels, enemies, hazards, checkpoints, sound and a HUD, written only against the public API.</li>
-<li>1,508 lines of code, 15 % of the engine's size; its level loading and movement rules are unit-tested.</li>
+<li>1,531 lines of code, 15 % of the engine's size; its level loading and movement rules are unit-tested.</li>
 <li>Shows Scene systems, physics signals, collision groups, coyote time and jump buffering, and Tiled maps working together.</li>
 </ul></div>
 
@@ -54,11 +54,11 @@ The game is split by what each part does, and the parts that do not draw are uni
 |---|---|---|
 | `level.hpp/.cpp` | 514 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
 | `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, jump cut, coyote time, jump buffering |
-| `game.cpp` | 1,098 | The game: entities, systems, physics events, camera, HUD, sound, game states |
+| `game.cpp` | 1,131 | The game: entities, systems, physics events, camera, HUD, sound, game states |
 | `main.cpp`, `game.hpp` | 77 | Entry point |
 
-About 1,800 lines of game code (1,508 without comments and blank lines, see @ref evaluation) on
-about 10,200 lines of engine code: the engine does the
+About 1,860 lines of game code (1,531 without comments and blank lines, see @ref evaluation) on
+about 10,100 lines of engine code: the engine does the
 window, input mapping, fixed timestep, rendering, animation, the ECS, physics, collision events,
 level file parsing and audio, and the game only says what happens.
 
@@ -120,7 +120,8 @@ texel is a whole number of pixels (pixel-perfect scaling), so the 16×16 art nev
 
 Each frame draws parallax mountains and hills, the decoration and ground tiles the camera sees, the
 scene's sprites by layer, interpolated between fixed steps, and the HUD in screen space with
-the vendored pixel font. Trauma-based camera shake marks stomps and hits.
+the vendored pixel font: one bar along the top (hearts, coins, level, time) and a panel behind
+the text of the title, pause, level-clear, game-over and victory screens. Trauma-based camera shake marks stomps and hits.
 
 ## Levels
 

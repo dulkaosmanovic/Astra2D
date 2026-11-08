@@ -1,6 +1,7 @@
 #include "game.hpp"
 
 #include "../common/example_assets.hpp"
+#include "../common/hud.hpp"
 #include "controller.hpp"
 #include "level.hpp"
 
@@ -940,36 +941,16 @@ private:
         const float s = std::max(
             1.0F, std::min(static_cast<float>(m_pixelScale), std::floor(screen.x / 320.0F)));
         const float text = 8.0F * s;
-        const float top = screen.y - (8.0F * s);
         m_renderer.begin(
             astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
         if (m_state != State::Title) {
-            for (int i = 0; i < kMaxHearts; ++i) {
-                const glm::vec2 at{(16.0F + (18.0F * static_cast<float>(i))) * s, top - (8.0F * s)};
-                m_renderer.drawSprite(at, glm::vec2{16.0F * s},
-                                      m_sheet.frame(i < m_hearts ? kHeartFull : kHeartEmpty));
-            }
-            m_renderer.drawSprite({16.0F * s, top - (28.0F * s)}, glm::vec2{16.0F * s},
-                                  m_sheet.frame(kCoinIcon));
-            drawText(std::format("{}/{}", m_coins, m_level.count(ThingKind::Coin)),
-                     {28.0F * s, top - (24.0F * s)}, text, kGold);
-            const std::string time =
-                std::format("TIME {}:{:02}", static_cast<int>(m_levelTime) / 60,
-                            static_cast<int>(m_levelTime) % 60);
-            const float width = m_font.atlas().measure(time, text).x;
-            drawText(time, {screen.x - width - (12.0F * s), top - (4.0F * s)}, text, kWhite);
-            drawText(std::format("LEVEL {}", m_levelIndex + 1),
-                     {screen.x - m_font.atlas().measure("LEVEL 1", text).x - (12.0F * s),
-                      top - (18.0F * s)},
-                     text, kWhite);
-        }
-        if (m_audio.muted()) {
-            drawText("MUTED", {12.0F * s, 16.0F * s}, text, kWhite);
+            drawStatusBar(screen, s);
         }
         const float middle = screen.y * 0.5F;
         switch (m_state) {
         case State::Title:
-            dim(screen, 0.35F);
+            dim(screen, 0.25F);
+            panel(screen, 196.0F * s, middle - (80.0F * s), middle + (60.0F * s), s);
             drawCentered("ASTRA RUN", middle + (48.0F * s), 32.0F * s, kGold);
             drawCentered("a tiny astronaut, three worlds, one flag each", middle, text, kWhite);
             drawCentered("RUN  A/D   JUMP  SPACE   DROP  S+SPACE", middle - (22.0F * s), text,
@@ -982,28 +963,33 @@ private:
         case State::Playing:
             if (m_banner > 0.0F) {
                 const float alpha = std::min(m_banner, 1.0F);
-                drawCentered(m_level.name, top - (40.0F * s), 16.0F * s,
+                const float top = screen.y - (36.0F * s);
+                drawCentered(m_level.name, top - (16.0F * s), 16.0F * s,
                              {kGold.r, kGold.g, kGold.b, alpha});
-                drawCentered(m_level.hint, top - (64.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
+                drawCentered(m_level.hint, top - (40.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
             }
             break;
         case State::Paused:
-            dim(screen, 0.5F);
+            dim(screen, 0.4F);
+            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (18.0F * s), s);
             drawCentered("PAUSED", middle + (8.0F * s), 16.0F * s, kWhite);
             drawCentered("P or ENTER to continue", middle - (16.0F * s), text, kWhite);
             break;
         case State::LevelClear:
+            panel(screen, 150.0F * s, middle - (22.0F * s), middle + (34.0F * s), s);
             drawCentered("LEVEL CLEAR!", middle + (24.0F * s), 16.0F * s, kGold);
             drawCentered(std::format("coins {}/{}", m_coins, m_level.count(ThingKind::Coin)),
                          middle - (4.0F * s), text, kWhite);
             break;
         case State::GameOver:
-            dim(screen, 0.55F);
+            dim(screen, 0.45F);
+            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (34.0F * s), s);
             drawCentered("GAME OVER", middle + (24.0F * s), 24.0F * s, kRed);
             drawCentered("ENTER to try again   ESC to quit", middle - (16.0F * s), text, kWhite);
             break;
         case State::Victory: {
-            dim(screen, 0.55F);
+            dim(screen, 0.45F);
+            panel(screen, 150.0F * s, middle - (58.0F * s), middle + (50.0F * s), s);
             int allCoins = 0;
             for (const Level& level : m_levels) {
                 allCoins += level.count(ThingKind::Coin);
@@ -1019,6 +1005,53 @@ private:
         }
         }
         m_renderer.end();
+    }
+
+    // One bar along the top: hearts and coins on the left, the level in the middle, the time on
+    // the right. @p s is the HUD's pixel scale.
+    void drawStatusBar(glm::vec2 screen, float s)
+    {
+        const float text = 8.0F * s;
+        const float row = screen.y - (14.0F * s); // centre line of the bar
+        const float textTop = row + (4.0F * s);
+        examples::drawPanel(m_renderer, {-s, screen.y - (28.0F * s)}, {screen.x + s, screen.y + s},
+                            s);
+
+        for (int i = 0; i < kMaxHearts; ++i) {
+            m_renderer.drawSprite({(14.0F + (18.0F * static_cast<float>(i))) * s, row},
+                                  glm::vec2{16.0F * s},
+                                  m_sheet.frame(i < m_hearts ? kHeartFull : kHeartEmpty));
+        }
+        const float coinX = (14.0F + (18.0F * static_cast<float>(kMaxHearts)) + 8.0F) * s;
+        m_renderer.drawSprite({coinX, row}, glm::vec2{16.0F * s}, m_sheet.frame(kCoinIcon));
+        const std::string coins = std::format("{}/{}", m_coins, m_level.count(ThingKind::Coin));
+        drawText(coins, {coinX + (12.0F * s), textTop}, text, kGold);
+        const float leftEnd = coinX + (12.0F * s) + m_font.atlas().measure(coins, text).x;
+
+        std::string right = std::format("TIME {}:{:02}", static_cast<int>(m_levelTime) / 60,
+                                        static_cast<int>(m_levelTime) % 60);
+        if (m_audio.muted()) {
+            right = "MUTED  " + right;
+        }
+        const float rightStart = screen.x - (12.0F * s) - m_font.atlas().measure(right, text).x;
+        drawText(right, {rightStart, textTop}, text, kWhite);
+
+        // The level's name too, if it fits between the two sides.
+        std::string level = std::format("{} \u00b7 {}", m_levelIndex + 1, m_level.name);
+        if (m_font.atlas().measure(level, text).x > rightStart - leftEnd - (24.0F * s)) {
+            level = std::format("LEVEL {}", m_levelIndex + 1);
+        }
+        const float width = m_font.atlas().measure(level, text).x; // centred in the free space
+        drawText(level, {std::round((leftEnd + rightStart - width) * 0.5F), textTop}, text, kWhite);
+    }
+
+    // A panel centred horizontally, @p halfWidth to each side (at most the window's width), from
+    // @p bottom to @p top.
+    void panel(glm::vec2 screen, float halfWidth, float bottom, float top, float s)
+    {
+        halfWidth = std::min(halfWidth, (screen.x * 0.5F) - (4.0F * s));
+        examples::drawPanel(m_renderer, {(screen.x * 0.5F) - halfWidth, bottom},
+                            {(screen.x * 0.5F) + halfWidth, top}, s);
     }
 
     void dim(glm::vec2 screen, float alpha)

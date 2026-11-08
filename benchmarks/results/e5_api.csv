@@ -4,12 +4,12 @@ audio,AudioEngine,astra2d/audio/audio_engine.hpp
 audio,Sound,astra2d/audio/audio_engine.hpp
 core,ActionMap,astra2d/core/actions.hpp
 core,Application,astra2d/core/application.hpp
+core,Connection,astra2d/core/signal.hpp
 core,GamepadAxis,astra2d/core/input.hpp
 core,GamepadButton,astra2d/core/input.hpp
 core,Key,astra2d/core/input.hpp
 debug,FrameStats,astra2d/debug/frame_stats.hpp
 debug,drawPhysicsDebug,astra2d/debug/physics_debug_draw.hpp
-ecs,Connection,astra2d/ecs/signal.hpp
 ecs,Entity,astra2d/ecs/entity.hpp
 physics,TileCollision,astra2d/physics/tilemap.hpp
 physics,TileGrid,astra2d/physics/tilemap.hpp

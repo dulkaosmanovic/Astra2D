@@ -146,7 +146,7 @@ Measured in a release build; the full tables, method and machine are in
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **2.6× faster** than objects with a virtual `update()`, **5× faster** when the objects are scattered in memory; at 10k objects there is no real difference |
 | **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (0.92 vs. 62.4 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Towers of 5–20 boxes stand for 10 s with no sideways drift or rotation; a ball with restitution 1 keeps its energy within 2 % |
-| **E5** | Is the API usable? | The whole platformer is 1,508 lines, 15 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 1,531 lines, 15 % of the engine's size; compared with raylib and Godot in the docs |
 
 Tests cover 78 % of the engine's lines, 90 % or more in the modules that do not use OpenGL.
 
