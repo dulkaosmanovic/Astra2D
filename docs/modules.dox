@@ -1,7 +1,7 @@
 /**
 @defgroup core Core
 @brief Application and main loop, window, keyboard/mouse/gamepad input, action mapping, events,
-fixed timestep, logging and assertions.
+signals, fixed timestep, logging and assertions.
 
 The lowest engine layer. Everything else builds on it, and it depends only on GLFW, OpenGL (through
 GLAD) and spdlog. See @ref core_guide for an explanation of how the pieces work together.

@@ -43,8 +43,6 @@ public:
     {
         return Entity{(index & kIndexMask) | ((generation & kGenerationMask) << kIndexBits)};
     }
-    /// Rebuilds a handle from value(), e.g. after storing it as a plain number.
-    [[nodiscard]] static constexpr Entity fromValue(std::uint32_t value) { return Entity{value}; }
 
     /// Slot index (low 20 bits).
     [[nodiscard]] constexpr std::uint32_t index() const { return m_value & kIndexMask; }

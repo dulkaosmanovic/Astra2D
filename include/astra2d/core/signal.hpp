@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-/// @addtogroup ecs
+/// @addtogroup core
 /// @{
 
 namespace astra2d {
@@ -63,8 +63,8 @@ private:
     std::weak_ptr<bool> m_alive;
 };
 
-/// A list of handlers called with the same arguments, e.g. the Registry's "component added" and
-/// "component removed" notifications.
+/// A list of handlers called with the same arguments: each event type of an EventDispatcher, and
+/// the Registry's "component added" and "component removed" notifications.
 ///
 /// @code
 /// Connection connection = signal.connect([](Registry& registry, Entity entity) { ... });
@@ -91,6 +91,9 @@ public:
     template <typename Handler>
     Connection connect(Handler&& handler)
     {
+        if (m_emitting == 0) { // else erased after the emit
+            std::erase_if(m_slots, [](const auto& slot) { return !*slot->alive; });
+        }
         const auto alive = std::make_shared<bool>(true);
         m_slots.push_back(
             std::make_unique<Slot>(Slot{.alive = alive, .call = std::forward<Handler>(handler)}));

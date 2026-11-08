@@ -21,7 +21,7 @@
 #include <astra2d/core/log.hpp>
 #include <astra2d/core/paths.hpp>
 #include <astra2d/ecs/registry.hpp>
-#include <astra2d/ecs/signal.hpp>
+#include <astra2d/core/signal.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/font.hpp>
 #include <astra2d/renderer/renderer2d.hpp>

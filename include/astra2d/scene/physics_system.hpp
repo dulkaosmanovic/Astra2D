@@ -1,7 +1,7 @@
 #pragma once
 
 #include "astra2d/ecs/entity.hpp"
-#include "astra2d/ecs/signal.hpp"
+#include "astra2d/core/signal.hpp"
 #include "astra2d/physics/world.hpp"
 #include "astra2d/scene/components.hpp"
 
