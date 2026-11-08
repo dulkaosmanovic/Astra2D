@@ -2,6 +2,7 @@
 
 #include "astra2d/core/events.hpp"
 #include "astra2d/core/log.hpp"
+#include "gl_debug.hpp"
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
@@ -94,67 +95,6 @@ const char* glString(GLenum name)
 // main-thread-only library, so one counter guards its glfwInit()/glfwTerminate().
 int g_glfwUsers = 0; // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
-// ---------------------------------------------------------------------------------------------
-// OpenGL debug output (debug builds only)
-//
-// The driver reports errors and warnings through a callback, at the call that caused them, so a
-// wrong OpenGL call is logged immediately instead of silently doing nothing. The GLAD loader is
-// generated for OpenGL 3.3, which predates this API (core in 4.3, or the KHR_debug extension), so
-// the one function needed is looked up through GLFW when the driver provides it.
-
-#ifdef NDEBUG
-constexpr bool kGlDebugOutput = false;
-#else
-constexpr bool kGlDebugOutput = true;
-#endif
-
-constexpr GLenum kDebugOutput = 0x92E0;            // GL_DEBUG_OUTPUT
-constexpr GLenum kDebugOutputSynchronous = 0x8242; // GL_DEBUG_OUTPUT_SYNCHRONOUS
-constexpr GLenum kDebugSeverityHigh = 0x9146;      // GL_DEBUG_SEVERITY_HIGH
-constexpr GLenum kDebugSeverityMedium = 0x9147;    // GL_DEBUG_SEVERITY_MEDIUM
-constexpr GLenum kDebugSeverityLow = 0x9148;       // GL_DEBUG_SEVERITY_LOW
-
-using DebugProc = void(GLAD_API_PTR*)(GLenum source, GLenum type, GLuint id, GLenum severity,
-                                      GLsizei length, const GLchar* message, const void* user);
-using DebugMessageCallbackProc = void(GLAD_API_PTR*)(DebugProc callback, const void* user);
-
-void GLAD_API_PTR glDebugMessage(GLenum /*source*/, GLenum /*type*/, GLuint id, GLenum severity,
-                                 GLsizei /*length*/, const GLchar* message, const void* /*user*/)
-{
-    switch (severity) {
-    case kDebugSeverityHigh:
-        ASTRA_CORE_ERROR("OpenGL [{}]: {}", id, message);
-        break;
-    case kDebugSeverityMedium:
-        ASTRA_CORE_WARN("OpenGL [{}]: {}", id, message);
-        break;
-    case kDebugSeverityLow:
-        ASTRA_CORE_INFO("OpenGL [{}]: {}", id, message);
-        break;
-    default:
-        break; // notifications (e.g. "buffer will use video memory") would flood the log
-    }
-}
-
-void enableGlDebugOutput()
-{
-    if (glfwExtensionSupported("GL_KHR_debug") == GLFW_FALSE) {
-        ASTRA_CORE_DEBUG("OpenGL debug output not available (no KHR_debug)");
-        return;
-    }
-    // GLFW returns a generic function pointer; it has to be cast to the real signature.
-    const auto setCallback =
-        reinterpret_cast<DebugMessageCallbackProc>( // NOLINT(*-reinterpret-cast)
-            glfwGetProcAddress("glDebugMessageCallback"));
-    if (setCallback == nullptr) {
-        return;
-    }
-    glEnable(kDebugOutput);
-    glEnable(kDebugOutputSynchronous); // report inside the offending call (useful in a debugger)
-    setCallback(glDebugMessage, nullptr);
-    ASTRA_CORE_DEBUG("OpenGL debug output enabled");
-}
-
 } // namespace
 
 Window::GlfwLibrary::GlfwLibrary()
@@ -189,7 +129,7 @@ Window::Window(const WindowSettings& settings)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, settings.resizable ? GLFW_TRUE : GLFW_FALSE);
     // Drivers only promise to report problems in debug contexts.
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, kGlDebugOutput ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, detail::kGlDebugOutput ? GLFW_TRUE : GLFW_FALSE);
 
     m_handle.reset(glfwCreateWindow(settings.width, settings.height, settings.title.c_str(),
                                     nullptr, nullptr));
@@ -203,8 +143,8 @@ Window::Window(const WindowSettings& settings)
         throw std::runtime_error("Failed to load OpenGL functions");
     }
 
-    if (kGlDebugOutput) { // a plain if keeps the function referenced in release builds
-        enableGlDebugOutput();
+    if (detail::kGlDebugOutput) {
+        detail::enableGlDebugOutput();
     }
 
     glfwSwapInterval(settings.vsync ? 1 : 0);
@@ -356,11 +296,6 @@ void Window::makeContextCurrent()
     glfwMakeContextCurrent(m_handle.get());
 }
 
-bool Window::isContextCurrent() const
-{
-    return glfwGetCurrentContext() == m_handle.get();
-}
-
 void Window::setVsync(bool enabled)
 {
     // The swap interval belongs to the current context, so switch to this window's context for
@@ -374,14 +309,6 @@ void Window::setVsync(bool enabled)
 void Window::setTitle(const std::string& title)
 {
     glfwSetWindowTitle(m_handle.get(), title.c_str());
-}
-
-float Window::aspectRatio() const
-{
-    if (isMinimized()) {
-        return 1.0F;
-    }
-    return static_cast<float>(m_framebufferWidth) / static_cast<float>(m_framebufferHeight);
 }
 
 bool Window::consumeResize()

@@ -3,6 +3,7 @@ engine_sources = files(
   'core/application.cpp',
   'core/assert.cpp',
   'core/events.cpp',
+  'core/gl_debug.cpp',
   'core/input.cpp',
   'core/log.cpp',
   'core/paths.cpp',
