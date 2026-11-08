@@ -369,3 +369,151 @@ div.contents div.image div.caption {
     margin-left: auto;
     text-align: right;
 }
+
+/* ------------------------------------------------------------------ */
+/* Example gallery                                                      */
+/* ------------------------------------------------------------------ */
+
+.astra-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 16px 0 24px;
+}
+
+.astra-example {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--separator-color);
+    border-radius: var(--border-radius-large);
+    overflow: hidden;
+    background: var(--page-background-color);
+    box-shadow: var(--box-shadow);
+}
+
+.astra-example img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: none;
+    border-radius: 0;
+}
+
+.astra-example-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px 12px;
+}
+
+.astra-example-name {
+    font-family: var(--font-family-monospace);
+    font-weight: 600;
+    font-size: 0.9em;
+    color: var(--astra-navy);
+}
+
+.astra-example-text {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.astra-keys {
+    font-size: 0.8em;
+    color: var(--page-secondary-foreground-color);
+}
+
+/* Two screenshots side by side inside a guide, with captions. */
+.astra-figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 12px 0 22px;
+}
+
+.astra-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--separator-color);
+}
+
+.astra-figure span {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.86em;
+    line-height: 1.4;
+    color: var(--page-secondary-foreground-color);
+}
+
+/* ------------------------------------------------------------------ */
+/* Layer diagram (Architecture)                                        */
+/* ------------------------------------------------------------------ */
+
+.astra-layers {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0 24px;
+}
+
+.astra-layer {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.astra-layer-name {
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--page-secondary-foreground-color);
+    text-align: right;
+}
+
+.astra-layer-modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border-radius: var(--border-radius-large);
+    background: var(--astra-accent-soft);
+}
+
+.astra-layer-modules a.el,
+.astra-layer-modules span.astra-module {
+    text-align: center;
+    padding: 8px 10px;
+    border-radius: var(--border-radius-medium);
+    background: var(--astra-navy);
+    color: var(--page-background-color) !important;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.astra-layer-modules a.el:hover {
+    background: var(--primary-color);
+}
+
+.astra-layer-modules span.astra-module.game {
+    background: var(--primary-color);
+}
+
+.astra-layer-modules small {
+    display: block;
+    font-weight: 400;
+    font-size: 0.78em;
+    opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+    .astra-layer { grid-template-columns: 1fr; }
+    .astra-layer-name { text-align: left; }
+}
+
+.astra-figures.single {
+    grid-template-columns: minmax(0, 520px);
+}

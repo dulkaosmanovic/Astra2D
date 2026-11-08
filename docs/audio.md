@@ -1,4 +1,4 @@
-# Audio: sound effects and music {#audio_guide}
+# Audio {#audio_guide}
 
 [TOC]
 

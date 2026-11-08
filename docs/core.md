@@ -1,4 +1,4 @@
-# Core: main loop, timestep, input and events {#core_guide}
+# Core {#core_guide}
 
 [TOC]
 
@@ -191,6 +191,10 @@ velocity.x = actions.axis("move_x", input()) * speed;
 |---|---|---|
 | Button action | pressed / held / released | held while *any* binding is held; pressed when it becomes held, released when the last binding is let go |
 | Axis action | -1 to 1 | the binding with the largest magnitude wins |
+
+<div class="astra-figures single">
+<div class="astra-figure"><img src="input.png" alt="<code>examples/input</code>: the move axis and jump action from keyboard or gamepad, rebinding with R"/><span><code>examples/input</code>: the move axis and jump action from keyboard or gamepad, rebinding with R</span></div>
+</div>
 
 Each map reads one gamepad, so local multiplayer uses one map per player. Asking for an action that
 was never bound fails an assertion in debug builds: such a name is almost always a typo, which would

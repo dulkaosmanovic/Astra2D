@@ -1477,7 +1477,20 @@ HTML_EXTRA_FILES       = @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awes
                          @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awesome-fragment-copy-button.js \
                          @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awesome-paragraph-link.js \
                          @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awesome-interactive-toc.js \
-                         @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awesome-tabs.js
+                         @SOURCE_ROOT@/external/doxygen-awesome-css/doxygen-awesome-tabs.js \
+                         @SOURCE_ROOT@/docs/images/screenshots/coin_collector.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/input.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/physics_playground.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/platformer_debug.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/platformer_level2.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/platformer_title.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/post_processing.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/renderer_stress.jpg \
+                         @SOURCE_ROOT@/docs/images/screenshots/sandbox.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/scene.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/shapes.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/sprites.png \
+                         @SOURCE_ROOT@/docs/images/screenshots/text.png
 
 # The HTML_COLORSTYLE tag can be used to specify if the generated HTML output
 # should be rendered with a dark or light theme.

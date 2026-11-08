@@ -1,4 +1,4 @@
-# Physics: bodies, collisions, solver {#physics_guide}
+# Physics {#physics_guide}
 
 [TOC]
 
@@ -278,7 +278,9 @@ systems added after it see the results.
 
 ## Examples
 
-![physics_playground with debug drawing: a bullet hitting a pyramid, a tower of boxes, bounding boxes of the static shapes](physics_playground.png)
+<div class="astra-figures single">
+<div class="astra-figure"><img src="physics_playground.png" alt="<code>examples/physics_playground</code> with debug drawing: a bullet hitting a pyramid, a tower of boxes"/><span><code>examples/physics_playground</code> with debug drawing: a bullet hitting a pyramid, a tower of boxes</span></div>
+</div>
 
 - `examples/physics_playground`: spawn boxes, circles and polygons with the mouse, drag them with
   a spring, shoot bullets, build towers and pyramids; one-way platforms, a tile map, a moving
