@@ -491,6 +491,26 @@ TEST(PhysicsWorldTests, OneWayPlatformHoldsABodyThatBarelyReachedItsTop)
     EXPECT_TRUE(world.isGrounded(ball));
 }
 
+TEST(PhysicsWorldTests, OneWayPlatformHoldsABodyLandingOnItsVeryEnd)
+{
+    PhysicsWorld world({.enableSleep = false});
+    const BodyId platform = world.createBody({.type = BodyType::Static, .position = {0.0F, 3.0F}});
+    ShapeDef def = ShapeDef::makeBox({1.5F, 0.22F});
+    def.oneWay = true;
+    world.addShape(platform, def);
+    // Falling fast with only 0.08 of its width over the platform's end: in its first step in
+    // contact it sinks in about 0.3, deeper than that, but must land on top, not be pushed off
+    // sideways or fall through.
+    const BodyId box = world.createBody({.type = BodyType::Dynamic,
+                                         .position = {1.70F, 3.8F},
+                                         .velocity = {0.0F, -26.0F},
+                                         .fixedRotation = true}); // like a character
+    world.addShape(box, ShapeDef::makeBox({0.28F, 0.44F}));
+    run(world, 1.0F);
+    EXPECT_NEAR(world.position(box).y, 3.22F + 0.44F, 0.02F);
+    EXPECT_TRUE(world.isGrounded(box));
+}
+
 TEST(PhysicsWorldTests, BulletsDoNotTunnelThroughThinWalls)
 {
     for (const bool bullet : {false, true}) {

@@ -154,7 +154,7 @@ int decorTile(char c)
     case 'g':
         return tile::kTuft;
     case 't':
-        return tile::kTorch;
+        return tile::kScorchedFlowers;
     case 'y':
         return tile::kPine;
     case 'a':
@@ -172,7 +172,7 @@ int decorTile(char c)
     case 'x':
         return tile::kCharredTree;
     case 'n':
-        return tile::kLavaVent;
+        return tile::kAshGrass;
     case 'm':
         return tile::kMagmaBoulder;
     default:

@@ -228,7 +228,9 @@ one's category is in the other's mask (e.g. player bullets ignore the player).
 (rotated with its body) and not moving up. The decision is made when the two start touching, so a
 character jumping up through a platform passes it entirely, then lands on it. A shape that was let
 through starts colliding when it falls again with its bottom in the platform's upper half: a jump
-that only just reaches the top still lands on it instead of dropping through.
+that only just reaches the top still lands on it instead of dropping through. Only the edges that face
+up give contact normals, so a character landing on the very end of a platform stands on it
+instead of being pushed off sideways.
 
 **Tile maps.** @ref astra2d::TileGrid holds solid and one-way tiles. @ref astra2d::mergeTiles()
 covers them with few rectangles: each row is split into runs of equal tiles, and equal runs in

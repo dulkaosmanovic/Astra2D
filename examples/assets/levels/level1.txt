@@ -12,9 +12,9 @@
 ;   e  crawler               v  bat            k  spiker (cannot be stomped)
 ;   j  spring                M  moving platform, 3 tiles wide, 4 tiles to the right and back
 ;   C  checkpoint (beacon)   F  goal (rocket)  V  lift, like M but up and back
-;   b  bush   f  flower   r  rock   s  sign   c  crystals   u  mushroom   g  tendrils   t  fire pit
+;   b  bush   f  flower   r  rock   s  sign   c  crystals   u  mushroom   g  tendrils   t  scorched flowers
 ;   y  spiral tree   a  alien plant   d  dish   q  geode
-;   p  puffballs   w  cloud shrub   l  bell flower   x  charred tree   n  lava vent
+;   p  puffballs   w  cloud shrub   l  bell flower   x  charred tree   n  ash grass
 ;   m  magma boulder   (decoration, no collision)
 name: Planet Verda
 hint: Run with A/D, jump with SPACE, and reach the rocket

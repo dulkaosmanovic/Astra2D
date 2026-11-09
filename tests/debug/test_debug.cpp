@@ -111,7 +111,7 @@ TEST(PhysicsDebugDrawTests, ColoursShowBodyTypeAndShapeKind)
     const auto lines = astra2d::collectPhysicsDebug(world, shapesOnly());
     EXPECT_EQ(countColor(lines, colors.kinematicBody), 4U);
     EXPECT_EQ(countColor(lines, colors.trigger), 4U);
-    EXPECT_EQ(countColor(lines, colors.oneWay), 4U);
+    EXPECT_EQ(countColor(lines, colors.oneWay), 1U); // only its top collides; the rest is faint
     EXPECT_EQ(countColor(lines, colors.sleepingBody), 4U);
 }
 

@@ -101,7 +101,7 @@ TEST(PlatformerLevelTests, ReadsTheDecorationOfNimbusAndPyros)
     EXPECT_EQ(level.at(level.decor, 2, 1), tile::kCloudShrub);
     EXPECT_EQ(level.at(level.decor, 3, 1), tile::kBellFlower);
     EXPECT_EQ(level.at(level.decor, 4, 1), tile::kCharredTree);
-    EXPECT_EQ(level.at(level.decor, 5, 1), tile::kLavaVent);
+    EXPECT_EQ(level.at(level.decor, 5, 1), tile::kAshGrass);
     EXPECT_EQ(level.at(level.decor, 6, 1), tile::kMagmaBoulder);
     EXPECT_EQ(level.at(level.ground, 4, 1), tile::kNone); // decoration does not collide
 }

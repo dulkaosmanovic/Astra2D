@@ -20,7 +20,7 @@ project about the architecture of a real-time engine. The systems that matter mo
 scratch and measured, not borrowed.
 
 <div class="astra-shots">
-<img src="platformer_level2.png" alt="Astra Run on the Crystal Moon: a bat, coins and a moving platform over lava"/>
+<img src="platformer_level1.png" alt="Astra Run on Planet Verda: a jump to the coins"/>
 <img src="platformer_debug.png" alt="The same moment with the physics debug view"/>
 </div>
 
