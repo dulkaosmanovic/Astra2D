@@ -67,8 +67,12 @@ private:
 struct PlayOptions {
     float volume = 1.0F; ///< Linear gain: 0 silent, 1 as recorded.
     float pitch = 1.0F;  ///< Playback speed and pitch: 2 is an octave up and twice as fast.
-    float pan = 0.0F;    ///< -1 left, 0 centre, 1 right.
-    bool loop = false;   ///< Start over at the end until stopped.
+    /// A random change of pitch on every play(), up to this fraction either way (0.06 plays
+    /// between 0.94 and 1.06 times @ref pitch), so a sound repeated often does not get tiring
+    /// (like Godot's AudioStreamRandomizer). 0 plays it the same every time; at most 0.9.
+    float pitchVariation = 0.0F;
+    float pan = 0.0F;  ///< -1 left, 0 centre, 1 right.
+    bool loop = false; ///< Start over at the end until stopped.
 };
 
 /// A playing sound, returned by AudioEngine::play(). It goes stale when the sound ends or is
@@ -94,7 +98,7 @@ struct VoiceId {
 /// astra2d::AudioEngine m_audio({}, assetsDir);
 /// const astra2d::Sound& m_jump = m_audio.sound("sounds/jump.wav");
 /// m_audio.playMusic(m_audio.sound("sounds/music.wav"));
-/// m_audio.play(m_jump, {.pitch = 1.1F});   // when the player jumps
+/// m_audio.play(m_jump, {.pitchVariation = 0.06F}); // when the player jumps
 /// m_audio.update();                         // once per frame: frees finished voices
 /// @endcode
 ///

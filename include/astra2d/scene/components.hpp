@@ -9,6 +9,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -80,6 +81,29 @@ struct SpriteRenderer {
 struct Animator {
     const SpriteSheet* sheet = nullptr; ///< Frames come from this sheet; must outlive the entity.
     AnimationPlayer player{};           ///< Which animation, current frame, speed.
+    /// Destroy the entity when its animation has finished (a one-shot effect such as dust or a
+    /// sparkle); has no effect on a looping animation.
+    bool destroyWhenFinished = false;
+};
+
+/// Destroys its entity after @ref duration seconds, so short-lived things (a burst, a squashed
+/// enemy, a bullet) need no system of their own. The built-in "lifetime" system (LateUpdate, so
+/// the game's systems see the last moment) advances @ref age by the frame time.
+///
+/// @code
+/// registry.emplace<Lifetime>(burst, Lifetime{.duration = 0.4F});
+/// sprite.tint.a = 1.0F - registry.get<Lifetime>(burst).progress(); // a fade
+/// @endcode
+struct Lifetime {
+    float duration = 1.0F; ///< Seconds the entity lives.
+    float age = 0.0F;      ///< Seconds lived so far; destroyed once it reaches duration.
+    /// age / duration in [0, 1] (1 for a duration of 0 or less).
+    [[nodiscard]] float progress() const
+    {
+        return duration > 0.0F ? std::clamp(age / duration, 0.0F, 1.0F) : 1.0F;
+    }
+    /// Equal if all fields are equal.
+    friend bool operator==(const Lifetime&, const Lifetime&) = default;
 };
 
 /// Physical motion of an entity, simulated by PhysicsSystem; it writes the result to Transform.

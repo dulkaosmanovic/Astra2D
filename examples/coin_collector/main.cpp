@@ -31,6 +31,7 @@
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/camera_shake.hpp>
 #include <astra2d/renderer/font.hpp>
+#include <astra2d/renderer/particles.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/renderer/sprite.hpp>
 #include <astra2d/scene/components.hpp>
@@ -100,9 +101,9 @@ struct Coin {};
 
 struct Spike {};
 
+// A ring that grows and fades; its Lifetime destroys it.
 struct Burst {
     glm::vec4 color{1.0F};
-    float age = 0.0F;
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -120,20 +121,20 @@ struct PlayerHit {
 enum class State { Title, Playing, GameOver };
 
 // Collision groups (Collider::category / mask): what collides with what.
-constexpr unsigned kWallGroup = 1U << 0U;
-constexpr unsigned kPlayerGroup = 1U << 1U;
-constexpr unsigned kSpikeGroup = 1U << 2U;
-constexpr unsigned kCoinGroup = 1U << 3U;
+constexpr std::uint16_t kWallGroup = 1U << 0U;
+constexpr std::uint16_t kPlayerGroup = 1U << 1U;
+constexpr std::uint16_t kSpikeGroup = 1U << 2U;
+constexpr std::uint16_t kCoinGroup = 1U << 3U;
 
-astra2d::Collider circle(float radius, unsigned category, unsigned mask)
+astra2d::Collider circle(float radius, std::uint16_t category, std::uint16_t mask)
 {
     // No friction and fully elastic: spikes keep their speed when they bounce.
     return {.shape = astra2d::ColliderShape::Circle,
             .radius = radius,
             .restitution = 1.0F,
             .friction = 0.0F,
-            .category = static_cast<std::uint16_t>(category),
-            .mask = static_cast<std::uint16_t>(mask)};
+            .category = category,
+            .mask = mask};
 }
 
 class CoinCollector : public astra2d::Application {
@@ -168,10 +169,14 @@ public:
             ++m_score;
             m_shake.addTrauma(0.25F);
             spawnBurst(event.position, kGold);
+            m_sparks.settings().startColor = kGold;
+            m_sparks.emit(event.position, 24);
         });
         m_onHit = events().subscribe<PlayerHit>([this](const PlayerHit& event) {
             m_shake.addTrauma(0.7F);
             spawnBurst(event.position, kSpikeColor);
+            m_sparks.settings().startColor = kSpikeColor;
+            m_sparks.emit(event.position, 40);
             ASTRA_INFO("Hit! {} lives left", event.livesLeft);
         });
     }
@@ -216,6 +221,7 @@ protected:
             break;
         }
         m_scene.update(dt); // animations and effects keep running between rounds
+        m_sparks.update(dt);
         m_shake.update(dt);
         m_time += dt;
     }
@@ -240,12 +246,14 @@ protected:
             m_renderer.drawCircle(m_scene.worldTransform(spike, alpha).position, kSpikeRadius,
                                   kSpikeColor, 2.0F, 16);
         });
-        registry.view<Burst, Transform>().each([&](const Burst& burst, const Transform& t) {
-            const float progress = burst.age / kBurstTime;
+        registry.view<Burst, astra2d::Lifetime, Transform>().each(
+            [&](const Burst& burst, const astra2d::Lifetime& lifetime, const Transform& t) {
+            const float progress = lifetime.progress();
             m_renderer.drawCircle(t.position, 10.0F + (40.0F * progress),
                                   {burst.color.r, burst.color.g, burst.color.b, 1.0F - progress},
                                   3.0F);
         });
+        m_sparks.draw(m_renderer);
         if (m_showPhysics) {
             astra2d::drawPhysicsDebug(m_renderer, m_physics.world(),
                                       {.lineWidth = 1.5F,
@@ -309,15 +317,8 @@ private:
                 sprite.visible = player.invulnerable <= 0.0F || std::fmod(m_time, 0.2F) < 0.1F;
             });
         });
-        m_scene.addSystem(SystemPhase::Update, "bursts", [](Scene& scene, float dt) {
-            scene.registry().view<Burst>().each([&](Entity entity, Burst& burst) {
-                burst.age += dt;
-                if (burst.age > kBurstTime) {
-                    scene.destroyLater(entity); // safe inside a view
-                }
-            });
-        });
-        // The built-in "animation" system (LateUpdate) then advances every Animator.
+        // The built-in "animation" system (LateUpdate) then advances every Animator, and the
+        // "lifetime" system removes bursts whose time is up.
     }
 
     void movePlayer(Scene& scene)
@@ -392,7 +393,8 @@ private:
         // A dynamic body without gravity that never turns; spikes bounce off it.
         registry.emplace<astra2d::RigidBody>(m_player, astra2d::RigidBody{.fixedRotation = true});
         registry.emplace<astra2d::Collider>(
-            m_player, circle(kPlayerRadius, kPlayerGroup, kWallGroup | kSpikeGroup | kCoinGroup));
+            m_player, circle(kPlayerRadius, kPlayerGroup,
+                             astra2d::collisionGroups(kWallGroup, kSpikeGroup, kCoinGroup)));
         registry.emplace<astra2d::Interpolated>(m_player);
 
         for (int i = 0; i < kCoinsOnField; ++i) {
@@ -417,11 +419,10 @@ private:
                                        ? glm::vec2(kThickness, kArenaHalf.y + (2.0F * kThickness))
                                        : glm::vec2(kArenaHalf.x + (2.0F * kThickness), kThickness);
             const Entity wall = m_scene.createEntity("wall", center);
-            registry.emplace<astra2d::Collider>(
-                wall, astra2d::Collider{.halfExtents = half,
-                                        .restitution = 1.0F,
-                                        .friction = 0.0F,
-                                        .category = static_cast<std::uint16_t>(kWallGroup)});
+            registry.emplace<astra2d::Collider>(wall, astra2d::Collider{.halfExtents = half,
+                                                                        .restitution = 1.0F,
+                                                                        .friction = 0.0F,
+                                                                        .category = kWallGroup});
         }
     }
 
@@ -465,7 +466,8 @@ private:
             spike, astra2d::SpriteRenderer{
                        .size = glm::vec2{kSpikeRadius * 1.6F}, .tint = kSpikeColor, .layer = 1});
         registry.emplace<astra2d::Collider>(
-            spike, circle(kSpikeRadius, kSpikeGroup, kWallGroup | kSpikeGroup | kPlayerGroup));
+            spike, circle(kSpikeRadius, kSpikeGroup,
+                          astra2d::collisionGroups(kWallGroup, kSpikeGroup, kPlayerGroup)));
         registry.emplace<astra2d::Interpolated>(spike);
     }
 
@@ -473,6 +475,8 @@ private:
     {
         const Entity burst = m_scene.createEntity({}, position);
         m_scene.registry().emplace<Burst>(burst, Burst{.color = color});
+        m_scene.registry().emplace<astra2d::Lifetime>(burst,
+                                                      astra2d::Lifetime{.duration = kBurstTime});
     }
 
     // A random point in the arena that is not right next to the player.
@@ -493,10 +497,11 @@ private:
 
     // --- HUD ----------------------------------------------------------------------------------
 
+    // Text centred on (0, y).
     void drawCentered(std::string_view text, float y, float size, glm::vec4 color)
     {
-        const glm::vec2 extent = m_font.atlas().measure(text, size);
-        m_renderer.drawText(m_font, text, {-extent.x * 0.5F, y + (extent.y * 0.5F)}, size, color);
+        m_renderer.drawText(m_font, text, {0.0F, y},
+                            {.size = size, .color = color, .anchor = {0.5F, 0.5F}});
     }
 
     void drawHud()
@@ -512,15 +517,16 @@ private:
             m_renderer.drawText(m_font, std::format("SCORE {}", m_score),
                                 {-kArenaHalf.x + 12.0F, textTop}, kTextSize, kGold);
             for (int i = 0; i < kLives; ++i) {
-                const float x = (static_cast<float>(i) - (kLives - 1) * 0.5F) * 28.0F;
+                const float x = (static_cast<float>(i) - ((kLives - 1) * 0.5F)) * 28.0F;
                 m_renderer.drawSprite({x, middle}, glm::vec2{24.0F}, m_sheet.frame(0),
                                       {1.0F, 1.0F, 1.0F, i < m_lives ? 1.0F : 0.2F});
             }
             const std::string time =
                 std::format("TIME {:2}", static_cast<int>(std::ceil(std::max(m_timeLeft, 0.0F))));
-            const float width = m_font.atlas().measure(time, kTextSize).x;
-            m_renderer.drawText(m_font, time, {kArenaHalf.x - 12.0F - width, textTop}, kTextSize,
-                                m_timeLeft < 5.0F ? kSpikeColor : kWhite);
+            m_renderer.drawText(m_font, time, {kArenaHalf.x - 12.0F, textTop},
+                                {.size = kTextSize,
+                                 .color = m_timeLeft < 5.0F ? kSpikeColor : kWhite,
+                                 .anchor = {1.0F, 1.0F}}); // right-aligned
         }
         if (m_state != State::Playing) {
             examples::drawPanel(m_renderer, {-260.0F, -100.0F}, {260.0F, 100.0F}, 4.0F, kBorder);
@@ -551,6 +557,15 @@ private:
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;
     astra2d::CameraShake m_shake;
+    // Sparks thrown out of a collected coin or a hit: fast at first, slowed by drag, fading.
+    astra2d::ParticleEmitter m_sparks{{.lifetime = 0.6F,
+                                       .lifetimeVariation = 0.4F,
+                                       .speed = 220.0F,
+                                       .speedVariation = 0.5F,
+                                       .damping = 3.0F,
+                                       .startSize = 6.0F,
+                                       .endSize = 1.0F,
+                                       .endColor = {1.0F, 1.0F, 1.0F, 0.0F}}};
     astra2d::Renderer2D m_renderer;
     astra2d::ActionMap m_actions;
     std::mt19937 m_random;

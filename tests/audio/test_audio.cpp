@@ -256,6 +256,20 @@ TEST(AudioEngineTests, PitchChangesTheLength)
     EXPECT_TRUE(audio.isPlaying(normal));
 }
 
+TEST(AudioEngineTests, PitchVariationStaysInItsRange)
+{
+    AudioEngine audio(headless());
+    const Sound& tone = audio.addSound("tone", constant(0.3F, 0.1F), 1, kRate); // 4800 frames
+    for (int i = 0; i < 4; ++i) {
+        // Pitch 2 +- 20 % plays the 4800 frames in 2000 to 3000 frames.
+        const astra2d::VoiceId voice = audio.play(tone, {.pitch = 2.0F, .pitchVariation = 0.2F});
+        peak(audio, 1900);
+        EXPECT_TRUE(audio.isPlaying(voice));
+        peak(audio, 1200);
+        EXPECT_FALSE(audio.isPlaying(voice));
+    }
+}
+
 TEST(AudioEngineTests, AddSoundValidates)
 {
     AudioEngine audio(headless());

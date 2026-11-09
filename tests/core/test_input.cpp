@@ -190,6 +190,94 @@ TEST(InputTests, ReleaseAllReleasesHeldKeys)
 }
 
 // ---------------------------------------------------------------------------------------------
+// Fixed steps
+
+namespace {
+
+// One fixed step: what isPressed() / isReleased() report inside it.
+struct StepView {
+    bool pressed;
+    bool released;
+};
+StepView step(Input& input, Key key)
+{
+    input.beginFixedStep();
+    const StepView view{.pressed = input.isPressed(key), .released = input.isReleased(key)};
+    input.endFixedStep();
+    return view;
+}
+
+} // namespace
+
+TEST(InputFixedStepTests, APressInAFrameWithoutStepsReachesTheNextStep)
+{
+    Input input;
+    input.beginFrame();
+    press(input, Key::Space);
+    // No fixed step this frame (a fast display); the next frame runs one.
+    input.beginFrame();
+    EXPECT_FALSE(input.isPressed(Key::Space)); // the frame's own view has moved on
+    EXPECT_TRUE(step(input, Key::Space).pressed);
+    EXPECT_FALSE(step(input, Key::Space).pressed);
+}
+
+TEST(InputFixedStepTests, APressIsSeenByOnlyOneOfSeveralStepsInAFrame)
+{
+    Input input;
+    input.beginFrame();
+    press(input, Key::Space);
+    EXPECT_TRUE(step(input, Key::Space).pressed);
+    EXPECT_FALSE(step(input, Key::Space).pressed);
+    // onUpdate() after the steps still sees the frame's press.
+    EXPECT_TRUE(input.isPressed(Key::Space));
+}
+
+TEST(InputFixedStepTests, ATapBetweenStepsReportsPressAndRelease)
+{
+    Input input;
+    input.beginFrame();
+    press(input, Key::Space);
+    input.beginFrame();
+    release(input, Key::Space);
+    const StepView view = step(input, Key::Space);
+    EXPECT_TRUE(view.pressed);
+    EXPECT_TRUE(view.released);
+    EXPECT_FALSE(input.inFixedStep());
+}
+
+TEST(InputFixedStepTests, ClearingForgetsPressesNoStepHasSeen)
+{
+    Input input;
+    input.beginFrame();
+    press(input, Key::Enter); // closes a menu in onUpdate(), in a frame without fixed steps
+    input.clearFixedStepPresses();
+    EXPECT_TRUE(input.isPressed(Key::Enter)); // the frame still saw it
+    const StepView view = step(input, Key::Enter);
+    EXPECT_FALSE(view.pressed);
+    EXPECT_TRUE(input.isHeld(Key::Enter));
+}
+
+TEST(InputFixedStepTests, MouseAndGamepadButtonsWorkInStepsToo)
+{
+    Input input;
+    input.beginFrame();
+    input.onMouseButton(static_cast<int>(MouseButton::Left), true);
+    std::array<bool, Input::kGamepadButtonCount> buttons{};
+    buttons[static_cast<std::size_t>(astra2d::GamepadButton::A)] = true;
+    input.onGamepadState(0, buttons,
+                         std::array<float, Input::kGamepadAxisCount>{0, 0, 0, 0, -1, -1});
+    input.beginFrame();
+    input.beginFixedStep();
+    EXPECT_TRUE(input.isPressed(MouseButton::Left));
+    EXPECT_TRUE(input.isPressed(astra2d::GamepadButton::A));
+    input.endFixedStep();
+    input.beginFixedStep();
+    EXPECT_FALSE(input.isPressed(MouseButton::Left));
+    EXPECT_TRUE(input.isHeld(MouseButton::Left));
+    input.endFixedStep();
+}
+
+// ---------------------------------------------------------------------------------------------
 // Gamepads
 
 namespace {

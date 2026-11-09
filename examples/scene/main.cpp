@@ -60,10 +60,8 @@ struct Pickup {
     int value = 1;
 };
 
-/// A short-lived effect that grows and fades, then destroys its entity.
-struct Burst {
-    float age = 0.0F;
-};
+/// A short-lived effect that grows and fades; its Lifetime destroys it.
+struct Burst {};
 
 constexpr float kCoinSize = 32.0F;
 constexpr float kBurstTime = 0.4F;
@@ -164,19 +162,16 @@ private:
                 transform.rotation += spin.speed * dt;
             });
         });
-        // Effects once per frame. destroyLater() is the safe way to destroy inside a view.
-        m_scene.addSystem(astra2d::SystemPhase::Update, "bursts",
-                          [](astra2d::Scene& scene, float dt) {
-            scene.registry().view<Burst, astra2d::Transform, astra2d::SpriteRenderer>().each(
-                [&](astra2d::Entity entity, Burst& burst, astra2d::Transform& transform,
-                    astra2d::SpriteRenderer& sprite) {
-                burst.age += dt;
-                const float t = std::min(burst.age / kBurstTime, 1.0F);
+        // Effects once per frame. The built-in "lifetime" system destroys a burst when its
+        // Lifetime is up; this one only makes it grow and fade on the way.
+        m_scene.addSystem(astra2d::SystemPhase::Update, "bursts", [](astra2d::Scene& scene, float) {
+            scene.registry()
+                .view<Burst, astra2d::Lifetime, astra2d::Transform, astra2d::SpriteRenderer>()
+                .each([](const Burst&, const astra2d::Lifetime& lifetime,
+                         astra2d::Transform& transform, astra2d::SpriteRenderer& sprite) {
+                const float t = lifetime.progress();
                 transform.scale = glm::vec2(1.0F + (2.0F * t));
                 sprite.tint.a = 1.0F - t;
-                if (t >= 1.0F) {
-                    scene.destroyLater(entity);
-                }
             });
         });
     }
@@ -194,9 +189,10 @@ private:
         m_serializer.registerComponent<Pickup>("Pickup", [](const Pickup& p, const Save&) {
             return json{{"value", p.value}};
         }, [](const json& j, const Load&) { return Pickup{j.at("value").get<int>()}; });
-        m_serializer.registerComponent<Burst>("Burst", [](const Burst& b, const Save&) {
-            return json{{"age", b.age}};
-        }, [](const json& j, const Load&) { return Burst{j.at("age").get<float>()}; });
+        // A tag: nothing to save. The burst's Lifetime is a built-in component.
+        m_serializer.registerComponent<Burst>("Burst", [](const Burst&, const Save&) {
+            return json::object();
+        }, [](const json&, const Load&) { return Burst{}; });
         // Animator points at run-time data (a sheet, an animation), which a file cannot hold, so
         // the game stores a name and maps it back when loading.
         m_serializer.registerComponent<astra2d::Animator>(
@@ -279,6 +275,8 @@ private:
                                            .tint = {1.0F, 0.9F, 0.5F, 1.0F},
                                            .layer = 2});
         m_scene.registry().emplace<Burst>(burst);
+        m_scene.registry().emplace<astra2d::Lifetime>(burst,
+                                                      astra2d::Lifetime{.duration = kBurstTime});
     }
 
     void collectAt(glm::vec2 point)

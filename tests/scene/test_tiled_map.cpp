@@ -184,6 +184,22 @@ TEST(TiledMapTests, MakesACollisionGridWithRowsFromTheBottom)
     EXPECT_EQ(astra2d::mergeTiles(all).size(), 2U); // the bottom row and the top-right pair
 }
 
+TEST(TiledMapTests, MakesATileLayerOfLocalIdsWithRowsFromTheBottom)
+{
+    const TiledMap map = astra2d::parseTiledMap(sampleMap());
+    const astra2d::TileLayer layer = astra2d::makeTileLayer(map, *map.tileLayer("ground"), 16.0F);
+    EXPECT_EQ(layer.width, 4);
+    EXPECT_EQ(layer.height, 3);
+    EXPECT_EQ(layer.tileSize, 16.0F);
+    // Tiled's bottom row (gids 1, 1, 3, flipped 1) is row 0, as local ids (frames).
+    EXPECT_EQ(layer.at(0, 0), 0);
+    EXPECT_EQ(layer.at(2, 0), 2);
+    EXPECT_EQ(layer.at(3, 0), 0); // drawn unflipped
+    EXPECT_EQ(layer.at(0, 1), astra2d::TileLayer::kEmpty);
+    EXPECT_EQ(layer.at(3, 2), 1);
+    EXPECT_EQ(layer.cellCenter(1, 2), glm::vec2(24.0F, 40.0F));
+}
+
 TEST(TiledMapTests, ReadsBase64LayerData)
 {
     json j = sampleMap();

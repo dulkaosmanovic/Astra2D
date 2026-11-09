@@ -71,6 +71,17 @@ public:
     /// m_camera.fitArea({640.0F, 360.0F});   // once; onResize() keeps calling setViewportSize()
     /// @endcode
     void fitArea(glm::vec2 area);
+    /// Shows about @p viewHeight world units vertically (> 0) with a whole number of screen pixels
+    /// per world unit, now and after every setViewportSize(), and draws from a position rounded to
+    /// whole screen pixels, so pixel art stays crisp, without shimmering while the camera moves
+    /// (like Unity's Pixel Perfect Camera). With one texel per world unit, a 720 pixel window and
+    /// @p viewHeight 224 give 3 pixels per texel and show 240 units. Ends fitArea();
+    /// setViewHeight() and fitArea() end it.
+    void setPixelPerfect(float viewHeight);
+    /// True after setPixelPerfect().
+    [[nodiscard]] bool pixelPerfect() const { return m_pixelPerfectHeight > 0.0F; }
+    /// Screen pixels per world unit (a whole number after setPixelPerfect() at zoom 1).
+    [[nodiscard]] float pixelsPerUnit() const;
     /// World units visible vertically at zoom 1.
     [[nodiscard]] float viewHeight() const { return m_viewHeight; }
 
@@ -100,7 +111,8 @@ private:
     void applyFit();
 
     float m_viewHeight;
-    glm::vec2 m_fitArea{0.0F}; // (0, 0): no fitArea()
+    glm::vec2 m_fitArea{0.0F};         // (0, 0): no fitArea()
+    float m_pixelPerfectHeight = 0.0F; // 0: no setPixelPerfect()
     float m_zoom = 1.0F;
     float m_rotation = 0.0F;
 };

@@ -378,6 +378,12 @@ TEST(PhysicsWorldTests, TriggersReportOverlapsWithoutColliding)
     EXPECT_NEAR(world.position(ball).y, 0.25F, 0.02F); // fell through the zone onto the ground
 }
 
+// Built at compile time.
+static_assert(astra2d::collisionGroups(1U << 0U, 1U << 3U) == 0b1001U);
+static_assert(astra2d::collisionGroups() == 0U);
+static_assert(astra2d::withoutGroups(0b1011U, 0b0010U) == 0b1001U);
+static_assert(astra2d::withoutGroups(0xFFFFU, 0x8000U) == 0x7FFFU);
+
 TEST(PhysicsWorldTests, CategoryAndMaskFilterPairs)
 {
     PhysicsWorld world;

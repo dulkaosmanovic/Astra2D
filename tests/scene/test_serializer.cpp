@@ -58,6 +58,8 @@ TEST(SerializerTests, RoundTripKeepsComponentsAndHierarchy)
         mars, astra2d::SpriteRenderer{
                   .sprite = {}, .size = {4.0F, 4.0F}, .tint = {1, 0, 0, 1}, .layer = 2});
 
+    original.registry().emplace<astra2d::Lifetime>(
+        mars, astra2d::Lifetime{.duration = 2.5F, .age = 0.5F});
     const SceneSerializer serializer;
     const json saved = serializer.save(original);
 
@@ -84,6 +86,8 @@ TEST(SerializerTests, RoundTripKeepsComponentsAndHierarchy)
     const auto& sprite = loaded.registry().get<astra2d::SpriteRenderer>(loadedMars);
     EXPECT_EQ(sprite.layer, 2);
     EXPECT_EQ(sprite.sprite.texture, nullptr);
+    EXPECT_EQ(loaded.registry().get<astra2d::Lifetime>(loadedMars),
+              (astra2d::Lifetime{.duration = 2.5F, .age = 0.5F}));
 
     // Saving the loaded scene gives the same document.
     EXPECT_EQ(serializer.save(loaded), saved);

@@ -9,7 +9,7 @@ runs the main loop, delivers input and splits time into fixed simulation steps.
 <ul>
 <li>`Application::run()` owns the loop; a game overrides `onStart()`, `onFixedUpdate()`, `onUpdate()` and `onRender()`.</li>
 <li>The simulation advances in fixed steps (1/60 s by default), zero or more per frame; drawing interpolates between them.</li>
-<li>Read one-frame input such as `isPressed()` in `onUpdate()`, not in `onFixedUpdate()`.</li>
+<li>`isPressed()` works in both hooks: in `onUpdate()` it means "this frame", in `onFixedUpdate()` "since the previous step", so each press is seen by exactly one step.</li>
 <li>`ActionMap` binds named actions to keys and gamepads; `EventDispatcher` lets systems talk without knowing each other.</li>
 </ul></div>
 
@@ -132,10 +132,35 @@ States are updated from events, not by comparing two snapshots. A key that is pr
 released between two frames therefore still reports both `isPressed()` and `isReleased()` in the
 next frame, so very short taps are not lost.
 
-@warning `isPressed()` and `isReleased()` are true for one **frame**, while `onFixedUpdate()` runs
-zero or more times per frame. Read them in `onUpdate()` and store the intent (for example
-`m_jumpRequested = true`) for the next fixed update. Reading them in `onFixedUpdate()` would miss
-presses on frames with zero steps and repeat them on frames with two. `isHeld()` is safe in both.
+### Input in fixed steps
+
+`onFixedUpdate()` runs zero or more times per frame, so "went down this frame" is the wrong
+question there. A press in a frame without a step would be missed, and one in a frame with two
+steps would act twice. While a fixed step runs, `isPressed()` and `isReleased()` therefore answer
+"since the previous **step**". The Application marks each step with
+@ref astra2d::Input::beginFixedStep "beginFixedStep()" and
+@ref astra2d::Input::endFixedStep "endFixedStep()". Godot's `is_action_just_pressed()` in
+`_physics_process()` works the same way. A jump can be read where it is simulated:
+
+```cpp
+void onFixedUpdate(float dt) override
+{
+    if (m_actions.isPressed("jump", input()) && grounded) { // exactly one step per press
+        velocity.y = kJumpSpeed;
+    }
+}
+```
+
+For a key pressed in frame 2, where frame 2 runs no step and frame 3 runs two:
+
+| | frame 2 | frame 3, step 1 | frame 3, step 2 | frame 3, `onUpdate()` |
+|---|:-:|:-:|:-:|:-:|
+| `isPressed` | ✔ (`onUpdate()`) | ✔ | | |
+
+A press that `onUpdate()` has already handled, such as the key that closes a menu, would also
+reach the next step. @ref astra2d::Input::clearFixedStepPresses "clearFixedStepPresses()" forgets
+it, like Unity's `Input.ResetInputAxes()`:
+`window().input().clearFixedStepPresses()`. `isHeld()` is the same in both hooks.
 
 Mouse position is in framebuffer pixels with the origin in the top-left corner, the same units as
 the viewport and `onResize()`. On HiDPI displays GLFW reports the cursor in smaller screen

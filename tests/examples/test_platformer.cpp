@@ -57,13 +57,13 @@ TEST(PlatformerLevelTests, ParsesATextLevel)
     EXPECT_EQ(level.height, 3);
     EXPECT_EQ(level.size(), glm::vec2(9.0F * 16.0F, 3.0F * 16.0F));
     // Row 0 is the bottom line of the map.
-    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kGrass);     // the border counts as ground
-    EXPECT_EQ(level.at(level.ground, 6, 0), tile::kGrassLeft); // spikes on its left
-    EXPECT_EQ(level.at(level.ground, 5, 0), tile::kSpikes);
-    EXPECT_EQ(level.at(level.ground, 4, 0), tile::kGrassRight); // spikes on its right
-    EXPECT_EQ(level.at(level.ground, 5, 1), tile::kPlank);
-    EXPECT_EQ(level.at(level.ground, 0, 2), tile::kNone);
-    EXPECT_EQ(level.at(level.ground, -1, 0), tile::kNone);
+    EXPECT_EQ(level.ground.at(0, 0), tile::kGrass);     // the border counts as ground
+    EXPECT_EQ(level.ground.at(6, 0), tile::kGrassLeft); // spikes on its left
+    EXPECT_EQ(level.ground.at(5, 0), tile::kSpikes);
+    EXPECT_EQ(level.ground.at(4, 0), tile::kGrassRight); // spikes on its right
+    EXPECT_EQ(level.ground.at(5, 1), tile::kPlank);
+    EXPECT_EQ(level.ground.at(0, 2), tile::kNone);
+    EXPECT_EQ(level.ground.at(-1, 0), tile::kNone);
 
     EXPECT_EQ(level.solid.at(0, 0), astra2d::TileCollision::Solid);
     EXPECT_EQ(level.solid.at(5, 0), astra2d::TileCollision::Empty); // spikes do not collide
@@ -81,29 +81,29 @@ TEST(PlatformerLevelTests, ParsesATextLevel)
 TEST(PlatformerLevelTests, IceBasaltAndMossGetATopAndCollide)
 {
     const Level level = platformer::parseTextLevel("map:\nP.adqF\nIIRRNN\nIIRRNN\n");
-    EXPECT_EQ(level.at(level.ground, 0, 1), tile::kIceTop);
-    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kIce);
-    EXPECT_EQ(level.at(level.ground, 3, 1), tile::kBasaltTop);
-    EXPECT_EQ(level.at(level.ground, 3, 0), tile::kBasalt);
-    EXPECT_EQ(level.at(level.ground, 4, 1), tile::kMossTop);
-    EXPECT_EQ(level.at(level.ground, 4, 0), tile::kMoss);
+    EXPECT_EQ(level.ground.at(0, 1), tile::kIceTop);
+    EXPECT_EQ(level.ground.at(0, 0), tile::kIce);
+    EXPECT_EQ(level.ground.at(3, 1), tile::kBasaltTop);
+    EXPECT_EQ(level.ground.at(3, 0), tile::kBasalt);
+    EXPECT_EQ(level.ground.at(4, 1), tile::kMossTop);
+    EXPECT_EQ(level.ground.at(4, 0), tile::kMoss);
     EXPECT_EQ(level.solid.at(2, 0), astra2d::TileCollision::Solid);
     EXPECT_EQ(level.solid.at(5, 1), astra2d::TileCollision::Solid);
-    EXPECT_EQ(level.at(level.decor, 2, 2), tile::kAlienPlant);
-    EXPECT_EQ(level.at(level.decor, 3, 2), tile::kDish);
-    EXPECT_EQ(level.at(level.decor, 4, 2), tile::kGeode);
+    EXPECT_EQ(level.decor.at(2, 2), tile::kAlienPlant);
+    EXPECT_EQ(level.decor.at(3, 2), tile::kDish);
+    EXPECT_EQ(level.decor.at(4, 2), tile::kGeode);
 }
 
 TEST(PlatformerLevelTests, ReadsTheDecorationOfNimbusAndPyros)
 {
     const Level level = platformer::parseTextLevel("map:\nPpwlxnmF\n########\n");
-    EXPECT_EQ(level.at(level.decor, 1, 1), tile::kPuffballs);
-    EXPECT_EQ(level.at(level.decor, 2, 1), tile::kCloudShrub);
-    EXPECT_EQ(level.at(level.decor, 3, 1), tile::kBellFlower);
-    EXPECT_EQ(level.at(level.decor, 4, 1), tile::kCharredTree);
-    EXPECT_EQ(level.at(level.decor, 5, 1), tile::kAshGrass);
-    EXPECT_EQ(level.at(level.decor, 6, 1), tile::kMagmaBoulder);
-    EXPECT_EQ(level.at(level.ground, 4, 1), tile::kNone); // decoration does not collide
+    EXPECT_EQ(level.decor.at(1, 1), tile::kPuffballs);
+    EXPECT_EQ(level.decor.at(2, 1), tile::kCloudShrub);
+    EXPECT_EQ(level.decor.at(3, 1), tile::kBellFlower);
+    EXPECT_EQ(level.decor.at(4, 1), tile::kCharredTree);
+    EXPECT_EQ(level.decor.at(5, 1), tile::kAshGrass);
+    EXPECT_EQ(level.decor.at(6, 1), tile::kMagmaBoulder);
+    EXPECT_EQ(level.ground.at(4, 1), tile::kNone); // decoration does not collide
 }
 
 TEST(PlatformerLevelTests, ReadsEnemiesPlatformsAndClouds)
@@ -113,29 +113,29 @@ TEST(PlatformerLevelTests, ReadsEnemiesPlatformsAndClouds)
                                  ThingKind::Heart, ThingKind::Platform, ThingKind::Lift}) {
         EXPECT_EQ(level.count(kind), 1);
     }
-    EXPECT_EQ(level.at(level.ground, 0, 0), tile::kCloud);
+    EXPECT_EQ(level.ground.at(0, 0), tile::kCloud);
     EXPECT_EQ(level.platforms.at(1, 0), astra2d::TileCollision::OneWay); // clouds are one-way
     EXPECT_EQ(level.solid.at(1, 0), astra2d::TileCollision::Empty);
-    EXPECT_EQ(level.at(level.decor, 3, 0), tile::kCrystal);
+    EXPECT_EQ(level.decor.at(3, 0), tile::kCrystal);
 }
 
 TEST(PlatformerLevelTests, GroundGetsGrassOnTopAndDirtBelow)
 {
     const Level level = platformer::parseTextLevel("map:\n.P.F.\n.###.\n.###.\n");
-    EXPECT_EQ(level.at(level.ground, 1, 1), tile::kGrassLeft);
-    EXPECT_EQ(level.at(level.ground, 2, 1), tile::kGrass);
-    EXPECT_EQ(level.at(level.ground, 3, 1), tile::kGrassRight);
-    EXPECT_EQ(level.at(level.ground, 2, 0), tile::kDirt);
+    EXPECT_EQ(level.ground.at(1, 1), tile::kGrassLeft);
+    EXPECT_EQ(level.ground.at(2, 1), tile::kGrass);
+    EXPECT_EQ(level.ground.at(3, 1), tile::kGrassRight);
+    EXPECT_EQ(level.ground.at(2, 0), tile::kDirt);
     const Level pillar = platformer::parseTextLevel("map:\nP.F\n.#.\n");
-    EXPECT_EQ(pillar.at(pillar.ground, 1, 0), tile::kGrassSingle);
+    EXPECT_EQ(pillar.ground.at(1, 0), tile::kGrassSingle);
 }
 
 TEST(PlatformerLevelTests, ShortRowsArePaddedAndDecorationIsSeparate)
 {
     const Level level = platformer::parseTextLevel("map:\nP\nbF.....\n#######\n");
     EXPECT_EQ(level.width, 7);
-    EXPECT_EQ(level.at(level.decor, 0, 1), tile::kBush);
-    EXPECT_EQ(level.at(level.ground, 0, 1), tile::kNone);
+    EXPECT_EQ(level.decor.at(0, 1), tile::kBush);
+    EXPECT_EQ(level.ground.at(0, 1), tile::kNone);
     EXPECT_EQ(level.solid.at(0, 1), astra2d::TileCollision::Empty);
 }
 
@@ -184,9 +184,9 @@ TEST(PlatformerLevelTests, MakesALevelFromATiledMap)
     EXPECT_EQ(level.name, "Tiled Test");
     EXPECT_EQ(level.width, 3);
     EXPECT_EQ(level.height, 2);
-    EXPECT_EQ(level.at(level.ground, 0, 0), 0); // Tiled's bottom row is row 0
-    EXPECT_EQ(level.at(level.ground, 1, 1), tile::kPlank);
-    EXPECT_EQ(level.at(level.decor, 0, 1), 8);
+    EXPECT_EQ(level.ground.at(0, 0), 0); // Tiled's bottom row is row 0
+    EXPECT_EQ(level.ground.at(1, 1), tile::kPlank);
+    EXPECT_EQ(level.decor.at(0, 1), 8);
     EXPECT_EQ(level.solid.at(0, 0), astra2d::TileCollision::Solid);
     EXPECT_EQ(level.solid.at(1, 0), astra2d::TileCollision::Empty);
     EXPECT_EQ(level.platforms.at(1, 1), astra2d::TileCollision::OneWay);

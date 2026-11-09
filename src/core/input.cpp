@@ -20,7 +20,7 @@ bool hasBit(const Array& states, int index, std::uint8_t bit)
 
 bool Input::isPressed(Key key) const
 {
-    return hasBit(m_keys, static_cast<int>(key), kPressed);
+    return hasBit(m_keys, static_cast<int>(key), pressedBit());
 }
 bool Input::isHeld(Key key) const
 {
@@ -28,12 +28,12 @@ bool Input::isHeld(Key key) const
 }
 bool Input::isReleased(Key key) const
 {
-    return hasBit(m_keys, static_cast<int>(key), kReleased);
+    return hasBit(m_keys, static_cast<int>(key), releasedBit());
 }
 
 bool Input::isPressed(MouseButton button) const
 {
-    return hasBit(m_mouseButtons, static_cast<int>(button), kPressed);
+    return hasBit(m_mouseButtons, static_cast<int>(button), pressedBit());
 }
 
 bool Input::isHeld(MouseButton button) const
@@ -43,35 +43,47 @@ bool Input::isHeld(MouseButton button) const
 
 bool Input::isReleased(MouseButton button) const
 {
-    return hasBit(m_mouseButtons, static_cast<int>(button), kReleased);
+    return hasBit(m_mouseButtons, static_cast<int>(button), releasedBit());
 }
 
 void Input::beginFrame()
 {
+    keepOnly(kKeptByFrame);
+    m_previousMousePosition = m_mousePosition;
+    m_scrollDelta = glm::vec2(0.0F);
+}
+
+void Input::endFixedStep()
+{
+    clearFixedStepPresses();
+    m_inFixedStep = false;
+}
+
+void Input::keepOnly(std::uint8_t bits)
+{
     for (auto& state : m_keys) {
-        state &= kDown;
+        state &= bits;
     }
     for (auto& state : m_mouseButtons) {
-        state &= kDown;
+        state &= bits;
     }
     for (Gamepad& gamepad : m_gamepads) {
         for (auto& state : gamepad.buttons) {
-            state &= kDown;
+            state &= bits;
         }
     }
-    m_previousMousePosition = m_mousePosition;
-    m_scrollDelta = glm::vec2(0.0F);
 }
 
 void Input::apply(std::uint8_t& state, bool down)
 {
     const bool wasDown = (state & kDown) != 0U;
     if (down && !wasDown) {
-        state |= static_cast<std::uint8_t>(kDown | kPressed);
+        state |= bits(kDown, kPressed, kFixedPressed);
     } else if (!down && wasDown) {
-        // Clear kDown, keep kPressed (a tap within one frame reports both), set kReleased.
-        state &= kPressed;
-        state |= kReleased;
+        // Clear kDown, keep the pressed bits (a tap within one frame or step reports both), set
+        // the released bits.
+        state &= bits(kPressed, kFixedPressed);
+        state |= bits(kReleased, kFixedReleased);
     }
     // Repeated events with the same state (e.g. key repeat) change nothing.
 }
@@ -117,7 +129,7 @@ bool Input::isGamepadConnected(int gamepad) const
 bool Input::isPressed(GamepadButton button, int gamepad) const
 {
     const Gamepad* pad = gamepadAt(gamepad);
-    return pad != nullptr && hasBit(pad->buttons, static_cast<int>(button), kPressed);
+    return pad != nullptr && hasBit(pad->buttons, static_cast<int>(button), pressedBit());
 }
 
 bool Input::isHeld(GamepadButton button, int gamepad) const
@@ -129,7 +141,7 @@ bool Input::isHeld(GamepadButton button, int gamepad) const
 bool Input::isReleased(GamepadButton button, int gamepad) const
 {
     const Gamepad* pad = gamepadAt(gamepad);
-    return pad != nullptr && hasBit(pad->buttons, static_cast<int>(button), kReleased);
+    return pad != nullptr && hasBit(pad->buttons, static_cast<int>(button), releasedBit());
 }
 
 glm::vec2 Input::stick(int gamepad, GamepadAxis xAxis, GamepadAxis yAxis) const

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <format>
+#include <random>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -102,7 +103,8 @@ struct AudioEngine::Impl {
     std::vector<std::uint32_t> freeVoices;
     int activeVoices = 0;
     std::uint64_t playCounter = 0;
-    std::unique_ptr<Voice> musicVoice; // alive while a track plays
+    std::minstd_rand random{std::random_device{}()}; // for PlayOptions::pitchVariation
+    std::unique_ptr<Voice> musicVoice;               // alive while a track plays
     const Sound* musicSound = nullptr;
     float masterVolume = 1.0F;
     float effectsVolume = 1.0F;
@@ -311,7 +313,11 @@ VoiceId AudioEngine::play(const Sound& sound, const PlayOptions& options)
         a.voices.push_back(std::make_unique<Voice>());
     }
     Voice& voice = *a.voices[index];
-    if (!a.start(voice, sound, a.effects, options)) {
+    PlayOptions varied = options;
+    if (const float range = std::clamp(options.pitchVariation, 0.0F, 0.9F); range > 0.0F) {
+        varied.pitch *= std::uniform_real_distribution<float>(1.0F - range, 1.0F + range)(a.random);
+    }
+    if (!a.start(voice, sound, a.effects, varied)) {
         a.freeVoices.push_back(index);
         return {};
     }

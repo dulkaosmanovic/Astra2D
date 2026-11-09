@@ -27,7 +27,7 @@ the game makes. The game's own rules (movement tuning, enemies, levels) are in t
 
 <div class="astra-summary"><b>In short</b>
 <ul>
-<li>2,178 lines of game code on top of the engine, 22 % of the engine's size (@ref evaluation "E5"); it uses 44 engine names from all eight modules.</li>
+<li>2,114 lines of game code on top of the engine, 20 % of the engine's size (@ref evaluation "E5"); it uses 51 engine names from all eight modules.</li>
 <li>The game is an <code>Application</code>, its objects are entities in a <code>Scene</code>, its logic is Scene systems, and it reacts to physics through signals.</li>
 <li>The parts without OpenGL (level loading, movement rules) are unit-tested.</li>
 </ul></div>
@@ -37,8 +37,8 @@ the game makes. The game's own rules (movement tuning, enemies, levels) are in t
 | File | Lines | What |
 |---|---|---|
 | `main.cpp`, `game.hpp` | 79 | Entry point: reads the level number, runs the game |
-| `game.cpp` | 1,653 | The `Application`: entities, systems, physics events, camera, drawing, HUD, sound |
-| `level.hpp/.cpp` | 586 | Levels as data: text maps and Tiled maps into tile grids and spawn points |
+| `game.cpp` | 1,594 | The `Application`: entities, systems, physics events, camera, drawing, HUD, sound |
+| `level.hpp/.cpp` | 568 | Levels as data: text maps and Tiled maps into tile grids and spawn points |
 | `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, coyote time, jump buffering |
 | `looks.hpp` | 151 | Each planet's sky and parallax layers, as plain data |
 
@@ -72,9 +72,14 @@ m_actions.bindAxis("move_x", Key::A, Key::D)
     .bindAxis("move_x", GamepadAxis::LeftX);
 m_actions.bind("jump", Key::Space).bind("jump", GamepadButton::A);
 
+// in the "player control" system, which runs in the fixed step:
 const float moveX = m_actions.axis("move_x", input());
-if (m_actions.isPressed("jump", input())) { /* ... */ }
+if (m_actions.isPressed("jump", input())) { /* ... */ } // since the previous step
 ```
+
+Inside a fixed step `isPressed()` means "since the previous step", so a jump is never lost or
+doubled at any frame rate. The Space that confirms a menu is handled in `onUpdate()`, and
+`clearFixedStepPresses()` keeps it from also making the astronaut jump (see @ref core_guide).
 
 ## Entities and systems (scene, ecs)
 
@@ -107,10 +112,12 @@ m_scene.addSystem(SystemPhase::FixedUpdate, "walkers", [this](Scene& scene, floa
 | Phase | Systems |
 |---|---|
 | FixedUpdate | the engine's `physics`, then the game's `movers`, `player control`, `walkers`, `flyers`, `dangers` |
-| Update | `player look` (which animation), `effects` (remove finished ones) |
-| LateUpdate | the engine's `animation`, which advances every `Animator` |
+| Update | `player look` (which animation) |
+| LateUpdate | the engine's `animation`, which advances every `Animator`, and `lifetime` |
 
 Inside a view, an entity is removed with `scene.destroyLater()`, which is safe while iterating.
+Effects need no system of their own. Dust and sparkles are Animators with `destroyWhenFinished`,
+and a stomped enemy gets a `Lifetime` that removes it after a moment.
 
 ## Physics (physics, scene)
 
@@ -129,7 +136,10 @@ The player drops through planks by leaving the platform group out of its mask fo
 walks through enemies while it blinks after a hit:
 
 ```cpp
-collider.mask = player.dropTime > 0.0F ? without(kPlayerMask, kPlatformGroup) : kPlayerMask;
+constexpr std::uint16_t kPlayerMask = astra2d::collisionGroups(
+    kWorldGroup, kPlatformGroup, kEnemyGroup, kPickupGroup, kHazardGroup);
+collider.mask = player.dropTime > 0.0F ? astra2d::withoutGroups(kPlayerMask, kPlatformGroup)
+                                       : kPlayerMask;
 ```
 
 **Events** reach the game through signals, so the systems never compare positions to find hits:
@@ -166,6 +176,7 @@ Levels are made in the [Tiled](https://www.mapeditor.org) editor and loaded with
 const astra2d::TiledMap map = astra2d::loadTiledMap(file);
 const astra2d::TiledTileLayer* ground = map.tileLayer("ground");
 level.solid = astra2d::makeTileGrid(map, *ground, 16.0F, only(astra2d::TileCollision::Solid));
+level.ground = astra2d::makeTileLayer(map, *ground, 16.0F); // what is drawn
 for (const astra2d::TiledObject& object : map.objectLayer("objects")->objects) {
     // object.type is "player", "coin", "crawler", "goal", ...;
     // the thing starts at map.objectCenter(object, 16.0F)
@@ -174,7 +185,7 @@ level.name = map.properties.string("name", "Untitled");
 ```
 
 Level 1 is a text map instead (one character per tile), parsed by the game into the same `Level`
-data. Both formats meet in one `startLevel()` that creates the colliders and entities.
+data: the same @ref astra2d::TileLayer and @ref astra2d::TileGrid types, filled with `set()`. Both formats meet in one `startLevel()` that creates the colliders and entities.
 
 ## Drawing (renderer, assets)
 
@@ -186,24 +197,33 @@ bleed in. A frame is drawn every frame in this order:
    `drawTiled()` (a nebula and stars).
 2. **Parallax layers**: each strip is drawn with a camera from
    `m_camera.withParallax({0.35F, 0.45F})`, so far layers move slower than the world.
-3. **Tiles and sprites**: the tiles the camera sees, then `m_scene.render(m_renderer, alpha)`, which
-   draws every `SpriteRenderer` by layer at its interpolated position.
-4. **The HUD** in screen space: text with the vendored pixel font, sprites for hearts and coins, and
+3. **Tiles and sprites**: `drawTileLayer()` for the decoration and the ground, which draws only the
+   tiles the camera sees; the rocket's exhaust smoke, a @ref astra2d::ParticleEmitter; then
+   `m_scene.render(m_renderer, alpha)`, which draws every `SpriteRenderer` by layer at its
+   interpolated position.
+4. **The HUD** in screen space: centred, shadowed text with the vendored pixel font (a
+   @ref astra2d::TextStyle with `anchor` and `shadowOffset`), sprites for hearts and coins, and
    panels.
 
-The camera keeps the art crisp. It snaps to whole screen pixels, and the view height is chosen so
-that a texel is a whole number of pixels. A @ref astra2d::CameraShake adds trauma on stomps and
-hits (`m_shake.addTrauma(0.25F)`), and `m_shake.apply(m_camera, position)` applies it before
-drawing.
+Three engine parts move the camera, and none of their maths is in the game:
+
+```cpp
+m_camera.setPixelPerfect(224.0F);                    // whole pixels per texel, about 14 tiles high
+m_follow.setBounds({0.0F, 0.0F}, m_level.size());    // a CameraFollow: never show outside the level
+m_follow.update(player + lookAhead, dt, m_camera);   // eases after the player, at any frame rate
+m_shake.apply(m_camera, m_follow.position());        // a CameraShake: trauma from stomps and hits
+```
+
+The look-ahead (28 units in the direction the astronaut faces) is the game's own choice.
 
 ## Sound (audio)
 
-An @ref astra2d::AudioEngine plays the effects and the music loop; a slightly random pitch keeps
-repeated sounds from getting tiring, and mute is one call:
+An @ref astra2d::AudioEngine plays the effects and the music loop; `pitchVariation` keeps repeated
+sounds from getting tiring, and mute is one call:
 
 ```cpp
 m_audio.playMusic(*m_sounds.music, 0.45F);
-m_audio.play(*m_sounds.coin, {.volume = 0.45F, .pitch = pitch(m_random)});
+m_audio.play(*m_sounds.coin, {.volume = 0.45F, .pitchVariation = 0.06F});
 m_audio.setMuted(!m_audio.muted());
 ```
 

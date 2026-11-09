@@ -14,9 +14,13 @@ ecs,Entity,astra2d/ecs/entity.hpp
 physics,BodyType,astra2d/physics/world.hpp
 physics,TileCollision,astra2d/physics/tilemap.hpp
 physics,TileGrid,astra2d/physics/tilemap.hpp
+physics,collisionGroups,astra2d/physics/world.hpp
+physics,withoutGroups,astra2d/physics/world.hpp
+renderer,CameraFollow,astra2d/renderer/camera_follow.hpp
 renderer,CameraShake,astra2d/renderer/camera_shake.hpp
 renderer,Font,astra2d/renderer/font.hpp
 renderer,OrthographicCamera,astra2d/renderer/camera.hpp
+renderer,ParticleEmitter,astra2d/renderer/particles.hpp
 renderer,Renderer2D,astra2d/renderer/renderer2d.hpp
 renderer,SpriteAnimation,astra2d/renderer/animation.hpp
 renderer,SpriteSheet,astra2d/renderer/sprite.hpp
@@ -24,10 +28,12 @@ renderer,Texture2D,astra2d/renderer/texture.hpp
 renderer,TextureFilter,astra2d/renderer/texture.hpp
 renderer,TextureSettings,astra2d/renderer/texture.hpp
 renderer,TextureWrap,astra2d/renderer/texture.hpp
+renderer,TileLayer,astra2d/renderer/tile_layer.hpp
 scene,Animator,astra2d/scene/components.hpp
 scene,Collider,astra2d/scene/components.hpp
 scene,CollisionEvent,astra2d/scene/physics_system.hpp
 scene,Interpolated,astra2d/scene/components.hpp
+scene,Lifetime,astra2d/scene/components.hpp
 scene,PhysicsSystem,astra2d/scene/physics_system.hpp
 scene,RigidBody,astra2d/scene/components.hpp
 scene,Scene,astra2d/scene/scene.hpp
@@ -42,4 +48,5 @@ scene,Transform,astra2d/scene/components.hpp
 scene,TriggerContact,astra2d/scene/physics_system.hpp
 scene,loadTiledMap,astra2d/scene/tiled_map.hpp
 scene,makeTileGrid,astra2d/scene/tiled_map.hpp
+scene,makeTileLayer,astra2d/scene/tiled_map.hpp
 scene,tiledCollision,astra2d/scene/tiled_map.hpp

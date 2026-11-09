@@ -22,7 +22,7 @@ astra2d::AudioEngine m_audio({}, assetsDirectory);          // opens the default
 const astra2d::Sound& jump = m_audio.sound("sounds/jump.wav"); // decoded once, kept in memory
 m_audio.playMusic(m_audio.sound("sounds/music.wav"), 0.5F);    // loops by default
 
-m_audio.play(jump, {.volume = 0.6F, .pitch = 1.05F});          // when the player jumps
+m_audio.play(jump, {.volume = 0.6F, .pitchVariation = 0.06F}); // when the player jumps
 m_audio.update();                                              // once per frame
 ```
 
@@ -31,6 +31,9 @@ m_audio.update();                                              // once per frame
 - **Voices.** Every `play()` gets its own voice, so the same sound can overlap itself (three coins
   collected in quick succession). A voice reads the shared samples through its own cursor
   (`ma_audio_buffer_ref`) and is resampled to the output rate, which is also how `pitch` works.
+  `pitchVariation` changes the pitch at random on every play, up to that fraction either way, so
+  a sound heard a hundred times (steps, coins) does not get tiring, like Godot's
+  AudioStreamRandomizer.
   `play()` returns a @ref astra2d::VoiceId with a generation, like an Entity: it goes stale when the
   sound ends, so it is safe to keep.
 - **Voice limit.** At most `AudioSettings::maxVoices` sounds play at once. One more stops the oldest
