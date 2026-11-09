@@ -21,8 +21,8 @@ The project puts clean architecture, modularity, testability and measurable perf
 Every design claim is backed by a benchmark (E1–E5) or a test.
 
 <p align="center">
-  <img src="docs/images/screenshots/platformer_level2.png" width="49%" alt="Astra Run, level 2"/>
-  <img src="docs/images/screenshots/platformer_debug.png" width="49%" alt="Astra Run with the physics debug view"/>
+  <img src="docs/images/screenshots/platformer_level1.png" width="49%" alt="Astra Run, level 1: a jump to the coins on Planet Verda"/>
+  <img src="docs/images/screenshots/platformer_debug.png" width="49%" alt="The same jump with the physics debug view"/>
 </p>
 <p align="center"><em><b>Astra Run</b> (<code>examples/platformer</code>), the showcase game, and the same moment with the physics debug view (F3)</em></p>
 
@@ -59,6 +59,23 @@ Or with no local dependencies and no GPU, in Docker: `docker build -t astra2d . 
 Around the engine: *Astra Run*, a complete platformer, ten smaller examples in `examples/`, 300+
 unit tests, benchmarks E1–E5, CI with sanitizers and Valgrind, and a Docker image.
 
+## Examples
+
+`ninja -C build` builds them; run them from the repository root. Each shows how a part of the
+engine is used, in one commented `main.cpp` in `examples/`:
+
+| Example | Engine parts it uses |
+|---|---|
+| `hello_window` | `Application` and the main loop |
+| `shapes`, `sprites`, `text` | `Renderer2D`, `OrthographicCamera`, `SpriteSheet` and animation, `Font` |
+| `input` | `ActionMap` (keyboard and gamepad, rebinding), `EventDispatcher` |
+| `post_processing` | `Framebuffer` render targets and `PostProcess` effects |
+| `scene` | `Scene`, entities and systems, hierarchy, signals, scene files |
+| `coin_collector` | A small game on the `Scene` with `PhysicsSystem` triggers and collisions |
+| `physics_playground` | The physics module: body types, stacks, bullets, one-way platforms, tile maps |
+| `platformer` | **Astra Run**: every module together, from Tiled maps to physics events and audio ([guide](https://dulkaosmanovic.github.io/Astra2D/platformer_guide.html)) |
+| `Sandbox`, `renderer_stress` | Hot reloading and parallax; the batcher under load (E1) |
+
 ## Key results
 
 | | Question | Result |
@@ -67,7 +84,7 @@ unit tests, benchmarks E1–E5, CI with sanitizers and Valgrind, and a Docker im
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **2.6× faster** than objects with a virtual `update()`, **5× faster** when the objects are scattered in memory; at 10k objects there is no real difference |
 | **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (0.92 vs. 62.4 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Towers of 5–20 boxes stand for 10 s with no sideways drift or rotation; a ball with restitution 1 keeps its energy within 2 % |
-| **E5** | Is the API usable? | The whole platformer is 2,119 lines, 21 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 2,178 lines, 22 % of the engine's size; compared with raylib and Godot in the docs |
 
 
 Tests cover 78 % of the engine's lines. Method and full tables: [Evaluation](https://dulkaosmanovic.github.io/Astra2D/evaluation.html).

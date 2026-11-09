@@ -41,7 +41,7 @@ inline constexpr int kLava = 15;
 inline constexpr int kCrystal = 16;
 inline constexpr int kMushroom = 17;
 inline constexpr int kTuft = 18;
-inline constexpr int kTorch = 19;
+inline constexpr int kScorchedFlowers = 19;
 inline constexpr int kCloud = 20;
 inline constexpr int kPine = 21;
 inline constexpr int kIceTop = 22;
@@ -57,7 +57,7 @@ inline constexpr int kPuffballs = 31;
 inline constexpr int kCloudShrub = 32;
 inline constexpr int kBellFlower = 33;
 inline constexpr int kCharredTree = 34;
-inline constexpr int kLavaVent = 35;
+inline constexpr int kAshGrass = 35;
 inline constexpr int kMagmaBoulder = 36;
 } // namespace tile
 

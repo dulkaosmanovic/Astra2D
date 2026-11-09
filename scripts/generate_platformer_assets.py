@@ -7,7 +7,8 @@ only the Python standard library:
     python3 scripts/generate_platformer_assets.py
 
 Writes into examples/assets/:
-    textures/astronaut.png    the astronaut and the rocket, 8x2 frames of 24x24
+    textures/astronaut.png    the astronaut, the rocket and a flag, 8x3 frames of 24x24
+    textures/earth.png        Earth, big, for the ending (256x256)
     textures/platformer.png   creatures and objects, 8x5 frames of 16x16
     textures/tiles.png        the tileset, 8x5 tiles of 16x16
     textures/nebula.png       sky backgrounds that tile in both directions; drawn light so the
@@ -36,7 +37,7 @@ astronaut.png frames (row-major from the top-left); the art of each stands on ro
 centred on a tile has its feet on the tile's bottom edge:
      0  1   idle                   2-5  run                 6 jump      7 fall      8 hurt
      9 10   rocket, lower half (light on/off)   11 rocket, upper half (20 texels higher)
-    12 13   rocket exhaust (flickering)
+    12 13   rocket exhaust (flickering)  14 15 waving        16 flag
 platformer.png frames:
      8  9   crawler (a slime)      10   crawler squashed    11-14 coin  15 heart
     18 19   beacon off/on          20   empty heart         21-23 sparkle
@@ -47,9 +48,9 @@ tiles.png tiles:
      0 turf   1 soil   2 turf left edge   3 turf right edge   4 stone top   5 stone
      6 one-way girder   7 spikes   8 coral bush   9 bulb flower   10 moon rock   11 sign
     12 crate   13 hull panel   14 turf single column   15 lava   16 crystals   17 mushrooms
-    18 tendrils   19 fire pit   20 one-way cloud   21 spiral tree   22 ice top   23 ice
+    18 tendrils   19 scorched flowers   20 one-way cloud   21 spiral tree   22 ice top   23 ice
     24 basalt top   25 basalt   26 alien plant   27 moss top   28 moss   29 dish   30 geode
-    31 puffballs   32 cloud shrub   33 bell flower (Nimbus)   34 charred tree   35 lava vent
+    31 puffballs   32 cloud shrub   33 bell flower (Nimbus)   34 charred tree   35 ash grass
     36 magma boulder (Pyros)   37-39 empty
 """
 
@@ -200,6 +201,11 @@ ARMS = {  # the near arm: sleeve texels, then glove texels
     "front": ([(13, 11), (14, 11), (14, 12), (15, 12), (16, 12)], [(17, 12), (17, 13), (16, 13)]),
     "back": ([(11, 11), (12, 11), (10, 12), (11, 12), (9, 13)], [(8, 13), (8, 14), (9, 14)]),
     "up": ([(13, 11), (14, 11), (15, 10), (16, 10)], [(17, 9), (17, 10), (18, 9)]),
+    # Raised to wave, two texels thick.
+    "wave": ([(13, 11), (14, 11), (15, 10), (15, 11), (16, 9), (16, 10), (17, 8), (17, 9),
+              (18, 7), (18, 8), (19, 6), (19, 7)], [(19, 4), (20, 4), (19, 5), (20, 5), (20, 6)]),
+    "wave2": ([(13, 11), (14, 11), (15, 10), (15, 11), (16, 10), (16, 11), (17, 9), (17, 10),
+               (18, 8), (18, 9), (19, 7), (19, 8)], [(20, 6), (21, 6), (20, 7), (21, 7), (21, 5)]),
 }
 
 
@@ -340,9 +346,21 @@ def draw_exhaust(s, step):
         s.put(x, y, rgb(255, 200, 90))
 
 
+def draw_flag(s):
+    """A flag on a pole, planted where the journey ends: blue with a gold star."""
+    s.rect(7, 2, 7, 19, STEEL_LIGHT)
+    s.rect(8, 2, 8, 19, STEEL)
+    s.put(7, 1, SIGNAL)
+    for x in range(9, 20):  # the cloth, rippling
+        dip = round(math.sin((x - 9) * 0.7))
+        s.rect(x, 2 + dip, x, 9 + dip, rgb(52, 110, 220) if x % 4 else rgb(40, 88, 190))
+    s.mask(STAR, 12, 4, {"#": SIGNAL})
+    s.outline()
+
+
 def make_big():
-    """astronaut.png: the astronaut and their rocket, 8x2 frames of 24x24 (see the module doc)."""
-    s = Sheet(8, 2, BIG)
+    """astronaut.png: the astronaut and their rocket, 8x3 frames of 24x24 (see the module doc)."""
+    s = Sheet(8, 3, BIG)
     draw_astronaut(s.frame(0), [(10, 0), (13, 0)])
     draw_astronaut(s.frame(1), [(10, 0), (13, 0)], bob=1, lamp=False)
     draw_astronaut(s.frame(2), [(9, 1), (15, 0)], arm="back")
@@ -362,6 +380,9 @@ def make_big():
     s.frame(11).copy_from(rockets[0], 0, 20)  # upper half, drawn 20 texels higher
     draw_exhaust(s.frame(12), 0)
     draw_exhaust(s.frame(13), 1)
+    draw_astronaut(s.frame(14), [(10, 0), (13, 0)], arm="wave")
+    draw_astronaut(s.frame(15), [(10, 0), (13, 0)], arm="wave2", lamp=False)
+    draw_flag(s.frame(16))
     return s
 
 
@@ -828,14 +849,7 @@ def make_tiles():
         t.put(x + curl, top - 1, TURF)
         t.put(x + curl, top - 2, TURF_LIGHT)
     t.outline()
-    # 19: a fire pit of basalt with flames (Pyros).
-    tc = s.frame(19)
-    tc.ellipse(7.5, 6.5, 3.6, 5.4, rgb(240, 100, 36))
-    tc.ellipse(7.5, 8.0, 2.0, 3.6, rgb(255, 200, 90))
-    tc.ellipse(7.5, 9.5, 1.0, 1.8, rgb(255, 250, 220))
-    tc.ellipse(7.5, 13.5, 5.5, 2.5, rgb(58, 44, 50))
-    tc.rect(2, 12, 13, 12, rgb(98, 74, 74))
-    tc.outline()
+    # 19: scorched flowers (Pyros), drawn with the other Pyros plants.
     # 20: a cloud to stand on (one-way, like a plank); its edges match so clouds join up.
     cl = s.frame(20)
     cl.rect(0, 2, 15, 7, CLOUD)
@@ -902,7 +916,10 @@ BELL = rgb(200, 150, 255)
 BELL_LIGHT = rgb(236, 210, 255)
 CHAR = rgb(46, 32, 36)
 CHAR_LIGHT = rgb(78, 56, 58)
-SMOKE = (120, 100, 110, 150)
+PETAL = rgb(214, 84, 52)
+PETAL_DARK = rgb(140, 48, 44)
+ASH = rgb(150, 130, 120)
+ASH_DARK = rgb(104, 88, 86)
 
 
 def nimbus_decor(s):
@@ -940,7 +957,8 @@ def nimbus_decor(s):
 
 
 def pyros_decor(s):
-    """34-36: the lava planet: burnt trees, smoking vents and glowing boulders."""
+    """19, 34-36: the lava planet: scorched flowers, burnt trees, ash grass and glowing
+    boulders."""
     t = s.frame(34)  # a charred tree with embers on its branches
     t.rect(7, 7, 8, 15, CHAR)
     t.rect(7, 7, 7, 15, CHAR_LIGHT)
@@ -952,15 +970,25 @@ def pyros_decor(s):
     for x, y in ((3, 4), (12, 3), (8, 3), (5, 8)):
         t.put(x, y, MAGMA)
     t.put(7, 12, MAGMA)
-    v = s.frame(35)  # a lava vent: a little cone with a glowing mouth
-    for i, y in enumerate(range(10, 16)):
-        v.rect(6 - i, y, 9 + i, y, BASALT if i > 1 else BASALT_LIGHT)
-    v.rect(6, 10, 9, 10, MAGMA)
-    v.rect(7, 10, 8, 10, MAGMA_LIGHT)
-    v.rect(7, 11, 8, 12, MAGMA)
-    v.outline()
-    for cx, cy, r in ((7.5, 7.5, 1.6), (8.5, 4.5, 2.0), (7.0, 1.8, 1.6)):  # smoke
-        v.ellipse(cx, cy, r, r, SMOKE)
+    f = s.frame(19)  # scorched flowers: drooping heads with ember petals on burnt stems
+    for x, top, droop in ((5, 5, -1), (11, 7, 1)):
+        for y in range(top + 2, 16):
+            f.put(x + (droop if y < top + 4 else 0), y, CHAR)
+        hx, hy = x + droop, top
+        f.mask([".#.#.", "#####", ".###.", "#.#.#"], hx - 2, hy - 1,
+               {"#": PETAL})  # ragged, burnt petals
+        f.points(((hx - 2, hy + 2), (hx + 2, hy + 2), (hx, hy + 2)), PETAL_DARK)
+        f.points(((hx, hy), (hx - 1, hy + 1)), MAGMA_LIGHT)
+        f.put(hx + 1, hy + 1, MAGMA)
+    f.points(((4, 13), (6, 12), (11, 13)), CHAR_LIGHT)  # withered leaves
+    f.outline()
+    a = s.frame(35)  # dry ash grass with smouldering tips
+    for x, top, lean in ((3, 9, -1), (5, 6, 0), (7, 8, 1), (9, 5, 0), (11, 7, 1), (13, 10, 0)):
+        for y in range(top, 16):
+            a.put(x + (lean if y < top + 3 else 0), y, ASH if x % 4 == 1 else ASH_DARK)
+        a.put(x + lean, top - 1, MAGMA)
+    a.rect(2, 15, 13, 15, ASH_DARK)
+    a.outline()
     m = s.frame(36)  # a basalt boulder with glowing cracks
     m.ellipse(8.0, 11.5, 6.5, 4.6, BASALT)
     m.ellipse(6.5, 9.5, 3.0, 1.6, BASALT_LIGHT)
@@ -1434,6 +1462,48 @@ def make_volcanoes():
 PLANET = 32
 
 
+def make_earth():
+    """Earth for the ending, 256x256: oceans, continents with deserts, clouds and a glowing
+    atmosphere, lit from the top left. Only its top is seen, with land at the top for the
+    astronaut to stand on."""
+    size, radius = 256, 120.0
+    land = fbm(size, size, 61, octaves=4, cells=4)
+    dry = fbm(size, size, 71, octaves=2, cells=3)
+    cloud = fbm(size, size, 81, octaves=4, cells=8)
+    image = [[TRANSPARENT] * size for _ in range(size)]
+    for y in range(size):
+        for x in range(size):
+            nx, ny = (x + 0.5 - 128) / radius, (y + 0.5 - 128) / radius
+            d2 = nx * nx + ny * ny
+            if d2 > 1.0:
+                if d2 < 1.09:  # the atmosphere's glow around the planet
+                    image[y][x] = (130, 200, 255, round(150 * (1.09 - d2) / 0.09))
+                continue
+            nz = math.sqrt(1.0 - d2)
+            # Sample the noise as if wrapped on a sphere, so the continents curve with it.
+            u = int((nx / (nz + 0.7) * 0.5 + 0.5) * (size - 1)) % size
+            v = int((ny / (nz + 0.7) * 0.5 + 0.5) * (size - 1)) % size
+            top = math.exp(-(nx * nx + (ny + 0.95) ** 2) / 0.08)  # where the astronaut stands
+            height = land[v][u] + 0.35 * top
+            if height > 0.45:
+                color = (204, 178, 108) if dry[v][u] > 0.8 and top < 0.3 else (70, 160, 84) \
+                    if height < 0.58 else (44, 122, 72)
+            else:
+                color = (62, 124, 214) if height > 0.4 else (34, 82, 176)
+            if ny > 0.86:
+                color = (236, 244, 255)  # the south pole's ice
+            if cloud[(v + 40) % size][u] > 0.69 and top < 0.3:
+                color = mixed(color, (255, 255, 255), 0.85)
+            light = -0.5 * nx - 0.62 * ny + 0.6 * nz + 0.1 * dither(x, y)
+            factor = 1.12 if light > 0.75 else 1.0 if light > 0.25 else 0.76 if light > -0.1 \
+                else 0.52
+            pixel = shade(rgb(*color[:3]), factor)
+            if d2 > 0.9:
+                pixel = mixed(pixel, (150, 210, 255), 0.5)
+            image[y][x] = pixel
+    return image
+
+
 def make_planets():
     """The five planets of the route, 32x32 each with a 1-texel border like the sprite sheets:
     Verda, the Crystal Moon, Nimbus, Pyros and Earth. Lit from the top left, with a dithered
@@ -1815,6 +1885,7 @@ def make_levels():
 def main():
     textures = ASSETS / "textures"
     write_png(textures / "astronaut.png", make_big().extruded())
+    write_png(textures / "earth.png", make_earth())
     write_png(textures / "platformer.png", make_characters().extruded())
     write_png(textures / "tiles.png", make_tiles().extruded())
     for name, make in (("nebula", make_nebula), ("stars", make_stars), ("spires", make_spires),

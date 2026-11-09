@@ -125,9 +125,12 @@ constexpr int kCheckpointOn = 19;
 constexpr int kHeartFull = 15;
 constexpr int kHeartEmpty = 20;
 constexpr int kCoinIcon = 11;
+constexpr int kSparkle = 21; // and 22, 23
 // Frames of astronaut.png: the rocket's upper half is drawn 20 texels above its lower half (the
 // goal), the exhaust 18 below.
 constexpr int kAstronautIdle = 0;
+constexpr int kAstronautWave = 14; // and 15
+constexpr int kFlag = 16;
 constexpr int kRocketBottom = 9;
 constexpr int kRocketTop = 11;
 constexpr float kRocketTopOffset = 20.0F;
@@ -234,6 +237,7 @@ public:
         (void)m_assets.texture(kNebula.texture, kRepeat);
         (void)m_assets.texture(kStars.texture, kRepeat);
         (void)m_assets.texture("textures/rings.png");
+        (void)m_assets.texture("textures/earth.png");
         for (const Look& look : kLooks) {
             for (const Layer& layer : look.layers) {
                 if (!layer.texture.empty()) {
@@ -346,10 +350,27 @@ protected:
 
     void onRender() override
     {
-        const Look& look = currentLook();
+        // After the last planet the game ends on Earth instead of in the level.
+        const Look& look = m_state == State::Victory ? kEndingLook : currentLook();
         glClearColor(look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F);
         glClear(GL_COLOR_BUFFER_BIT);
+        if (m_state == State::Victory) {
+            drawEnding();
+        } else {
+            drawWorld(look);
+        }
+        drawHud();
+        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+            ASTRA_INFO("{}", m_frameStats.summary());
+        }
+        m_renderer.resetStats();
+    }
 
+private:
+    // The level: its sky and background layers, tiles, sprites and weather, and the physics debug
+    // view if it is on.
+    void drawWorld(const Look& look)
+    {
         // Whole screen pixels, so the art does not shimmer while the camera moves.
         const auto scale = static_cast<float>(m_pixelScale);
         const glm::vec2 snapped = glm::round(m_cameraPosition * scale) / scale;
@@ -377,14 +398,58 @@ protected:
                                        .velocityScale = 0.1F});
         }
         m_renderer.end();
-        drawHud();
-        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
-            ASTRA_INFO("{}", m_frameStats.summary());
-        }
-        m_renderer.resetStats();
     }
 
-private:
+    // The ending: Earth's horizon across the bottom of the screen and the astronaut waving on top
+    // of it, between their flag and the landed rocket, under a twinkling sky. In screen space: a
+    // texel of earth.png is a HUD pixel, the sprites are twice as big.
+    void drawEnding()
+    {
+        drawSky(kEndingLook);
+        const glm::vec2 screen(framebufferSize());
+        const float s = hudScale(screen);
+        const astra2d::Texture2D& earth = m_assets.texture("textures/earth.png");
+        const float radius = 120.0F * s; // of the planet in earth.png
+        const glm::vec2 center{std::round(screen.x * 0.5F), (70.0F * s) - radius};
+        const float k = 2.0F * s;
+        m_renderer.begin(
+            astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+        m_renderer.drawQuad(center, glm::vec2(earth.size()) * s, earth);
+        // A 24x24 frame's art stands on row 19, 8 texels below its centre. Stood on the planet
+        // @p angle radians from its top, leaning with the ground; @p lift raises it (texels).
+        const auto standOn = [&](float angle, int frame, float lift) {
+            const glm::vec2 up{std::sin(angle), std::cos(angle)};
+            m_renderer.drawSprite(center + (up * (radius - s + ((8.0F + lift) * k))), kBigSize * k,
+                                  m_big.frame(frame), kWhite, -angle);
+        };
+        standOn(-0.4F, kFlag, 0.0F);
+        standOn(0.5F, kRocketBottom, 0.0F);
+        standOn(0.5F, kRocketTop, kRocketTopOffset);
+        standOn(0.0F, kAstronautWave + (static_cast<int>(m_time * 3.0F) % 2), 0.0F);
+        constexpr std::array<glm::vec2, 7> kSparkles = {{{0.12F, 0.30F},
+                                                         {0.85F, 0.36F},
+                                                         {0.30F, 0.46F},
+                                                         {0.70F, 0.52F},
+                                                         {0.06F, 0.58F},
+                                                         {0.93F, 0.62F},
+                                                         {0.50F, 0.40F}}};
+        for (std::size_t i = 0; i < kSparkles.size(); ++i) { // twinkling, each in its own time
+            const int step = static_cast<int>((m_time * 5.0F) + (static_cast<float>(i) * 1.7F)) % 6;
+            if (step < 3) {
+                m_renderer.drawSprite(glm::round(kSparkles[i] * screen), glm::vec2{16.0F * s},
+                                      m_sheet.frame(kSparkle + step));
+            }
+        }
+        m_renderer.end();
+    }
+
+    // The HUD's pixel scale: the world's, but small enough that the HUD fits a narrow window.
+    [[nodiscard]] float hudScale(glm::vec2 screen) const
+    {
+        return std::max(1.0F,
+                        std::min(static_cast<float>(m_pixelScale), std::floor(screen.x / 320.0F)));
+    }
+
     struct Sounds {
         const astra2d::Sound* jump = nullptr;
         const astra2d::Sound* coin = nullptr;
@@ -916,12 +981,13 @@ private:
             m_player, astra2d::SpriteRenderer{.size = kBigSize, .layer = 3});
         registry.emplace<astra2d::Animator>(m_player, astra2d::Animator{.sheet = &m_big})
             .player.play(m_idleAnimation);
-        // A box a little narrower than the sprite, without friction so it slides along walls;
-        // the controller sets its velocity directly.
+        // A box around the astronaut's art (12x18 of the 24x24 frame, from the boots to the top
+        // of the helmet), without friction so it slides along walls; the controller sets its
+        // velocity directly.
         registry.emplace<astra2d::RigidBody>(
             m_player, astra2d::RigidBody{.fixedRotation = true, .allowSleep = false});
-        registry.emplace<astra2d::Collider>(m_player, astra2d::Collider{.halfExtents = {4.5F, 7.0F},
-                                                                        .offset = {0.0F, -1.0F},
+        registry.emplace<astra2d::Collider>(m_player, astra2d::Collider{.halfExtents = {6.0F, 9.0F},
+                                                                        .offset = {0.0F, 1.0F},
                                                                         .friction = 0.0F,
                                                                         .category = kPlayerGroup,
                                                                         .mask = kPlayerMask});
@@ -1322,13 +1388,11 @@ private:
     void drawHud()
     {
         const glm::vec2 screen(framebufferSize());
-        // The world's pixel scale, but small enough that the HUD fits a narrow window.
-        const float s = std::max(
-            1.0F, std::min(static_cast<float>(m_pixelScale), std::floor(screen.x / 320.0F)));
+        const float s = hudScale(screen);
         const float text = 8.0F * s;
         m_renderer.begin(
             astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
-        if (m_state != State::Title) {
+        if (m_state != State::Title && m_state != State::Victory) {
             drawStatusBar(screen, s);
         }
         const float middle = screen.y * 0.5F;
@@ -1389,20 +1453,21 @@ private:
             drawCentered("ENTER to try again   ESC to quit", middle - (16.0F * s), text, kWhite);
             break;
         case State::Victory: {
-            dim(screen, 0.45F);
-            panel(screen, 150.0F * s, middle - (58.0F * s), middle + (50.0F * s), s);
             int allCoins = 0;
             for (const Level& level : m_levels) {
                 allCoins += level.count(ThingKind::Coin);
             }
-            drawRoute(screen, middle + (86.0F * s), s);
-            drawCentered("YOU MADE IT HOME!", middle + (40.0F * s), 16.0F * s, kGold);
-            drawCentered(std::format("coins {}/{}", m_totalCoins, allCoins), middle + (8.0F * s),
-                         text, kWhite);
-            drawCentered(std::format("time {}:{:02}", static_cast<int>(m_totalTime) / 60,
+            const float top = screen.y;
+            panel(screen, 160.0F * s, top - (92.0F * s), top - (10.0F * s), s);
+            drawCentered("YOU MADE IT HOME!", top - (22.0F * s), 16.0F * s, kGold);
+            drawCentered("welcome back to Earth, astronaut", top - (46.0F * s), text, kWhite);
+            drawCentered(std::format("coins {}/{}   time {}:{:02}", m_totalCoins, allCoins,
+                                     static_cast<int>(m_totalTime) / 60,
                                      static_cast<int>(m_totalTime) % 60),
-                         middle - (8.0F * s), text, kWhite);
-            drawCentered("ENTER to play again", middle - (40.0F * s), text, kGold);
+                         top - (62.0F * s), text, kWhite);
+            if (std::fmod(m_time, 1.0F) < 0.7F) {
+                drawCentered("ENTER to play again", top - (78.0F * s), text, kGold);
+            }
             break;
         }
         }
@@ -1528,7 +1593,7 @@ private:
     const astra2d::SpriteAnimation m_rocketTopAnimation{.frames = {kRocketTop}};
     const astra2d::SpriteAnimation m_exhaustAnimation{.frames = {12, 13}, .frameDuration = 0.06F};
     const astra2d::SpriteAnimation m_sparkleAnimation{
-        .frames = {21, 22, 23}, .frameDuration = 0.07F, .loop = false};
+        .frames = {kSparkle, kSparkle + 1, kSparkle + 2}, .frameDuration = 0.07F, .loop = false};
     const astra2d::SpriteAnimation m_hurtAnimation{.frames = {8}};
     const astra2d::SpriteAnimation m_heartAnimation{.frames = {kHeartFull}};
     const astra2d::SpriteAnimation m_flyAnimation{.frames = {24, 25}, .frameDuration = 0.14F};

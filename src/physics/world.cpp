@@ -405,6 +405,15 @@ ShapeId PhysicsWorld::addShape(BodyId bodyId, const ShapeDef& def)
     if (def.type == ShapeType::Box && !axisAligned(def.polygon)) {
         shape.def.type = ShapeType::Polygon; // a rotated box: no axis-aligned fast path
     }
+    if (def.oneWay && def.type != ShapeType::Circle) {
+        // A platform is only stood on: just its upward-facing edges give a contact normal, so a
+        // shape landing on its very end is not pushed off sideways (as for one-way tiles).
+        for (int i = 0; i < def.polygon.count; ++i) {
+            if (def.polygon.normals[static_cast<std::size_t>(i)].y <= 0.5F) {
+                shape.def.edgeMask &= static_cast<std::uint8_t>(~(1U << static_cast<unsigned>(i)));
+            }
+        }
+    }
     shape.body = bodyId.index;
     shape.alive = true;
     b.shapes.push_back(index);

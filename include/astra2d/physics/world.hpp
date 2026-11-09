@@ -88,7 +88,8 @@ struct ShapeDef {
     /// Reports overlaps (trigger events) but does not collide, e.g. a pickup or a goal zone.
     bool isTrigger = false;
     /// A one-way platform: collides only with shapes coming from its body's +y side (rotated with
-    /// the body), so a character can jump up through it and land on top.
+    /// the body), so a character can jump up through it and land on top. Only its edges that face
+    /// up give contact normals (addShape() clears the others from edgeMask).
     bool oneWay = false;
     std::uint16_t category = 0x0001; ///< Which collision groups this shape is in (bits).
     std::uint16_t mask = 0xFFFF;     ///< Which groups it collides with; both shapes must agree.

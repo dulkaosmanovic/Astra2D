@@ -141,4 +141,11 @@ inline constexpr std::array<Look, 4> kLooks = {{
                   .fill = kVolcanoFill}}}},
 }};
 
+/// The ending on Earth: a deep blue sky that glows near the horizon, with a blue nebula and stars.
+inline constexpr Look kEndingLook{.weather = {},
+                                  .skyTop = {0.01F, 0.01F, 0.05F, 1.0F},
+                                  .skyBottom = {0.10F, 0.20F, 0.42F, 1.0F},
+                                  .nebula = {0.55F, 0.75F, 1.0F, 0.8F},
+                                  .stars = true};
+
 } // namespace platformer
