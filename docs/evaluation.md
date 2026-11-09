@@ -11,7 +11,7 @@ they can be repeated; the numbers on this page come from one run of `scripts/ben
 <li>**E2:** at 1M objects the ECS updates 2.6× faster than OOP objects, 5× faster than scattered ones.</li>
 <li>**E3:** at 5,000 bodies the uniform grid makes the physics step 68× faster than brute force.</li>
 <li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
-<li>**E5:** the complete platformer is 22 % of the engine's size.</li>
+<li>**E5:** the complete platformer is 20 % of the engine's size.</li>
 </ul></div>
 
 Setup of the runs:
@@ -183,24 +183,24 @@ against the engine's and lists the engine names it uses.
 
 | part | code lines | comment lines |
 |---|---:|---:|
-| engine (include/ + src/) | 10,106 | 2,140 |
-| unit tests | 5,042 | 254 |
-| platformer (the game) | 2,178 | 229 |
+| engine (include/ + src/) | 10,557 | 2,325 |
+| unit tests | 5,365 | 270 |
+| platformer (the game) | 2,114 | 224 |
 | other examples | 42 to 520 each | |
 
-**The game is 22 % of the engine's size.** It uses 44 engine names from all eight modules: most
-from the scene (19: entities, components, the physics system, Tiled maps) and the renderer (10),
+**The game is 20 % of the engine's size.** It uses 51 engine names from all eight modules: most
+from the scene (21: entities, components, the physics system, Tiled maps) and the renderer (13),
 and only a few from the lower layers (`Application`, `ActionMap`, `AudioEngine`, `AssetCache`). That
 is the intended shape: a game works with the high-level API and does not touch OpenGL, the physics
 world or the ECS storage directly. The smaller examples show the same at a smaller scale: a window
-is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 479. The tests are half
+is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 490. The tests are half
 the size of the engine, which is what made the refactorings during development safe.
 
 ## Correctness
 
 | Check | Result |
 |---|---|
-| Unit tests (GoogleTest), AddressSanitizer + UndefinedBehaviorSanitizer | 324 passed, 2 skipped (a locale that is not installed; the assert test, which is skipped when asserts are on) |
+| Unit tests (GoogleTest), AddressSanitizer + UndefinedBehaviorSanitizer | 349 passed, 2 skipped (a locale that is not installed; the assert test, which is skipped when asserts are on) |
 | The same tests under Valgrind (memcheck, leak check) | no errors, no definite or indirect leaks (the 7 death tests are left out: they abort on purpose) |
 | GCC and Clang with `-Dwerror=true` | no warnings |
 | clang-format and clang-tidy (bugprone, cppcoreguidelines, modernize, performance, readability, static analyzer) | no findings |

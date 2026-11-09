@@ -35,7 +35,8 @@ using System = std::function<void(Scene& scene, float deltaTime)>;
 enum class SystemPhase {
     FixedUpdate, ///< Scene::fixedUpdate(): gameplay and physics, at the fixed timestep.
     Update,      ///< Scene::update(): once per frame, e.g. input and AI.
-    LateUpdate,  ///< Scene::update(), after Update: animation (built-in), camera follow.
+    LateUpdate,  ///< Scene::update(), after Update: animation and lifetime (built-in), camera
+                 ///< follow.
 };
 
 /// A world of entities plus the systems that run on them.
@@ -43,7 +44,9 @@ enum class SystemPhase {
 /// The Scene owns a Registry and runs systems in a **fixed, explicit order**: by phase, then in
 /// the order they were added. Built-in parts:
 /// - the "animation" system (LateUpdate) advances every Animator and writes its frame to the
-///   SpriteRenderer;
+///   SpriteRenderer, and destroys entities whose one-shot animation finished (see
+///   Animator::destroyWhenFinished);
+/// - the "lifetime" system (LateUpdate, after "animation") destroys entities whose Lifetime is up;
 /// - render() draws every visible SpriteRenderer at its entity's world transform, sorted by layer;
 /// - a parent/child hierarchy (setParent()), in which a child's Transform is relative to its
 ///   parent and destroying a parent destroys its children.

@@ -12,6 +12,8 @@ module loads the textures and shaders it uses, each file only once.
 <li>Draw between `begin(camera)` and `end()`. Positions are quad centres in a y-up world.</li>
 <li>`Renderer2D` batches quads: one draw call per 10,000 quads or 16 textures, instead of one per sprite.</li>
 <li>A texture must stay alive until `end()`; keeping textures in an `AssetCache` makes that automatic.</li>
+<li>`CameraFollow` eases the camera after a target inside level bounds; `setPixelPerfect()` keeps pixel art crisp.</li>
+<li>Tile layers, aligned text and particle effects are drawn through the same batch, so they cost no extra draw calls of their own.</li>
 <li>The `AssetCache` loads each file once and reloads changed files while the game runs.</li>
 </ul></div>
 
@@ -85,6 +87,17 @@ then has room at the sides, a tall or tiled window above and below, and nothing 
 m_camera.fitArea({640.0F, 360.0F});
 ```
 
+**Pixel art** needs a whole number of screen pixels per texel; otherwise some texels are drawn
+one pixel wider than others, and they shimmer while the camera moves. With one texel per world
+unit, `setPixelPerfect(viewHeight)` picks the view height closest to `viewHeight` that gives whole
+pixels per unit, again after every resize. It also draws from a position rounded to a whole
+pixel, so the camera itself can move smoothly (Unity's Pixel Perfect Camera does the same):
+
+```cpp
+m_camera.setPixelPerfect(224.0F); // 720 px high: 3 px per texel, 240 units visible
+m_camera.pixelsPerUnit();         // 3, e.g. to scale the HUD with the world
+```
+
 The camera computes everything on the CPU and has no OpenGL state, so its maths is unit-tested
 (`tests/renderer/test_camera.cpp`). A view height of 720 with a 720-pixel-high window maps one world unit
 to one pixel; a game with 16-pixel tiles might instead use a view height of 15 and size its
@@ -109,6 +122,25 @@ sprites 1×1, so that one world unit is one tile.
 
 - `OrthographicCamera::screenSpace(width, height)` is a camera in which one unit is one pixel with
   the origin in the bottom-left corner, for HUD and text that do not move with the world.
+
+### Following a target
+
+@ref astra2d::CameraFollow is a camera position that eases after a target and stays inside the
+level, like Godot's Camera2D with smoothing and limits. Each frame it covers a part of the
+remaining distance that depends only on the elapsed time, `1 - e^(-speed·dt)`. Two short frames
+therefore move it exactly as far as one long frame, and the camera feels the same at any frame
+rate. Then it is clamped so the view never shows anything outside the bounds. Where the level is
+smaller than the view, the view starts at the level's left or bottom edge.
+
+```cpp
+m_follow.setBounds({0, 0}, m_level.size());
+m_follow.snap(player, m_camera);                         // when a level starts, after a respawn
+m_follow.update(player + lookAhead, deltaTime, m_camera); // every frame
+m_shake.apply(m_camera, m_follow.position());            // or m_camera.setPosition(...)
+```
+
+The look-ahead (a little in front of where the player faces) is the game's choice, so it is
+added to the target rather than built in.
 
 ### Screen shake
 
@@ -240,6 +272,44 @@ Looping animations wrap around; non-looping ones stop on their last frame and re
 `finished()`. Animation advances in `onUpdate()`, because it only affects what is drawn, not the
 simulation.
 
+## Tile layers
+
+A level's ground is a grid of sprite sheet frames. A @ref astra2d::TileLayer holds one frame per
+cell, laid out like the collision @ref astra2d::TileGrid (cell (0, 0) at the bottom left), and
+@ref astra2d::Renderer2D::drawTileLayer "drawTileLayer()" draws only the cells that the camera
+given to `begin()` sees. A level hundreds of tiles wide costs only what is on screen. A layer
+from a Tiled map comes from @ref astra2d::makeTileLayer():
+
+```cpp
+const astra2d::TileLayer ground = astra2d::makeTileLayer(map, *map.tileLayer("ground"), 16.0F);
+m_renderer.begin(m_camera);
+m_renderer.drawTileLayer(ground, m_tiles);               // the tileset as a SpriteSheet
+m_renderer.drawTileLayer(decor, m_tiles, {0.8F, 0.8F, 0.9F, 1}); // tinted, e.g. darker
+m_renderer.end();
+```
+
+## Particles
+
+@ref astra2d::ParticleEmitter is a fixed pool of short-lived quads for bursts, sparks, dust and
+smoke, like Godot's CPUParticles2D. @ref astra2d::ParticleSettings describes them: lifetime,
+direction and spread, speed, gravity, drag, the area they start in, and size, colour and spin
+from start to end, each with a random variation. They are simulated on the CPU and drawn through
+the batch, so a thousand particles add only quads, not draw calls:
+
+```cpp
+astra2d::ParticleEmitter m_sparks{{.lifetime = 0.6F, .speed = 220.0F, .damping = 3.0F,
+                                   .startSize = 6.0F, .endSize = 1.0F}};
+
+m_sparks.emit(coin, 24);                       // a burst
+m_smoke.stream(exhaust, 40.0F, deltaTime);     // 40 per second, at any frame rate
+m_sparks.update(deltaTime);
+m_sparks.draw(m_renderer);                     // between begin() and end()
+```
+
+The pool never grows after construction: when it is full, new particles are not emitted. A dead
+particle is swapped with the last one, so removal is O(1). Given a seed, the emitter is
+deterministic, and it is unit-tested without OpenGL (`tests/renderer/test_particles.cpp`).
+
 ## Render targets and post-processing
 
 @ref astra2d::Framebuffer is an off-screen render target: after `bind()`, drawing goes into its
@@ -282,14 +352,22 @@ from that texture, so text is batched together with sprites.
 const astra2d::Font font = astra2d::Font::fromFile("assets/fonts/PressStart2P-Regular.ttf", 8.0F);
 m_renderer.begin(astra2d::OrthographicCamera::screenSpace(width, height));
 m_renderer.drawText(font, "Score: 120\nLives: 3", {16, height - 16}, 16.0F, white, 1.5F);
+// A TextStyle aligns text and adds a drop shadow:
+m_renderer.drawText(font, "PAUSED", center, {.size = 32, .anchor = {0.5F, 0.5F}});
+m_renderer.drawText(font, time, {width - 16, height - 16},
+                    {.size = 16, .anchor = {1, 1}, .shadowOffset = {2, -2}}); // right-aligned
 m_renderer.end();
 ```
 
 - Text is UTF-8. The atlas contains printable ASCII, Latin-1 and Latin Extended-A, so most
   European languages work (for example č, ć, đ, š, ž, as far as the font has them); other
   characters are drawn as '?'.
-- The position is the top-left of the first line; `\n` starts a new line, `lineSpacing` line
-  heights further down. `FontAtlas::measure()` returns the size of a text block, e.g. to centre it.
+- By default the position is the top-left of the first line; `\n` starts a new line,
+  `lineSpacing` line heights further down. With a @ref astra2d::TextStyle, `anchor` picks which
+  point of the text block is at the position: (0, 1) top-left, (0.5, 0.5) the centre, (1, 0)
+  bottom-right. Each line is aligned the same way (left, centred, right). `shadowOffset` draws a
+  copy in `shadowColor` behind the text. `FontAtlas::measure()` returns the size of a text
+  block.
 - Pixel fonts stay sharp when baked at their design size, drawn at whole multiples of it and placed
   on whole pixels with `TextureFilter::Nearest`. Smooth fonts look best baked at the size they are
   drawn at, with `Linear`.

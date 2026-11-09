@@ -409,6 +409,14 @@ void SceneSerializer::registerBuiltIns()
         return s;
     });
 
+    registerComponent<Lifetime>("Lifetime", [](const Lifetime& l, const SaveContext&) {
+        return json{{"duration", number(l.duration)}, {"age", number(l.age)}};
+    }, [](const json& j, const LoadContext&) {
+        Lifetime l;
+        read(j, "duration", l.duration);
+        read(j, "age", l.age);
+        return l;
+    });
     registerComponent<RigidBody>("RigidBody", saveRigidBody, loadRigidBody);
     registerComponent<Collider>("Collider", saveCollider, loadCollider);
     registerComponent<TilemapCollider>("TilemapCollider", saveTilemap, loadTilemap);

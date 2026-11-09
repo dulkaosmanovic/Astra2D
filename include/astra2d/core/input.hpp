@@ -130,9 +130,11 @@ enum class GamepadAxis : int {
 /// The class does not depend on GLFW: the Window forwards events to the on*() methods and calls
 /// beginFrame() before polling events. This keeps it unit-testable.
 ///
-/// @note Pressed/released last one *frame*, not one fixed step. Read them in
-///       Application::onUpdate(), not in Application::onFixedUpdate(), which may run zero or
-///       several times per frame.
+/// Pressed/released work in both of the Application's update hooks. onUpdate() sees what happened
+/// during the current frame. onFixedUpdate() runs zero or several times per frame, so while a
+/// fixed step runs (between beginFixedStep() and endFixedStep(), which the Application calls) they
+/// report what happened since the previous fixed step instead: a press is seen by exactly one fixed
+/// step, also when a frame runs no step or two.
 class Input {
 public:
     /// True if @p key went down during the current frame.
@@ -191,9 +193,21 @@ public:
     /// @name Event interface (called by the platform layer)
     /// @{
 
-    /// Starts a new frame: clears pressed/released flags and the scroll delta. Called by
-    /// Window::pollEvents().
+    /// Starts a new frame: clears this frame's pressed/released flags and the scroll delta. Called
+    /// by Window::pollEvents().
     void beginFrame();
+
+    /// Starts a fixed step: until endFixedStep(), pressed/released report what happened since the
+    /// previous fixed step. Called by Application around onFixedUpdate().
+    void beginFixedStep() { m_inFixedStep = true; }
+    /// Ends a fixed step: clears the fixed-step pressed/released flags.
+    void endFixedStep();
+    /// True between beginFixedStep() and endFixedStep().
+    [[nodiscard]] bool inFixedStep() const { return m_inFixedStep; }
+    /// Forgets presses and releases that no fixed step has seen yet, such as the key that closed
+    /// a menu in onUpdate(), so it does not also act in the game's next fixed step (like Unity's
+    /// Input.ResetInputAxes()). Held state is kept. Reach it through Application::window().input().
+    void clearFixedStepPresses() { keepOnly(allBut(bits(kFixedPressed, kFixedReleased))); }
 
     /// Records a key event. @p key is a GLFW key code; unknown codes are ignored.
     void onKey(int key, bool down);
@@ -223,12 +237,39 @@ private:
     static constexpr int kKeyCount = static_cast<int>(Key::Menu) + 1;
     static constexpr int kMouseButtonCount = static_cast<int>(MouseButton::Button8) + 1;
 
+    // Combines state bits as unsigned values (std::uint8_t operands would become signed int).
+    template <typename... Bits>
+    static constexpr std::uint8_t bits(Bits... values)
+    {
+        return static_cast<std::uint8_t>((0U | ... | static_cast<unsigned>(values)));
+    }
+    // Every bit except those in @p values.
+    static constexpr std::uint8_t allBut(std::uint8_t values)
+    {
+        return static_cast<std::uint8_t>(~static_cast<unsigned>(values));
+    }
+
     // Per key/button state bits.
     static constexpr std::uint8_t kDown = 1U << 0U;
     static constexpr std::uint8_t kPressed = 1U << 1U;
     static constexpr std::uint8_t kReleased = 1U << 2U;
+    // The same since the last fixed step, kept across frames until endFixedStep().
+    static constexpr std::uint8_t kFixedPressed = 1U << 3U;
+    static constexpr std::uint8_t kFixedReleased = 1U << 4U;
+    // kDown, kFixedPressed and kFixedReleased (bits() cannot be used here: the class is not
+    // complete yet).
+    static constexpr std::uint8_t kKeptByFrame = (1U << 0U) | (1U << 3U) | (1U << 4U);
 
     static void apply(std::uint8_t& state, bool down);
+    void keepOnly(std::uint8_t bits);
+    [[nodiscard]] std::uint8_t pressedBit() const
+    {
+        return m_inFixedStep ? kFixedPressed : kPressed;
+    }
+    [[nodiscard]] std::uint8_t releasedBit() const
+    {
+        return m_inFixedStep ? kFixedReleased : kReleased;
+    }
 
     struct Gamepad {
         bool connected = false;
@@ -246,6 +287,7 @@ private:
     glm::vec2 m_mousePosition{0.0F};
     glm::vec2 m_previousMousePosition{0.0F};
     glm::vec2 m_scrollDelta{0.0F};
+    bool m_inFixedStep = false;
 };
 
 } // namespace astra2d

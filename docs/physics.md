@@ -221,6 +221,14 @@ handlers may create and destroy entities. `isGrounded()` asks whether a body sta
 
 **Filtering.** Each shape has a `category` and a `mask` bit set; two shapes collide only if each
 one's category is in the other's mask (e.g. player bullets ignore the player).
+@ref astra2d::collisionGroups() combines groups into a mask, and @ref astra2d::withoutGroups()
+removes some, for example while a player drops through platforms. They work at compile time and
+without the casts that bit operations on `std::uint16_t` otherwise need:
+
+```cpp
+constexpr std::uint16_t kPlayerMask = astra2d::collisionGroups(kWorld, kPlatform, kEnemy);
+collider.mask = dropping ? astra2d::withoutGroups(kPlayerMask, kPlatform) : kPlayerMask;
+```
 
 ## Platformer features
 

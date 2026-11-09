@@ -18,6 +18,7 @@ namespace astra2d {
 class Font;
 class OrthographicCamera;
 class Texture2D;
+struct TileLayer;
 
 /// Settings used when creating a Renderer2D.
 struct Renderer2DSettings {
@@ -50,6 +51,27 @@ struct Quad {
     TextureRegion region{}; ///< Part of the texture to show.
     bool flipX = false;     ///< Mirror the texture horizontally.
     bool flipY = false;     ///< Mirror the texture vertically.
+};
+
+/// How Renderer2D::drawText() draws text. Meant for designated initializers:
+/// @code
+/// renderer.drawText(font, "PAUSED", center, {.size = 32, .anchor = {0.5F, 0.5F}});
+/// renderer.drawText(font, score, {right, top}, {.size = 16, .anchor = {1, 1},
+///                                               .shadowOffset = {2, -2}});
+/// @endcode
+struct TextStyle {
+    /// World units per Font::atlas().pixelHeight(): a pixel font baked at 8 px and drawn at size
+    /// 16 is twice as large.
+    float size = 16.0F;
+    glm::vec4 color{1.0F};    ///< Colour of the text.
+    float lineSpacing = 1.0F; ///< '\\n' moves this many line heights down.
+    /// Which point of the text block is at the position: (0, 1) the top-left corner, (0.5, 0.5)
+    /// the centre, (1, 0) the bottom-right corner. Lines are aligned the same way (x 0 left,
+    /// 0.5 centred, 1 right). See FontAtlas::layout().
+    glm::vec2 anchor{0.0F, 1.0F};
+    /// A copy in shadowColor is drawn first, this far away (world units); (0, 0) draws none.
+    glm::vec2 shadowOffset{0.0F};
+    glm::vec4 shadowColor{0.0F, 0.0F, 0.0F, 0.6F}; ///< Colour of the shadow.
 };
 
 /// Batched 2D renderer for coloured and textured quads, sprites and debug lines.
@@ -121,6 +143,12 @@ public:
     void drawSprite(glm::vec2 position, glm::vec2 size, const Sprite& sprite,
                     glm::vec4 tint = glm::vec4(1.0F), float rotation = 0.0F, bool flipX = false);
 
+    /// The tiles of @p layer that the camera given to begin() sees, as frames of @p sheet
+    /// multiplied by @p tint, so a large level costs only what is on screen.
+    /// @throws std::out_of_range if a visible tile's frame is not in @p sheet.
+    void drawTileLayer(const TileLayer& layer, const SpriteSheet& sheet,
+                       glm::vec4 tint = glm::vec4(1.0F));
+
     /// Draws UTF-8 @p text with the top-left of its first line at @p position, @p size world units
     /// per Font::atlas().pixelHeight() (a pixel font baked at 8 px and drawn at size 16 is twice
     /// as large). '\\n' starts a new line, @p lineSpacing line heights further down. Text is
@@ -130,6 +158,13 @@ public:
     /// A temporary font would be destroyed before end() draws the text.
     void drawText(const Font&& font, std::string_view text, glm::vec2 position, float size,
                   glm::vec4 color = glm::vec4(1.0F), float lineSpacing = 1.0F) = delete;
+    /// Draws UTF-8 @p text with the point TextStyle::anchor of the text block at @p position:
+    /// aligned, centred or right-aligned text, with an optional drop shadow.
+    void drawText(const Font& font, std::string_view text, glm::vec2 position,
+                  const TextStyle& style);
+    /// A temporary font would be destroyed before end() draws the text.
+    void drawText(const Font&& font, std::string_view text, glm::vec2 position,
+                  const TextStyle& style) = delete;
 
     /// Line from @p from to @p to, @p thickness world units wide.
     void drawLine(glm::vec2 from, glm::vec2 to, glm::vec4 color, float thickness = 1.0F);

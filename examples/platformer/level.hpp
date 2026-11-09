@@ -5,6 +5,7 @@
 // map (.tmj); no OpenGL, so it is unit-tested (tests/examples/test_platformer.cpp).
 
 #include <astra2d/physics/tilemap.hpp>
+#include <astra2d/renderer/tile_layer.hpp>
 #include <astra2d/scene/tiled_map.hpp>
 
 #include <glm/vec2.hpp>
@@ -21,7 +22,7 @@ inline constexpr float kTileSize = 16.0F;
 
 /// Frames of tiles.png (see scripts/generate_platformer_assets.py).
 namespace tile {
-inline constexpr int kNone = -1;
+inline constexpr int kNone = astra2d::TileLayer::kEmpty;
 inline constexpr int kGrass = 0;
 inline constexpr int kDirt = 1;
 inline constexpr int kGrassLeft = 2;
@@ -92,20 +93,19 @@ struct Hazard {
 /// One level. Rows count from the bottom, like astra2d::TileGrid, with the level's bottom-left
 /// corner at the world origin.
 struct Level {
-    std::string name;        ///< Shown when the level starts.
-    std::string hint;        ///< A tip shown below the name.
-    int width = 0;           ///< Columns.
-    int height = 0;          ///< Rows.
-    std::vector<int> ground; ///< Tile frame per cell (tile::kNone for empty), row 0 at the bottom.
-    std::vector<int> decor;  ///< Decoration drawn behind the ground, same layout.
-    astra2d::TileGrid solid; ///< Tiles that collide from every side.
+    std::string name; ///< Shown when the level starts.
+    std::string hint; ///< A tip shown below the name.
+    int width = 0;    ///< Columns.
+    int height = 0;   ///< Rows.
+    astra2d::TileLayer
+        ground;               ///< Tile frame per cell (tile::kNone for empty), row 0 at the bottom.
+    astra2d::TileLayer decor; ///< Decoration drawn behind the ground, same layout.
+    astra2d::TileGrid solid;  ///< Tiles that collide from every side.
     astra2d::TileGrid platforms; ///< One-way planks and clouds (their own collider, so the player
                                  ///< can drop through them).
     std::vector<Hazard> hazards; ///< Spikes and lava.
     std::vector<Thing> things;   ///< Player start, coins, enemies, platforms, goals and more.
 
-    /// Tile frame of @p layer at column @p x, row @p y; tile::kNone outside the level.
-    [[nodiscard]] int at(const std::vector<int>& layer, int x, int y) const;
     /// World position of the centre of a cell.
     [[nodiscard]] glm::vec2 cellCenter(int x, int y) const;
     /// Size in world units.

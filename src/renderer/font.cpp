@@ -209,17 +209,30 @@ glm::vec2 FontAtlas::measure(std::string_view text, float size, float lineSpacin
     return glm::vec2{widest, static_cast<float>(lines) * m_lineHeight * lineSpacing} * scale;
 }
 
-std::vector<PlacedGlyph> FontAtlas::layout(std::string_view text, glm::vec2 topLeft, float size,
-                                           float lineSpacing) const
+std::vector<PlacedGlyph> FontAtlas::layout(std::string_view text, glm::vec2 position, float size,
+                                           float lineSpacing, glm::vec2 anchor) const
 {
     std::vector<PlacedGlyph> placed;
     placed.reserve(text.size());
     const float scale = size / m_pixelHeight;
-    glm::vec2 pen{topLeft.x, topLeft.y - (m_ascent * scale)}; // on the first baseline
+    const glm::vec2 block = measure(text, size, lineSpacing);
+    const float left = position.x - (anchor.x * block.x);
+    const float top = position.y + ((1.0F - anchor.y) * block.y);
+    // Where a line starts: the block's left edge plus anchor.x of the space the line leaves free.
+    const auto lineStart = [&](std::size_t from) {
+        if (anchor.x == 0.0F) {
+            return left;
+        }
+        const std::size_t end = text.find('\n', from);
+        const float width =
+            measure(text.substr(from, end == std::string_view::npos ? end : end - from), size).x;
+        return left + (anchor.x * (block.x - width));
+    };
+    glm::vec2 pen{lineStart(0), top - (m_ascent * scale)}; // on the first baseline
     for (std::size_t i = 0; i < text.size();) {
         const char32_t codepoint = decodeUtf8(text, i);
         if (codepoint == U'\n') {
-            pen = {topLeft.x, pen.y - (m_lineHeight * lineSpacing * scale)};
+            pen = {lineStart(i), pen.y - (m_lineHeight * lineSpacing * scale)};
             continue;
         }
         const Glyph& g = glyph(codepoint);

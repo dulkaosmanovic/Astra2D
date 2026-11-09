@@ -60,8 +60,12 @@ void Application::run()
 
         const int steps = m_timestep.advance(frameTime);
         const auto fixedDeltaTime = static_cast<float>(m_timestep.step());
+        Input& in = m_window->input();
         for (int i = 0; i < steps; ++i) {
+            // Pressed/released inside a step report what happened since the previous step.
+            in.beginFixedStep();
             onFixedUpdate(fixedDeltaTime);
+            in.endFixedStep();
         }
 
         onUpdate(static_cast<float>(frameTime));

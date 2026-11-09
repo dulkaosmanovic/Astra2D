@@ -1,5 +1,6 @@
 #include "astra2d/renderer/camera.hpp"
 
+#include <glm/common.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
@@ -51,16 +52,36 @@ void OrthographicCamera::setViewHeight(float viewHeight)
 {
     m_viewHeight = requirePositive(viewHeight, "view height");
     m_fitArea = glm::vec2(0.0F);
+    m_pixelPerfectHeight = 0.0F;
 }
 
 void OrthographicCamera::fitArea(glm::vec2 area)
 {
     m_fitArea = {requirePositive(area.x, "fit width"), requirePositive(area.y, "fit height")};
+    m_pixelPerfectHeight = 0.0F;
     applyFit();
+}
+
+void OrthographicCamera::setPixelPerfect(float viewHeight)
+{
+    m_pixelPerfectHeight = requirePositive(viewHeight, "pixel-perfect view height");
+    m_fitArea = glm::vec2(0.0F);
+    applyFit();
+}
+
+float OrthographicCamera::pixelsPerUnit() const
+{
+    return static_cast<float>(m_viewport.y) * m_zoom / m_viewHeight;
 }
 
 void OrthographicCamera::applyFit()
 {
+    if (m_pixelPerfectHeight > 0.0F) {
+        const auto pixels = static_cast<float>(m_viewport.y);
+        const float scale = std::max(1.0F, std::round(pixels / m_pixelPerfectHeight));
+        m_viewHeight = pixels / scale;
+        return;
+    }
     if (m_fitArea.y <= 0.0F) {
         return;
     }
@@ -128,7 +149,12 @@ glm::mat4 OrthographicCamera::viewProjection() const
     const glm::mat4 projection = glm::ortho(-half.x, half.x, -half.y, half.y, -1.0F, 1.0F);
     // The camera turns by m_rotation, so the world turns the other way around the camera.
     glm::mat4 view = glm::rotate(glm::mat4(1.0F), -m_rotation, glm::vec3(0.0F, 0.0F, 1.0F));
-    view = glm::translate(view, glm::vec3(-m_position, 0.0F));
+    glm::vec2 position = m_position;
+    if (pixelPerfect()) {
+        const float scale = pixelsPerUnit();
+        position = glm::round(position * scale) / scale;
+    }
+    view = glm::translate(view, glm::vec3(-position, 0.0F));
     return projection * view;
 }
 

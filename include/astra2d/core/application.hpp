@@ -39,7 +39,9 @@ struct ApplicationSettings {
 ///    gamepads), then queued events() are dispatched;
 /// 2. if the framebuffer was resized, the viewport is updated, onResize() is called and a
 ///    WindowResizeEvent is published;
-/// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep);
+/// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep); in it,
+///    Input's pressed/released report what happened since the previous step, so a press is seen
+///    by exactly one step;
 /// 4. onUpdate() runs once with the real frame time, clamped to ApplicationSettings::maxFrameTime;
 /// 5. onRender() runs once, then buffers are swapped.
 ///

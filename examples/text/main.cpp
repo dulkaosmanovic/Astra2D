@@ -36,6 +36,8 @@ namespace {
 // Press Start 2P is a pixel font designed for 8 px; drawing it at whole multiples of 8 keeps it
 // sharp.
 constexpr float kFontPixels = 8.0F;
+// TextStyle::anchor for text centred on its position.
+constexpr glm::vec2 kCentre{0.5F, 0.5F};
 
 class Text : public astra2d::Application {
 public:
@@ -71,15 +73,27 @@ protected:
 
         // World text: position and size in world units.
         m_renderer.begin(m_camera);
-        drawCentered("ASTRA2D", {0.0F, 140.0F}, 48.0F, {1.0F, 0.85F, 0.3F, 1.0F});
-        drawCentered("text is batched like sprites", {0.0F, 70.0F}, 16.0F, glm::vec4{1.0F});
+        // anchor {0.5, 0.5}: the centre of the text is at the position. A shadow is a second,
+        // offset copy drawn first.
+        m_renderer.drawText(m_font, "ASTRA2D", {0.0F, 140.0F},
+                            {.size = 48.0F,
+                             .color = {1.0F, 0.85F, 0.3F, 1.0F},
+                             .anchor = kCentre,
+                             .shadowOffset = {4.0F, -4.0F}});
+        m_renderer.drawText(m_font, "text is batched like sprites", {0.0F, 70.0F},
+                            {.size = 16.0F, .anchor = kCentre});
 
         // UTF-8 works for the baked ranges (ASCII, Latin-1, Latin Extended-A).
-        drawCentered("Čćđšž ÀÉÎÕÜ ñ ß", {0.0F, 20.0F}, 16.0F, {0.6F, 0.9F, 1.0F, 1.0F});
+        m_renderer.drawText(m_font, "Čćđšž ÀÉÎÕÜ ñ ß", {0.0F, 20.0F},
+                            {.size = 16.0F, .color = {0.6F, 0.9F, 1.0F, 1.0F}, .anchor = kCentre});
 
-        // Several lines with extra spacing between them.
-        drawCentered("line one\nline two\nline three", {0.0F, -40.0F}, 16.0F,
-                     {0.8F, 0.8F, 0.8F, 1.0F}, 1.8F);
+        // Several lines with extra spacing between them, each centred; anchor {0.5, 1} hangs the
+        // block from the middle of its top edge.
+        m_renderer.drawText(m_font, "line one\nsecond line\nthe third line", {0.0F, -8.0F},
+                            {.size = 16.0F,
+                             .color = {0.8F, 0.8F, 0.8F, 1.0F},
+                             .lineSpacing = 1.8F,
+                             .anchor = {0.5F, 1.0F}});
 
         // Text is coloured per call, so a wave of colours is one call per character.
         const std::string_view wave = "colour per character";
@@ -102,6 +116,7 @@ protected:
         const std::string hud = std::format("zoom {:.2f} (wheel)   {} draw calls last frame",
                                             m_camera.zoom(), m_drawCalls);
         // Small, in the bottom-right corner: the demo text fills the middle of the window.
+        // (measure() gives the size of a text block, here to right-align the panel.)
         examples::drawTextPanel(
             m_renderer, m_font, hud,
             {static_cast<float>(width) - m_font.atlas().measure(hud, 8.0F).x - 14.0F, 22.0F}, 8.0F);
@@ -112,15 +127,6 @@ protected:
     }
 
 private:
-    // measure() gives the size of the text block, so it can be centred on a point.
-    void drawCentered(std::string_view text, glm::vec2 center, float size, glm::vec4 color,
-                      float lineSpacing = 1.0F)
-    {
-        const glm::vec2 extent = m_font.atlas().measure(text, size, lineSpacing);
-        const glm::vec2 topLeft{center.x - (extent.x * 0.5F), center.y + (extent.y * 0.5F)};
-        m_renderer.drawText(m_font, text, topLeft, size, color, lineSpacing);
-    }
-
     astra2d::AssetCache m_assets;
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;

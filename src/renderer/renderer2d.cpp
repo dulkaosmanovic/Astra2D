@@ -7,6 +7,7 @@
 #include "astra2d/renderer/font.hpp"
 #include "astra2d/renderer/shader.hpp"
 #include "astra2d/renderer/texture.hpp"
+#include "astra2d/renderer/tile_layer.hpp"
 #include "astra2d/renderer/vertex_array.hpp"
 #include "quad_batch.hpp"
 
@@ -236,6 +237,8 @@ struct Renderer2D::Impl {
     GLint uvRectLocation = glGetUniformLocation(singleShader.id(), "uUvRect");
     bool batching;
     bool inScene = false;
+    glm::vec2 visibleMin{0.0F}; // of the camera given to begin(), for drawTileLayer()
+    glm::vec2 visibleMax{0.0F};
 };
 
 namespace {
@@ -265,6 +268,8 @@ void Renderer2D::begin(const OrthographicCamera& camera)
 {
     ASTRA_ASSERT(!m_impl->inScene, "Renderer2D::begin() called twice without end()");
     m_impl->inScene = true;
+    m_impl->visibleMin = camera.visibleMin();
+    m_impl->visibleMax = camera.visibleMax();
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -346,6 +351,47 @@ void Renderer2D::drawText(const Font& font, std::string_view text, glm::vec2 pos
               .color = color,
               .texture = &font.texture(),
               .region = glyph.region});
+    }
+}
+
+void Renderer2D::drawText(const Font& font, std::string_view text, glm::vec2 position,
+                          const TextStyle& style)
+{
+    const auto draw = [&](glm::vec2 at, glm::vec4 color) {
+        for (const PlacedGlyph& glyph :
+             font.atlas().layout(text, at, style.size, style.lineSpacing, style.anchor)) {
+            this->draw({.position = glyph.center,
+                        .size = glyph.size,
+                        .color = color,
+                        .texture = &font.texture(),
+                        .region = glyph.region});
+        }
+    };
+    if (style.shadowOffset != glm::vec2(0.0F)) {
+        draw(position + style.shadowOffset, style.shadowColor);
+    }
+    draw(position, style.color);
+}
+
+void Renderer2D::drawTileLayer(const TileLayer& layer, const SpriteSheet& sheet, glm::vec4 tint)
+{
+    if (layer.width <= 0 || layer.height <= 0 || layer.tileSize <= 0.0F) {
+        return;
+    }
+    // Only the cells the camera sees (one more on each side for tiles drawn larger than a cell).
+    const glm::vec2 min = (m_impl->visibleMin - layer.origin) / layer.tileSize;
+    const glm::vec2 max = (m_impl->visibleMax - layer.origin) / layer.tileSize;
+    const int x0 = std::max(static_cast<int>(std::floor(min.x)) - 1, 0);
+    const int y0 = std::max(static_cast<int>(std::floor(min.y)) - 1, 0);
+    const int x1 = std::min(static_cast<int>(std::ceil(max.x)) + 1, layer.width - 1);
+    const int y1 = std::min(static_cast<int>(std::ceil(max.y)) + 1, layer.height - 1);
+    const glm::vec2 size(layer.tileSize);
+    for (int y = y0; y <= y1; ++y) {
+        for (int x = x0; x <= x1; ++x) {
+            if (const int frame = layer.at(x, y); frame != TileLayer::kEmpty) {
+                drawSprite(layer.cellCenter(x, y), size, sheet.frame(frame), tint);
+            }
+        }
     }
 }
 

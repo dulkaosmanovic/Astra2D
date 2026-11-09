@@ -185,21 +185,15 @@ Level emptyLevel(int width, int height)
     Level level;
     level.width = width;
     level.height = height;
-    const auto cells = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-    level.ground.assign(cells, tile::kNone);
-    level.decor.assign(cells, tile::kNone);
+    for (astra2d::TileLayer* layer : {&level.ground, &level.decor}) {
+        *layer = {.width = width, .height = height, .tileSize = kTileSize};
+    }
     for (astra2d::TileGrid* grid : {&level.solid, &level.platforms}) {
         grid->width = width;
         grid->height = height;
         grid->tileSize = kTileSize;
     }
     return level;
-}
-
-std::size_t cell(const Level& level, int x, int y)
-{
-    return (static_cast<std::size_t>(y) * static_cast<std::size_t>(level.width)) +
-           static_cast<std::size_t>(x);
 }
 
 void validate(const Level& level)
@@ -300,8 +294,8 @@ void addTextCell(Level& level, const TextGrid& grid, int x, int row, int line)
     if (frame == tile::kNone && decor == tile::kNone && !isThing && c != '.' && c != ' ') {
         fail(std::format("line {}, column {}: unknown tile '{}'", line, x + 1, c));
     }
-    level.ground[cell(level, x, y)] = frame;
-    level.decor[cell(level, x, y)] = decor;
+    level.ground.set(x, y, frame);
+    level.decor.set(x, y, decor);
     if (isSolidFrame(frame)) {
         level.solid.set(x, y, astra2d::TileCollision::Solid);
     } else if (isOneWayFrame(frame)) {
@@ -315,20 +309,15 @@ void addTextCell(Level& level, const TextGrid& grid, int x, int row, int line)
 }
 
 // The frames of a Tiled tile layer into @p frames; hazard tiles into the level's hazards.
-void readTiledLayer(const astra2d::TiledMap& map, const astra2d::TiledTileLayer& layer,
-                    std::vector<int>& frames, bool hazards, Level& level)
+// The tiles of @p layer with the property `hazard` hurt.
+void readTiledHazards(const astra2d::TiledMap& map, const astra2d::TiledTileLayer& layer,
+                      Level& level)
 {
     for (int row = 0; row < layer.height; ++row) {
         for (int x = 0; x < layer.width; ++x) {
             const auto found = map.tile(layer.at(x, row));
-            const int y = map.height - 1 - row;
-            if (!found || x >= level.width || y < 0) {
-                continue;
-            }
-            const astra2d::TiledTile& t = *found;
-            frames[cell(level, x, y)] = t.id;
-            if (hazards && t.properties != nullptr && t.properties->boolean("hazard")) {
-                level.hazards.push_back({.x = x, .y = y, .frame = t.id});
+            if (found && found->properties != nullptr && found->properties->boolean("hazard")) {
+                level.hazards.push_back({.x = x, .y = map.height - 1 - row, .frame = found->id});
             }
         }
     }
@@ -351,14 +340,6 @@ void readTiledObjects(const astra2d::TiledMap& map, Level& level)
 }
 
 } // namespace
-
-int Level::at(const std::vector<int>& layer, int x, int y) const
-{
-    if (x < 0 || y < 0 || x >= width || y >= height) {
-        return tile::kNone;
-    }
-    return layer[cell(*this, x, y)];
-}
 
 glm::vec2 Level::cellCenter(int x, int y) const
 {
@@ -420,9 +401,10 @@ Level levelFromTiled(const astra2d::TiledMap& map)
     level.platforms =
         astra2d::makeTileGrid(map, *ground, kTileSize, only(astra2d::TileCollision::OneWay));
 
-    readTiledLayer(map, *ground, level.ground, true, level);
+    level.ground = astra2d::makeTileLayer(map, *ground, kTileSize);
+    readTiledHazards(map, *ground, level);
     if (const auto* decor = map.tileLayer("decor")) {
-        readTiledLayer(map, *decor, level.decor, false, level);
+        level.decor = astra2d::makeTileLayer(map, *decor, kTileSize);
     }
     readTiledObjects(map, level);
     validate(level);

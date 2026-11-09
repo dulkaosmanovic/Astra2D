@@ -47,12 +47,25 @@ Scene::Scene()
 
     addSystem(SystemPhase::LateUpdate, "animation", [](Scene& scene, float deltaTime) {
         scene.registry().view<Animator, SpriteRenderer>().each(
-            [deltaTime](Animator& animator, SpriteRenderer& sprite) {
-            if (animator.sheet == nullptr || !animator.player.isPlaying()) {
+            [&](Entity entity, Animator& animator, SpriteRenderer& sprite) {
+            if (!animator.player.isPlaying()) {
                 return;
             }
             animator.player.update(deltaTime);
-            sprite.sprite = animator.sheet->frame(animator.player.frame());
+            if (animator.sheet != nullptr) {
+                sprite.sprite = animator.sheet->frame(animator.player.frame());
+            }
+            if (animator.destroyWhenFinished && animator.player.finished()) {
+                scene.destroyLater(entity);
+            }
+        });
+    });
+    addSystem(SystemPhase::LateUpdate, "lifetime", [](Scene& scene, float deltaTime) {
+        scene.registry().view<Lifetime>().each([&](Entity entity, Lifetime& lifetime) {
+            lifetime.age += deltaTime;
+            if (lifetime.age >= lifetime.duration) {
+                scene.destroyLater(entity);
+            }
         });
     });
 }

@@ -6,6 +6,7 @@
 
 #include <glm/vec2.hpp>
 
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -76,8 +77,34 @@ enum class ShapeType {
     Polygon, ///< ShapeDef::polygon, any convex polygon.
 };
 
+/// Several collision groups (bits) as one ShapeDef::category or mask, like Unity's
+/// LayerMask.GetMask():
+/// @code
+/// constexpr std::uint16_t kWorld = 1U << 0U;
+/// constexpr std::uint16_t kEnemy = 1U << 1U;
+/// collider.mask = astra2d::collisionGroups(kWorld, kEnemy);
+/// @endcode
+/// The bits are combined as unsigned values, so there are no warnings about std::uint16_t being
+/// promoted to (signed) int.
+template <std::integral... Groups>
+[[nodiscard]] constexpr std::uint16_t collisionGroups(Groups... groups)
+{
+    return static_cast<std::uint16_t>((0U | ... | static_cast<unsigned>(groups)));
+}
+
+/// @p mask without the groups in @p removed, e.g. a player that passes through platforms for a
+/// moment: `withoutGroups(kPlayerMask, kPlatform)`.
+[[nodiscard]] constexpr std::uint16_t withoutGroups(std::uint16_t mask, std::uint16_t removed)
+{
+    return static_cast<std::uint16_t>(static_cast<unsigned>(mask) &
+                                      ~static_cast<unsigned>(removed));
+}
+
 /// How to create a shape. Use the makeBox(), makeCircle() and makePolygon() helpers, then set the
 /// material.
+///
+/// @ref category and @ref mask are bit sets of up to 16 collision groups, built with
+/// collisionGroups() and withoutGroups().
 struct ShapeDef {
     ShapeType type = ShapeType::Box; ///< Which geometry is used.
     Circle circle;                   ///< For ShapeType::Circle, in body coordinates.

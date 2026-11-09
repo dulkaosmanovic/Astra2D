@@ -94,6 +94,12 @@ protected:
     void onFixedUpdate(float dt) override
     {
         m_velocity.x = m_actions.axis("move_x", input()) * kMoveSpeed;
+        // Inside a fixed step isPressed() means "since the previous step", so each press makes
+        // exactly one jump, however many steps this frame runs (zero or several).
+        if (m_actions.isPressed("jump", input()) && m_position.y <= kGround) {
+            m_velocity.y = kJumpSpeed;
+            events().publish(JumpEvent{.position = m_position});
+        }
         m_velocity.y += kGravity * dt;
         m_position += m_velocity * dt;
         if (m_position.y <= kGround) {
@@ -108,12 +114,6 @@ protected:
         const auto& in = input();
         if (m_actions.isPressed("quit", in)) {
             quit();
-        }
-        // isPressed() is true for exactly one frame, so it is read in onUpdate(), not in
-        // onFixedUpdate() (which can run 0 or several times per frame).
-        if (m_actions.isPressed("jump", in) && m_position.y <= kGround) {
-            m_velocity.y = kJumpSpeed;
-            events().publish(JumpEvent{.position = m_position});
         }
         if (m_actions.isPressed("rebind", in)) {
             m_jumpOnEnter = !m_jumpOnEnter;

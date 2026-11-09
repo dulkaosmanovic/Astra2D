@@ -158,7 +158,7 @@ in the order they were added.
 |---|---|---|
 | `FixedUpdate` | `scene.fixedUpdate(dt)` from Application::onFixedUpdate() | movement, gameplay, physics (@ref astra2d::PhysicsSystem) |
 | `Update` | `scene.update(dt)` from Application::onUpdate() | input, AI |
-| `LateUpdate` | `scene.update(dt)`, after Update | animation (built in), camera follow |
+| `LateUpdate` | `scene.update(dt)`, after Update | animation and lifetime (built in), camera follow |
 
 ```cpp
 m_scene.addSystem(astra2d::SystemPhase::FixedUpdate, "spin", [](astra2d::Scene& scene, float dt) {
@@ -178,12 +178,25 @@ the end of `fixedUpdate()` and `update()`.
 | @ref astra2d::Name | a name for `Scene::find()`, debugging and scene files |
 | @ref astra2d::Transform | position, rotation, scale, relative to the parent; `createEntity()` adds it |
 | @ref astra2d::SpriteRenderer | sprite (or solid quad), size, tint, layer, flip, visibility |
-| @ref astra2d::Animator | plays a sprite sheet animation into the SpriteRenderer |
+| @ref astra2d::Animator | plays a sprite sheet animation into the SpriteRenderer; with `destroyWhenFinished` a one-shot effect removes itself |
+| @ref astra2d::Lifetime | destroys the entity after `duration` seconds; `progress()` drives a fade or a growth |
 | @ref astra2d::RigidBody | body type, velocity, mass, gravity scale; simulated by @ref astra2d::PhysicsSystem |
 | @ref astra2d::Collider | box, circle or polygon shape, material, trigger / one-way flags, collision groups |
 | @ref astra2d::TilemapCollider | collision for a grid of solid and one-way tiles |
 | @ref astra2d::Relationship | hierarchy links, managed by `Scene::setParent()` |
 | @ref astra2d::Interpolated | opt-in smooth drawing of entities moved at the fixed timestep |
+
+Short-lived entities are common: a burst, a squashed enemy, a dust puff. Without help, each needs
+a timer component and a system that counts it down and calls `destroyLater()`. The built-in
+"lifetime" system does that for every @ref astra2d::Lifetime, and the "animation" system removes an
+entity whose non-looping animation ended if its Animator has `destroyWhenFinished`:
+
+```cpp
+registry.emplace<astra2d::Lifetime>(burst, astra2d::Lifetime{.duration = 0.4F});
+registry.emplace<astra2d::Animator>(dust, astra2d::Animator{.sheet = &m_sheet,
+                                                            .destroyWhenFinished = true})
+    .player.play(m_puff);
+```
 
 `scene.render(renderer)` draws every visible SpriteRenderer at its entity's world transform, lower
 layers first; within a layer parents are drawn before children. It is called between

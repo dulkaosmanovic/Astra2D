@@ -1,6 +1,7 @@
 #pragma once
 
 #include "astra2d/physics/tilemap.hpp"
+#include "astra2d/renderer/tile_layer.hpp"
 
 #include <glm/vec2.hpp>
 
@@ -171,6 +172,13 @@ using TiledCollisionRule = std::function<TileCollision(const TiledTile&)>;
 [[nodiscard]] TileGrid makeTileGrid(const TiledMap& map, const TiledTileLayer& layer,
                                     float worldTileSize,
                                     const TiledCollisionRule& rule = tiledCollision);
+
+/// The tiles of @p layer to draw (Renderer2D::drawTileLayer()), placed like makeTileGrid(): each
+/// cell's frame is the tile's local id in its tileset, so the frames match a SpriteSheet cut from
+/// the tileset's image (with its margin and spacing). For a layer that uses one tileset; Tiled's
+/// flip flags are ignored, so flipped tiles are drawn unflipped.
+[[nodiscard]] TileLayer makeTileLayer(const TiledMap& map, const TiledTileLayer& layer,
+                                      float worldTileSize);
 
 } // namespace astra2d
 

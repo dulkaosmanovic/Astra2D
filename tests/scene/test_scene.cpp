@@ -96,13 +96,47 @@ TEST(SceneTests, SystemsRunInPhaseThenInsertionOrder)
     EXPECT_EQ(log, (std::vector<std::string>{"fixed 20", "b", "a", "late"}));
 }
 
-TEST(SceneTests, BuiltInAnimationSystemCanBeRemoved)
+TEST(SceneTests, BuiltInSystemsCanBeRemoved)
 {
     Scene scene;
-    EXPECT_EQ(scene.systemNames(SystemPhase::LateUpdate), std::vector<std::string>{"animation"});
+    EXPECT_EQ(scene.systemNames(SystemPhase::LateUpdate),
+              (std::vector<std::string>{"animation", "lifetime"}));
     EXPECT_TRUE(scene.removeSystem("animation"));
     EXPECT_FALSE(scene.removeSystem("animation"));
+    EXPECT_TRUE(scene.removeSystem("lifetime"));
     EXPECT_TRUE(scene.systemNames(SystemPhase::LateUpdate).empty());
+}
+
+TEST(SceneTests, AOneShotAnimationCanDestroyItsEntity)
+{
+    Scene scene;
+    const astra2d::SpriteAnimation puff{.frames = {0, 1}, .frameDuration = 0.1F, .loop = false};
+    const astra2d::Entity dust = scene.createEntity("dust");
+    const astra2d::Entity sign = scene.createEntity("sign");
+    auto& registry = scene.registry();
+    for (const astra2d::Entity e : {dust, sign}) {
+        registry.emplace<astra2d::SpriteRenderer>(e);
+        registry.emplace<astra2d::Animator>(e).player.play(puff);
+    }
+    registry.get<astra2d::Animator>(dust).destroyWhenFinished = true;
+    scene.update(0.15F);
+    EXPECT_TRUE(registry.valid(dust)); // on its second frame
+    scene.update(0.1F);
+    EXPECT_FALSE(registry.valid(dust));
+    EXPECT_TRUE(registry.valid(sign)); // finished too, but kept on its last frame
+}
+
+TEST(SceneTests, LifetimeDestroysTheEntityWhenItIsUp)
+{
+    Scene scene;
+    const astra2d::Entity burst = scene.createEntity("burst");
+    scene.registry().emplace<astra2d::Lifetime>(burst, astra2d::Lifetime{.duration = 0.5F});
+    scene.update(0.3F);
+    ASSERT_TRUE(scene.registry().valid(burst));
+    EXPECT_NEAR(scene.registry().get<astra2d::Lifetime>(burst).progress(), 0.6F, 1e-5F);
+    scene.update(0.3F);
+    EXPECT_FALSE(scene.registry().valid(burst));
+    EXPECT_FLOAT_EQ((astra2d::Lifetime{.duration = 0.0F}.progress()), 1.0F);
 }
 
 TEST(SceneTests, SystemAddedBySystemRunsFromTheNextStep)

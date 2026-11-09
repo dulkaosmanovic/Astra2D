@@ -449,4 +449,21 @@ TileGrid makeTileGrid(const TiledMap& map, const TiledTileLayer& layer, float wo
     return grid;
 }
 
+TileLayer makeTileLayer(const TiledMap& map, const TiledTileLayer& layer, float worldTileSize)
+{
+    TileLayer tiles{
+        .width = layer.width,
+        .height = layer.height,
+        .tileSize = worldTileSize,
+        .origin = {0.0F, static_cast<float>(map.height - layer.height) * worldTileSize}};
+    for (int y = 0; y < layer.height; ++y) {
+        for (int x = 0; x < layer.width; ++x) {
+            if (const auto tile = map.tile(layer.at(x, y))) {
+                tiles.set(x, layer.height - 1 - y, tile->id); // rows from the bottom
+            }
+        }
+    }
+    return tiles;
+}
+
 } // namespace astra2d

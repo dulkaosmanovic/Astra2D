@@ -15,8 +15,10 @@
 #include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/animation.hpp>
 #include <astra2d/renderer/camera.hpp>
+#include <astra2d/renderer/camera_follow.hpp>
 #include <astra2d/renderer/camera_shake.hpp>
 #include <astra2d/renderer/font.hpp>
+#include <astra2d/renderer/particles.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/renderer/sprite.hpp>
 #include <astra2d/renderer/texture.hpp>
@@ -102,22 +104,10 @@ constexpr std::uint16_t kEnemyGroup = 1U << 3U;
 constexpr std::uint16_t kPickupGroup = 1U << 4U;
 constexpr std::uint16_t kHazardGroup = 1U << 5U;
 
-// Several groups as one mask. The bits are combined as unsigned: std::uint16_t operands would be
-// promoted to (signed) int.
-template <typename... Groups>
-constexpr std::uint16_t anyOf(Groups... groups)
-{
-    return static_cast<std::uint16_t>((0U | ... | static_cast<unsigned>(groups)));
-}
-
-constexpr std::uint16_t without(std::uint16_t mask, std::uint16_t group)
-{
-    return static_cast<std::uint16_t>(static_cast<unsigned>(mask) & ~static_cast<unsigned>(group));
-}
-
 constexpr std::uint16_t kPlayerMask =
-    anyOf(kWorldGroup, kPlatformGroup, kEnemyGroup, kPickupGroup, kHazardGroup);
-constexpr std::uint16_t kGround = anyOf(kWorldGroup, kPlatformGroup); // what crawlers walk on
+    astra2d::collisionGroups(kWorldGroup, kPlatformGroup, kEnemyGroup, kPickupGroup, kHazardGroup);
+constexpr std::uint16_t kGround =
+    astra2d::collisionGroups(kWorldGroup, kPlatformGroup); // what crawlers walk on
 
 // Frames of platformer.png (see scripts/generate_platformer_assets.py).
 constexpr int kCheckpointOff = 18;
@@ -180,10 +170,6 @@ struct Mover {
     float time = 0.0F;
 };
 
-struct Squashed {
-    float timeLeft = kSquashTime;
-};
-
 struct Coin {};
 struct HeartPickup {};
 struct Spring {};
@@ -195,7 +181,6 @@ struct Goal {
     Entity exhaust;
 };
 struct HazardTile {};
-struct Effect {}; // a one-shot animation, removed when it ends
 
 struct Checkpoint {
     bool active = false;
@@ -261,7 +246,8 @@ public:
         bindControls();
         addSystems();
         connectPhysicsEvents();
-        fitView(framebufferSize().x, framebufferSize().y);
+        // Whole screen pixels per texel, about kViewHeight texels high, so the art stays crisp.
+        m_camera.setPixelPerfect(kViewHeight);
         startLevel(m_firstLevel); // the title screen's backdrop
         m_state = State::Title;
         m_audio.playMusic(*m_sounds.music, 0.45F);
@@ -280,10 +266,6 @@ protected:
     void onUpdate(float dt) override
     {
         const auto& in = input();
-        // A jump pressed in a frame without a fixed step is kept for the next step.
-        if (m_actions.isPressed("jump", in) && m_jumpFrame != m_frame) {
-            m_jumpQueued = true;
-        }
         if (m_actions.isPressed("quit", in)) {
             quit();
         }
@@ -315,12 +297,12 @@ protected:
         case State::Paused:
             if (m_actions.isPressed("pause", in) || m_actions.isPressed("confirm", in)) {
                 m_state = State::Playing;
-                m_jumpQueued = false;
+                window().input().clearFixedStepPresses(); // the key that resumed is no jump
             }
             break;
         case State::LevelClear:
             m_stateTime -= dt;
-            liftOff(kLevelClearTime - m_stateTime - kLiftOffDelay);
+            liftOff(kLevelClearTime - m_stateTime - kLiftOffDelay, dt);
             if (m_stateTime <= 0.0F) {
                 nextLevel();
             }
@@ -338,15 +320,15 @@ protected:
         }
         m_scene.update(dt); // animations and effects keep running on every screen
         m_shake.update(dt);
+        m_smoke.update(dt);
         m_audio.update();
         m_banner = std::max(m_banner - dt, 0.0F);
         driftWeather(dt);
         m_time += dt;
         followPlayer(dt, false);
-        ++m_frame;
     }
 
-    void onResize(int width, int height) override { fitView(width, height); }
+    void onResize(int width, int height) override { m_camera.setViewportSize(width, height); }
 
     void onRender() override
     {
@@ -371,10 +353,7 @@ private:
     // view if it is on.
     void drawWorld(const Look& look)
     {
-        // Whole screen pixels, so the art does not shimmer while the camera moves.
-        const auto scale = static_cast<float>(m_pixelScale);
-        const glm::vec2 snapped = glm::round(m_cameraPosition * scale) / scale;
-        m_shake.apply(m_camera, snapped);
+        m_shake.apply(m_camera, m_follow.position());
 
         drawSky(look);
         for (const Layer& layer : look.layers) {
@@ -383,8 +362,9 @@ private:
             }
         }
         m_renderer.begin(m_camera);
-        drawTiles(m_level.decor, kDecorTint);
-        drawTiles(m_level.ground, kWhite);
+        m_renderer.drawTileLayer(m_level.decor, m_tiles, kDecorTint);
+        m_renderer.drawTileLayer(m_level.ground, m_tiles);
+        m_smoke.draw(m_renderer); // behind the rocket
         drawMovers();
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
         drawWeather(look.weather);
@@ -446,8 +426,7 @@ private:
     // The HUD's pixel scale: the world's, but small enough that the HUD fits a narrow window.
     [[nodiscard]] float hudScale(glm::vec2 screen) const
     {
-        return std::max(1.0F,
-                        std::min(static_cast<float>(m_pixelScale), std::floor(screen.x / 320.0F)));
+        return std::max(1.0F, std::min(m_camera.pixelsPerUnit(), std::floor(screen.x / 320.0F)));
     }
 
     struct Sounds {
@@ -473,14 +452,6 @@ private:
     // Pixel art looks crisp when every texel is a whole number of screen pixels: picks the largest
     // such scale that still shows about kViewHeight units. (Not onResize() itself: the
     // constructor calls it, where a virtual call would not reach an override.)
-    void fitView(int width, int height)
-    {
-        m_pixelScale =
-            std::max(1, static_cast<int>(std::lround(static_cast<float>(height) / kViewHeight)));
-        m_camera.setViewportSize(width, height);
-        m_camera.setViewHeight(static_cast<float>(height) / static_cast<float>(m_pixelScale));
-    }
-
     void bindControls()
     {
         using astra2d::GamepadAxis;
@@ -532,35 +503,7 @@ private:
 
         m_scene.addSystem(SystemPhase::Update, "player look",
                           [this](Scene& scene, float) { animatePlayer(scene); });
-        m_scene.addSystem(SystemPhase::Update, "effects", [](Scene& scene, float dt) {
-            auto& registry = scene.registry();
-            registry.view<Squashed>().each([&](Entity entity, Squashed& squashed) {
-                squashed.timeLeft -= dt;
-                if (squashed.timeLeft <= 0.0F) {
-                    scene.destroyLater(entity); // safe inside a view
-                }
-            });
-            registry.view<Effect, astra2d::Animator>().each(
-                [&](Entity entity, const Effect&, const astra2d::Animator& animator) {
-                if (animator.player.finished()) {
-                    scene.destroyLater(entity);
-                }
-            });
-        });
         // The built-in "animation" system (LateUpdate) then advances every Animator.
-    }
-
-    // A jump press for this fixed step: pressed in this frame (only for its first step) or
-    // queued from a frame that had no step.
-    bool takeJumpPress()
-    {
-        bool pressed = m_jumpQueued;
-        m_jumpQueued = false;
-        if (m_actions.isPressed("jump", input()) && m_jumpFrame != m_frame) {
-            m_jumpFrame = m_frame;
-            pressed = true;
-        }
-        return pressed;
     }
 
     void controlPlayer(float dt)
@@ -572,7 +515,7 @@ private:
         const auto& in = input();
         const float moveX = m_actions.axis("move_x", in);
         const bool down = m_actions.axis("move_y", in) < -0.5F;
-        bool jumpPressed = takeJumpPress();
+        bool jumpPressed = m_actions.isPressed("jump", in); // since the previous step
 
         // Standing on a moving platform carries the player along with it.
         const auto below = m_physics.rayCast(feet(), {0.0F, -3.0F}, kPlatformGroup);
@@ -596,10 +539,10 @@ private:
         // Planks are ignored while dropping; enemies while blinking after a hit.
         std::uint16_t mask = kPlayerMask;
         if (player.dropTime > 0.0F) {
-            mask = without(mask, kPlatformGroup);
+            mask = astra2d::withoutGroups(mask, kPlatformGroup);
         }
         if (player.invulnerable > 0.0F) {
-            mask = without(mask, kEnemyGroup);
+            mask = astra2d::withoutGroups(mask, kEnemyGroup);
         }
         collider.mask = mask; // applied by the physics only when it changes
 
@@ -822,7 +765,8 @@ private:
     }
 
     // Moves the boarded rocket @p time seconds into its lift-off (nothing before 0).
-    void liftOff(float time)
+    // The rocket @p time seconds after it started, in a frame of @p dt seconds.
+    void liftOff(float time, float dt)
     {
         auto& registry = m_scene.registry();
         const auto* goal = registry.tryGet<Goal>(m_rocket);
@@ -840,6 +784,7 @@ private:
         registry.get<Transform>(m_rocket).position = at;
         registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kRocketTopOffset};
         registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kExhaustOffset};
+        m_smoke.stream(at - glm::vec2{0.0F, kExhaustOffset + 6.0F}, 40.0F, dt);
     }
 
     void stomp(Entity enemy)
@@ -851,7 +796,7 @@ private:
         registry.remove<Enemy>(enemy);
         registry.remove<astra2d::RigidBody>(enemy);
         registry.remove<astra2d::Collider>(enemy);
-        registry.emplace<Squashed>(enemy);
+        registry.emplace<astra2d::Lifetime>(enemy, astra2d::Lifetime{.duration = kSquashTime});
         registry.get<astra2d::Animator>(enemy).player.play(flyer ? m_stunnedAnimation
                                                                  : m_squashAnimation);
 
@@ -949,8 +894,9 @@ private:
             particle = {unit(m_random) * 400.0F, unit(m_random) * kViewHeight,
                         unit(m_random) * 6.28F};
         }
-        m_jumpQueued = false; // e.g. the Space that confirmed a menu
+        window().input().clearFixedStepPresses(); // e.g. the Space that confirmed a menu
         m_shake.reset();
+        m_smoke.clear();
         auto& registry = m_scene.registry();
 
         // The tile map as two static colliders: solid tiles, and one-way planks in their own
@@ -968,6 +914,7 @@ private:
         for (const Thing& thing : m_level.things) {
             spawn(thing);
         }
+        m_follow.setBounds({0.0F, 0.0F}, m_level.size());
         followPlayer(0.0F, true);
     }
 
@@ -1085,7 +1032,7 @@ private:
                               .offset = {0.0F, halfExtents.y - 8.0F},
                               .friction = 0.0F,
                               .category = kEnemyGroup,
-                              .mask = anyOf(kGround, kPlayerGroup)};
+                              .mask = astra2d::collisionGroups(kGround, kPlayerGroup)};
         registry.emplace<astra2d::Interpolated>(entity);
     }
 
@@ -1134,15 +1081,16 @@ private:
                         : trigger({6.5F, 3.0F}, {0.0F, -5.0F}, kHazardGroup));
     }
 
-    // A one-shot animation (sparkle, dust) that removes itself when it ends.
+    // A one-shot animation (sparkle, dust) that the Scene removes when it ends.
     void spawnEffect(glm::vec2 position, const astra2d::SpriteAnimation& animation)
     {
         const Entity effect = m_scene.createEntity({}, position);
         auto& registry = m_scene.registry();
-        registry.emplace<Effect>(effect);
         registry.emplace<astra2d::SpriteRenderer>(
             effect, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 4});
-        registry.emplace<astra2d::Animator>(effect, astra2d::Animator{.sheet = &m_sheet})
+        registry
+            .emplace<astra2d::Animator>(
+                effect, astra2d::Animator{.sheet = &m_sheet, .destroyWhenFinished = true})
             .player.play(animation);
     }
 
@@ -1160,14 +1108,13 @@ private:
     void playSound(const astra2d::Sound& sound, float volume)
     {
         // A slightly different pitch every time keeps repeated sounds from getting tiring.
-        std::uniform_real_distribution<float> pitch(0.94F, 1.06F);
-        m_audio.play(sound, {.volume = volume, .pitch = pitch(m_random)});
+        m_audio.play(sound, {.volume = volume, .pitchVariation = 0.06F});
     }
 
     // --- Camera and drawing -------------------------------------------------------------------
 
     // Moves the camera towards the player (at once if @p snap), a little ahead in the direction
-    // they face, and keeps it inside the level.
+    // they face; m_follow keeps it inside the level.
     void followPlayer(float dt, bool snap)
     {
         const auto& registry = m_scene.registry();
@@ -1177,16 +1124,11 @@ private:
         const glm::vec2 player = m_scene.worldTransform(m_player, interpolationAlpha()).position;
         const bool left = registry.get<Player>(m_player).facingLeft;
         const glm::vec2 target = player + glm::vec2{left ? -kLookAhead : kLookAhead, 16.0F};
-        m_cameraPosition = snap ? target
-                                : m_cameraPosition + ((target - m_cameraPosition) *
-                                                      (1.0F - std::exp(-kCameraSpeed * dt)));
-        const glm::vec2 half = m_camera.visibleSize() * 0.5F;
-        const glm::vec2 size = m_level.size();
-        // A level narrower or lower than the view is shown from its left / bottom edge.
-        m_cameraPosition.x =
-            std::clamp(m_cameraPosition.x, half.x, std::max(half.x, size.x - half.x));
-        m_cameraPosition.y =
-            std::clamp(m_cameraPosition.y, half.y, std::max(half.y, size.y - half.y));
+        if (snap) {
+            m_follow.snap(target, m_camera);
+        } else {
+            m_follow.update(target, dt, m_camera);
+        }
     }
 
     // The sky as horizontal bands from skyTop to skyBottom, in screen space (a stepped gradient
@@ -1197,7 +1139,7 @@ private:
         constexpr int kBands = 24;
         const glm::vec2 screen(framebufferSize());
         const float band = std::ceil(screen.y / kBands);
-        const auto scale = static_cast<float>(m_pixelScale);
+        const float scale = m_camera.pixelsPerUnit();
         const auto screenSpace = [&] {
             m_renderer.begin(
                 astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
@@ -1223,7 +1165,7 @@ private:
             drawShootingStar(screen, scale);
         }
         // Far away things drift only a little as the camera moves.
-        const float drift = m_cameraPosition.x * 0.03F * scale;
+        const float drift = m_follow.position().x * 0.03F * scale;
         if (look.rings) {
             const astra2d::Texture2D& rings = m_assets.texture("textures/rings.png");
             const glm::vec2 size = glm::vec2(rings.size()) * scale;
@@ -1346,32 +1288,16 @@ private:
         }
     }
 
-    // The tiles of @p layer that the camera sees, multiplied by @p tint.
-    void drawTiles(const std::vector<int>& layer, glm::vec4 tint)
-    {
-        const glm::vec2 min = m_camera.visibleMin() / kTileSize;
-        const glm::vec2 max = m_camera.visibleMax() / kTileSize;
-        const int x0 = std::max(static_cast<int>(std::floor(min.x)) - 1, 0);
-        const int y0 = std::max(static_cast<int>(std::floor(min.y)) - 1, 0);
-        const int x1 = std::min(static_cast<int>(std::ceil(max.x)) + 1, m_level.width - 1);
-        const int y1 = std::min(static_cast<int>(std::ceil(max.y)) + 1, m_level.height - 1);
-        for (int y = y0; y <= y1; ++y) {
-            for (int x = x0; x <= x1; ++x) {
-                if (const int frame = m_level.at(layer, x, y); frame != tile::kNone) {
-                    m_renderer.drawSprite(m_level.cellCenter(x, y), kSpriteSize,
-                                          m_tiles.frame(frame), tint);
-                }
-            }
-        }
-    }
-
     // --- HUD, in screen pixels ----------------------------------------------------------------
 
     void drawText(std::string_view text, glm::vec2 topLeft, float size, glm::vec4 color)
     {
         const float shadow = std::max(1.0F, size / 8.0F);
-        m_renderer.drawText(m_font, text, topLeft + glm::vec2{shadow, -shadow}, size, kShadow);
-        m_renderer.drawText(m_font, text, topLeft, size, color);
+        m_renderer.drawText(m_font, text, topLeft,
+                            {.size = size,
+                             .color = color,
+                             .shadowOffset = {shadow, -shadow},
+                             .shadowColor = kShadow});
     }
 
     // Centred text, made smaller (in whole steps of the 8 pixel font, so it stays crisp) if it
@@ -1381,8 +1307,13 @@ private:
         const float width = static_cast<float>(framebufferSize().x);
         const float fits = 0.94F * width / m_font.atlas().measure(text, 1.0F).x;
         size = std::max(8.0F, std::min(size, std::floor(fits / 8.0F) * 8.0F));
-        const glm::vec2 extent = m_font.atlas().measure(text, size);
-        drawText(text, {std::round((width - extent.x) * 0.5F), y}, size, color);
+        const float shadow = std::max(1.0F, size / 8.0F);
+        m_renderer.drawText(m_font, text, {std::round(width * 0.5F), y},
+                            {.size = size,
+                             .color = color,
+                             .anchor = {0.5F, 1.0F},
+                             .shadowOffset = {shadow, -shadow},
+                             .shadowColor = kShadow});
     }
 
     void drawHud()
@@ -1573,6 +1504,21 @@ private:
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;
     astra2d::CameraShake m_shake;
+    astra2d::CameraFollow m_follow{kCameraSpeed};
+    // Exhaust smoke of a lifting rocket: puffs pushed down and aside that grow and fade.
+    astra2d::ParticleEmitter m_smoke{{.lifetime = 1.2F,
+                                      .lifetimeVariation = 0.3F,
+                                      .direction = {0.0F, -1.0F},
+                                      .spread = 1.4F,
+                                      .speed = 45.0F,
+                                      .speedVariation = 0.4F,
+                                      .gravity = {0.0F, 30.0F},
+                                      .damping = 1.5F,
+                                      .area = {3.0F, 1.0F},
+                                      .startSize = 3.0F,
+                                      .endSize = 9.0F,
+                                      .startColor = {0.95F, 0.85F, 0.7F, 0.8F},
+                                      .endColor = {0.55F, 0.55F, 0.6F, 0.0F}}};
     astra2d::Renderer2D m_renderer;
     astra2d::ActionMap m_actions;
     std::mt19937 m_random;
@@ -1619,8 +1565,6 @@ private:
     Entity m_player;
     Entity m_rocket; // the goal the player boarded
     glm::vec2 m_respawn{0.0F};
-    glm::vec2 m_cameraPosition{0.0F};
-    int m_pixelScale = 1;
     bool m_showPhysics = false;
     bool m_logStats = false;
     astra2d::FrameStats m_frameStats;
@@ -1637,9 +1581,6 @@ private:
     float m_banner = 0.0F;
     float m_time = 0.0F;
     std::vector<glm::vec3> m_weather; // see driftWeather()
-    std::uint64_t m_frame = 0;
-    std::uint64_t m_jumpFrame = ~std::uint64_t{0};
-    bool m_jumpQueued = false;
 };
 
 } // namespace

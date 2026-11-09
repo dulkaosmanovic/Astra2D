@@ -67,11 +67,16 @@ public:
     [[nodiscard]] glm::vec2 measure(std::string_view text, float size = 0.0F,
                                     float lineSpacing = 1.0F) const;
 
-    /// Places the characters of @p text with the top-left of the first line at @p topLeft, scaled
-    /// so that pixelHeight() becomes @p size units (y up; '\\n' starts a new line, lineHeight()
-    /// times @p lineSpacing further down). Blank characters produce no quad.
-    [[nodiscard]] std::vector<PlacedGlyph> layout(std::string_view text, glm::vec2 topLeft,
-                                                  float size, float lineSpacing = 1.0F) const;
+    /// Places the characters of @p text, scaled so that pixelHeight() becomes @p size units (y up;
+    /// '\\n' starts a new line, lineHeight() times @p lineSpacing further down). Blank characters
+    /// produce no quad.
+    ///
+    /// @p anchor says which point of the text block (measure()) is at @p position: (0, 1), the
+    /// default, is the top-left corner, (0.5, 0.5) the centre, (1, 0) the bottom-right corner.
+    /// Lines are aligned the same way: x 0 left-aligns them, 0.5 centres them, 1 right-aligns them.
+    [[nodiscard]] std::vector<PlacedGlyph> layout(std::string_view text, glm::vec2 position,
+                                                  float size, float lineSpacing = 1.0F,
+                                                  glm::vec2 anchor = {0.0F, 1.0F}) const;
 
     /// Width and height of the atlas image.
     [[nodiscard]] glm::ivec2 size() const { return {m_atlasSize, m_atlasSize}; }

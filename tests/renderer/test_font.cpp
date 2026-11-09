@@ -67,6 +67,24 @@ TEST(FontTests, LayoutPlacesGlyphsLeftToRightAndLinesDownwards)
     }
 }
 
+TEST(FontTests, LayoutAnchorCentresTheBlockAndItsLines)
+{
+    const float advance = font().glyph(U'H').advance;
+    const auto left = font().layout("HHH\nH", {0.0F, 0.0F}, 8.0F);
+    const auto centred = font().layout("HHH\nH", {0.0F, 0.0F}, 8.0F, 1.0F, {0.5F, 0.5F});
+    ASSERT_EQ(centred.size(), 4U);
+    const glm::vec2 block = font().measure("HHH\nH");
+    // The block moves half its size left and up...
+    EXPECT_NEAR(centred[0].center.x - left[0].center.x, -block.x * 0.5F, 1e-4F);
+    EXPECT_NEAR(centred[0].center.y - left[0].center.y, block.y * 0.5F, 1e-4F);
+    // ...and the short second line is centred under the first: below its middle glyph.
+    EXPECT_NEAR(centred[3].center.x, centred[1].center.x, 1e-4F);
+    // Right-aligned: both lines end at the position.
+    const auto right = font().layout("HHH\nH", {0.0F, 0.0F}, 8.0F, 1.0F, {1.0F, 1.0F});
+    EXPECT_NEAR(right[3].center.x, right[2].center.x, 1e-4F);
+    EXPECT_NEAR(right[2].center.x - left[2].center.x, -3.0F * advance, 1e-4F);
+}
+
 TEST(FontTests, LayoutSkipsBlanksButAdvances)
 {
     const auto placed = font().layout("A A", {0.0F, 0.0F}, 8.0F);

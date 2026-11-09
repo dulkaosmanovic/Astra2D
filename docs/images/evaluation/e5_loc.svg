@@ -19,43 +19,43 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <text class="ink2" x="20" y="47" font-size="12">Code lines without blank and comment-only lines; the platformer is the game</text>
 <text class="ink2" x="182" y="82" font-size="12" text-anchor="end">engine</text>
 <path class="f1" d="M190 71 h406.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-406.0 Z"/>
-<text class="ink" x="606.0" y="82" font-size="12">10,106</text>
+<text class="ink" x="606.0" y="82" font-size="12">10,557</text>
 <text class="ink2" x="182" y="104" font-size="12" text-anchor="end">tests</text>
-<path class="f1" d="M190 93 h200.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-200.6 Z"/>
-<text class="ink" x="400.6" y="104" font-size="12">5,042</text>
+<path class="f1" d="M190 93 h204.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-204.4 Z"/>
+<text class="ink" x="404.4" y="104" font-size="12">5,365</text>
 <text class="ink2" x="182" y="126" font-size="12" text-anchor="end">platformer</text>
-<path class="f1" d="M190 115 h84.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-84.4 Z"/>
-<text class="ink" x="284.4" y="126" font-size="12">2,178</text>
+<path class="f1" d="M190 115 h78.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-78.1 Z"/>
+<text class="ink" x="278.1" y="126" font-size="12">2,114</text>
 <text class="ink2" x="182" y="148" font-size="12" text-anchor="end">physics_playground</text>
-<path class="f1" d="M190 137 h17.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-17.1 Z"/>
-<text class="ink" x="217.1" y="148" font-size="12">520</text>
+<path class="f1" d="M190 137 h16.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-16.2 Z"/>
+<text class="ink" x="216.2" y="148" font-size="12">520</text>
 <text class="ink2" x="182" y="170" font-size="12" text-anchor="end">coin_collector</text>
-<path class="f1" d="M190 159 h15.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-15.4 Z"/>
-<text class="ink" x="215.4" y="170" font-size="12">479</text>
+<path class="f1" d="M190 159 h15.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-15.0 Z"/>
+<text class="ink" x="215.0" y="170" font-size="12">490</text>
 <text class="ink2" x="182" y="192" font-size="12" text-anchor="end">sandbox</text>
-<path class="f1" d="M190 181 h9.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-9.7 Z"/>
-<text class="ink" x="209.7" y="192" font-size="12">338</text>
+<path class="f1" d="M190 181 h9.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-9.1 Z"/>
+<text class="ink" x="209.1" y="192" font-size="12">338</text>
 <text class="ink2" x="182" y="214" font-size="12" text-anchor="end">renderer_stress</text>
-<path class="f1" d="M190 203 h9.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-9.7 Z"/>
-<text class="ink" x="209.7" y="214" font-size="12">337</text>
+<path class="f1" d="M190 203 h9.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-9.1 Z"/>
+<text class="ink" x="209.1" y="214" font-size="12">337</text>
 <text class="ink2" x="182" y="236" font-size="12" text-anchor="end">scene</text>
-<path class="f1" d="M190 225 h7.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-7.5 Z"/>
-<text class="ink" x="207.5" y="236" font-size="12">283</text>
+<path class="f1" d="M190 225 h6.8 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-6.8 Z"/>
+<text class="ink" x="206.8" y="236" font-size="12">279</text>
 <text class="ink2" x="182" y="258" font-size="12" text-anchor="end">post_processing</text>
-<path class="f1" d="M190 247 h3.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-3.4 Z"/>
-<text class="ink" x="203.4" y="258" font-size="12">183</text>
+<path class="f1" d="M190 247 h3.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-3.1 Z"/>
+<text class="ink" x="203.1" y="258" font-size="12">183</text>
 <text class="ink2" x="182" y="280" font-size="12" text-anchor="end">input</text>
-<path class="f1" d="M190 269 h3.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-3.2 Z"/>
-<text class="ink" x="203.2" y="280" font-size="12">177</text>
+<path class="f1" d="M190 269 h2.9 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-2.9 Z"/>
+<text class="ink" x="202.9" y="280" font-size="12">177</text>
 <text class="ink2" x="182" y="302" font-size="12" text-anchor="end">sprites</text>
-<path class="f1" d="M190 291 h0.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.7 Z"/>
-<text class="ink" x="200.7" y="302" font-size="12">115</text>
+<path class="f1" d="M190 291 h0.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.5 Z"/>
+<text class="ink" x="200.5" y="302" font-size="12">115</text>
 <text class="ink2" x="182" y="324" font-size="12" text-anchor="end">shapes</text>
-<path class="f1" d="M190 313 h0.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.5 Z"/>
-<text class="ink" x="200.5" y="324" font-size="12">112</text>
+<path class="f1" d="M190 313 h0.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.3 Z"/>
+<text class="ink" x="200.3" y="324" font-size="12">112</text>
 <text class="ink2" x="182" y="346" font-size="12" text-anchor="end">text</text>
-<path class="f1" d="M190 335 h0.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.3 Z"/>
-<text class="ink" x="200.3" y="346" font-size="12">106</text>
+<path class="f1" d="M190 335 h0.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-0.2 Z"/>
+<text class="ink" x="200.2" y="346" font-size="12">109</text>
 <text class="ink2" x="182" y="368" font-size="12" text-anchor="end">hello_window</text>
 <path class="f1" d="M190 357 h-2.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h2.0 Z"/>
 <text class="ink" x="198.0" y="368" font-size="12">42</text>

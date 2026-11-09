@@ -101,6 +101,32 @@ TEST(CameraTests, SetViewHeightEndsFitArea)
     expectNear(camera.visibleSize(), {2.5F, 10.0F});
 }
 
+TEST(CameraTests, PixelPerfectUsesWholePixelsPerUnit)
+{
+    OrthographicCamera camera(1.0F, {1280, 720});
+    camera.setPixelPerfect(224.0F);
+    EXPECT_FLOAT_EQ(camera.pixelsPerUnit(), 3.0F);
+    EXPECT_FLOAT_EQ(camera.viewHeight(), 240.0F);
+    camera.setViewportSize(1920, 1080); // kept after a resize
+    EXPECT_FLOAT_EQ(camera.pixelsPerUnit(), 5.0F);
+    camera.setViewportSize(100, 100); // never below one pixel per unit
+    EXPECT_FLOAT_EQ(camera.pixelsPerUnit(), 1.0F);
+    EXPECT_TRUE(camera.pixelPerfect());
+    camera.setViewHeight(10.0F);
+    EXPECT_FALSE(camera.pixelPerfect());
+}
+
+TEST(CameraTests, PixelPerfectDrawsFromAWholePixel)
+{
+    OrthographicCamera camera(1.0F, {200, 100});
+    camera.setPixelPerfect(50.0F); // 2 pixels per unit
+    camera.setPosition({10.3F, 0.0F});
+    // 10.3 units are 20.6 pixels: drawn from pixel 21, i.e. 10.5 units.
+    const glm::vec4 origin = camera.viewProjection() * glm::vec4(10.5F, 0.0F, 0.0F, 1.0F);
+    EXPECT_NEAR(origin.x, 0.0F, 1e-5F);
+    EXPECT_FLOAT_EQ(camera.position().x, 10.3F); // the position itself is kept
+}
+
 TEST(CameraTests, InvalidValuesThrow)
 {
     EXPECT_THROW(OrthographicCamera{0.0F}, std::invalid_argument);
@@ -109,6 +135,7 @@ TEST(CameraTests, InvalidValuesThrow)
     EXPECT_THROW(camera.setZoom(-1.0F), std::invalid_argument);
     EXPECT_THROW(camera.setViewHeight(-5.0F), std::invalid_argument);
     EXPECT_THROW(camera.fitArea({0.0F, 1.0F}), std::invalid_argument);
+    EXPECT_THROW(camera.setPixelPerfect(0.0F), std::invalid_argument);
 }
 
 // ---------------------------------------------------------------------------------------------
