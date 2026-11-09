@@ -133,8 +133,8 @@ using detail::Constraint;
 using detail::ConstraintPoint;
 using detail::Contact;
 using detail::OneWayState;
-using detail::ShapeData;
 using detail::shapeBounds;
+using detail::ShapeData;
 
 struct PhysicsWorld::Impl {
     PhysicsSettings settings;
