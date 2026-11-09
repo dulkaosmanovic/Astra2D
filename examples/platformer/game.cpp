@@ -58,7 +58,7 @@ using astra2d::Transform;
 constexpr std::array<std::string_view, 4> kLevelFiles = {"levels/level1.txt", "levels/level2.tmj",
                                                          "levels/level3.tmj", "levels/level4.tmj"};
 constexpr float kViewHeight = 224.0F; // world units shown vertically (14 tiles)
-constexpr float kGravity = 1200.0F;   // Earth's, in world units/s²; each planet scales it
+constexpr float kGravity = 1200.0F;   // world units/s²
 constexpr int kMaxHearts = 3;
 constexpr float kInvulnerableTime = 1.5F; // after a hit
 constexpr float kHurtPoseTime = 0.35F;    // the hurt frame is shown this long after a hit
@@ -68,7 +68,7 @@ constexpr float kSpikerSpeed = 22.0F;
 constexpr float kFlyerSpeed = 30.0F;
 constexpr float kFlyerRange = 3.0F * kTileSize; // flies this far to each side of its start
 constexpr float kFlyerBob = 6.0F;               // and this far up and down
-constexpr float kSpringSpeed = 600.0F;          // about 9 tiles high (at any gravity, see launch())
+constexpr float kSpringSpeed = 600.0F;          // about 9 tiles high
 constexpr glm::vec2 kPlatformTravel{4.0F * kTileSize, 0.0F};
 constexpr glm::vec2 kLiftTravel{0.0F, 4.0F * kTileSize};
 constexpr float kMoverPeriod = 4.0F;     // seconds there and back
@@ -84,11 +84,15 @@ constexpr float kBannerTime = 3.5F;       // level name shown at the start
 constexpr float kLookAhead = 28.0F;       // the camera looks this far ahead of the player
 constexpr float kCameraSpeed = 6.0F;      // how quickly the camera catches up (1/s)
 constexpr glm::vec2 kSpriteSize{kTileSize};
+constexpr int kBigFrame = 24; // texels of a frame of astronaut.png, which stands on row 19
+constexpr glm::vec2 kBigSize{static_cast<float>(kBigFrame)};
 
 constexpr glm::vec4 kWhite{1.0F};
 constexpr glm::vec4 kGold{1.0F, 0.85F, 0.3F, 1.0F};
 constexpr glm::vec4 kRed{1.0F, 0.4F, 0.4F, 1.0F};
 constexpr glm::vec4 kShadow{0.0F, 0.0F, 0.0F, 0.6F};
+// Decoration is darker than the ground and everything the player meets, so it reads as background.
+constexpr glm::vec4 kDecorTint{0.75F, 0.75F, 0.85F, 1.0F};
 
 // Collision groups (Collider::category / mask): what collides with what.
 constexpr std::uint16_t kWorldGroup = 1U << 0U;
@@ -121,8 +125,13 @@ constexpr int kCheckpointOn = 19;
 constexpr int kHeartFull = 15;
 constexpr int kHeartEmpty = 20;
 constexpr int kCoinIcon = 11;
-constexpr int kRocketTop = 38; // drawn one tile above the rocket's lower half (the goal)
-constexpr int kExhaust = 39;
+// Frames of astronaut.png: the rocket's upper half is drawn 20 texels above its lower half (the
+// goal), the exhaust 18 below.
+constexpr int kAstronautIdle = 0;
+constexpr int kRocketBottom = 9;
+constexpr int kRocketTop = 11;
+constexpr float kRocketTopOffset = 20.0F;
+constexpr float kExhaustOffset = 18.0F;
 constexpr float kPlanetSize = 32.0F; // texels of a frame of planets.png
 constexpr int kSpringFrame = 30;
 constexpr int kPlatformLeft = 35; // then the middle and the right end
@@ -205,6 +214,9 @@ public:
                   {examples::kSpriteFrame, examples::kSpriteFrame},
                   {examples::kSpriteMargin, examples::kSpriteMargin},
                   {examples::kSpriteSpacing, examples::kSpriteSpacing})
+        , m_big(m_assets.texture("textures/astronaut.png"), {kBigFrame, kBigFrame},
+                {examples::kSpriteMargin, examples::kSpriteMargin},
+                {examples::kSpriteSpacing, examples::kSpriteSpacing})
         , m_planets(m_assets.texture("textures/planets.png"), {kPlanetSize, kPlanetSize},
                     {examples::kSpriteMargin, examples::kSpriteMargin},
                     {examples::kSpriteSpacing, examples::kSpriteSpacing})
@@ -219,6 +231,9 @@ public:
         for (const std::string_view file : kLevelFiles) {
             m_levels.push_back(loadLevel(m_assets.resolve(file)));
         }
+        (void)m_assets.texture(kNebula.texture, kRepeat);
+        (void)m_assets.texture(kStars.texture, kRepeat);
+        (void)m_assets.texture("textures/rings.png");
         for (const Look& look : kLooks) {
             for (const Layer& layer : look.layers) {
                 if (!layer.texture.empty()) {
@@ -347,8 +362,8 @@ protected:
             }
         }
         m_renderer.begin(m_camera);
-        drawTiles(m_level.decor, look.ground);
-        drawTiles(m_level.ground, look.ground);
+        drawTiles(m_level.decor, kDecorTint);
+        drawTiles(m_level.ground, kWhite);
         drawMovers();
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
         drawWeather(look.weather);
@@ -758,8 +773,8 @@ private:
         m_shake.addTrauma(time < 1.0F ? 0.03F : 0.0F);
         const glm::vec2 at = goal->base + glm::vec2{0.0F, 0.5F * kLiftOffAccel * time * time};
         registry.get<Transform>(m_rocket).position = at;
-        registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kTileSize};
-        registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kTileSize - 2.0F};
+        registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kRocketTopOffset};
+        registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kExhaustOffset};
     }
 
     void stomp(Entity enemy)
@@ -795,8 +810,7 @@ private:
             return; // on the way up already, e.g. jumping past it
         }
         auto& player = registry.get<Player>(m_player);
-        // Scaled with the planet's gravity, so a spring throws as high on every planet.
-        body.velocity.y = kSpringSpeed * std::sqrt(currentLook().gravity);
+        body.velocity.y = kSpringSpeed;
         player.launched = true;
         player.jump.reset();
         registry.get<astra2d::Animator>(spring).player.play(m_springAnimation, true);
@@ -863,8 +877,7 @@ private:
         m_levelTime = 0.0F;
         m_hazardContacts = 0;
         m_banner = kBannerTime;
-        // Each planet has its own gravity and weather.
-        m_physics.world().settings().gravity = {0.0F, -kGravity * currentLook().gravity};
+        // Each planet has its own weather.
         m_weather.resize(static_cast<std::size_t>(currentLook().weather.count));
         std::uniform_real_distribution<float> unit(0.0F, 1.0F);
         for (glm::vec3& particle : m_weather) { // x, y in a view-sized box; z: a phase
@@ -900,8 +913,8 @@ private:
         auto& registry = m_scene.registry();
         registry.emplace<Player>(m_player);
         registry.emplace<astra2d::SpriteRenderer>(
-            m_player, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = 3});
-        registry.emplace<astra2d::Animator>(m_player, astra2d::Animator{.sheet = &m_sheet})
+            m_player, astra2d::SpriteRenderer{.size = kBigSize, .layer = 3});
+        registry.emplace<astra2d::Animator>(m_player, astra2d::Animator{.sheet = &m_big})
             .player.play(m_idleAnimation);
         // A box a little narrower than the sprite, without friction so it slides along walls;
         // the controller sets its velocity directly.
@@ -959,10 +972,10 @@ private:
             break;
         }
         case ThingKind::Goal: {
-            const Entity goal = spawnAnimated("rocket", at, m_rocketAnimation, 1);
-            const Entity top = spawnAnimated("rocket top", at + glm::vec2{0.0F, kTileSize},
-                                             m_rocketTopAnimation, 1);
-            const Entity exhaust = spawnAnimated("exhaust", at, m_exhaustAnimation, 1);
+            const Entity goal = spawnAnimated("rocket", at, m_rocketAnimation, 1, &m_big);
+            const Entity top = spawnAnimated("rocket top", at + glm::vec2{0.0F, kRocketTopOffset},
+                                             m_rocketTopAnimation, 1, &m_big);
+            const Entity exhaust = spawnAnimated("exhaust", at, m_exhaustAnimation, 1, &m_big);
             registry.remove<astra2d::Collider>(top);
             registry.remove<astra2d::Collider>(exhaust);
             registry.get<astra2d::SpriteRenderer>(exhaust).visible = false;
@@ -973,16 +986,20 @@ private:
         }
     }
 
-    // An entity with a sprite playing @p animation and, for pickups, a small trigger (changed or
-    // replaced by the caller where needed).
+    // An entity with a sprite playing @p animation from @p sheet (platformer.png unless given) and,
+    // for pickups, a small trigger (changed or replaced by the caller where needed).
     Entity spawnAnimated(std::string_view name, glm::vec2 position,
-                         const astra2d::SpriteAnimation& animation, int layer)
+                         const astra2d::SpriteAnimation& animation, int layer,
+                         const astra2d::SpriteSheet* sheet = nullptr)
     {
         const Entity entity = m_scene.createEntity(name, position);
         auto& registry = m_scene.registry();
+        const bool big = sheet == &m_big;
         registry.emplace<astra2d::SpriteRenderer>(
-            entity, astra2d::SpriteRenderer{.size = kSpriteSize, .layer = layer});
-        registry.emplace<astra2d::Animator>(entity, astra2d::Animator{.sheet = &m_sheet})
+            entity, astra2d::SpriteRenderer{.size = big ? kBigSize : kSpriteSize, .layer = layer});
+        registry
+            .emplace<astra2d::Animator>(
+                entity, astra2d::Animator{.sheet = sheet != nullptr ? sheet : &m_sheet})
             .player.play(animation);
         registry.emplace<astra2d::Collider>(entity, trigger({5.0F, 6.0F}));
         return entity;
@@ -1107,14 +1124,19 @@ private:
     }
 
     // The sky as horizontal bands from skyTop to skyBottom, in screen space (a stepped gradient
-    // that suits the pixel art), then the stars and the planet in it.
+    // that suits the pixel art), then the nebula, the stars, the planet's rings and the planet in
+    // it.
     void drawSky(const Look& look)
     {
         constexpr int kBands = 24;
         const glm::vec2 screen(framebufferSize());
         const float band = std::ceil(screen.y / kBands);
-        m_renderer.begin(
-            astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+        const auto scale = static_cast<float>(m_pixelScale);
+        const auto screenSpace = [&] {
+            m_renderer.begin(
+                astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+        };
+        screenSpace();
         for (int i = 0; i < kBands; ++i) {
             const float t = static_cast<float>(i) / static_cast<float>(kBands - 1);
             const float top = screen.y - (band * static_cast<float>(i));
@@ -1122,19 +1144,61 @@ private:
                                 glm::mix(look.skyTop, look.skyBottom, t));
         }
         m_renderer.end();
+        if (look.nebula.a > 0.0F) {
+            Layer nebula = kNebula;
+            nebula.tint = look.nebula;
+            drawBackgroundLayer(nebula);
+        }
         if (look.stars) {
             drawBackgroundLayer(kStars);
         }
+        screenSpace();
+        if (look.stars) {
+            drawShootingStar(screen, scale);
+        }
+        // Far away things drift only a little as the camera moves.
+        const float drift = m_cameraPosition.x * 0.03F * scale;
+        if (look.rings) {
+            const astra2d::Texture2D& rings = m_assets.texture("textures/rings.png");
+            const glm::vec2 size = glm::vec2(rings.size()) * scale;
+            m_renderer.drawQuad(glm::round(glm::vec2{(screen.x * 0.5F) - (drift * 0.5F),
+                                                     screen.y - (size.y * 0.32F)}),
+                                size, rings, {1.0F, 1.0F, 1.0F, 0.85F});
+        }
         if (look.skyPlanet != planet::kNone) {
-            // The next stop of the route, far away: it drifts only a little as the camera moves.
-            const auto scale = static_cast<float>(m_pixelScale);
-            const glm::vec2 at{(screen.x * 0.72F) - (m_cameraPosition.x * 0.03F * scale),
-                               screen.y * 0.72F};
-            m_renderer.begin(
-                astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
+            // The next stop of the route.
+            const glm::vec2 at{(screen.x * 0.72F) - drift, screen.y * 0.72F};
             m_renderer.drawSprite(glm::round(at), glm::vec2{1.5F * kPlanetSize * scale},
                                   m_planets.frame(look.skyPlanet));
-            m_renderer.end();
+        }
+        m_renderer.end();
+    }
+
+    // Every few seconds a shooting star streaks across the sky, somewhere else each time; drawn
+    // as texel-sized squares that fade along its tail. Inside a screen-space begin()/end().
+    void drawShootingStar(glm::vec2 screen, float scale)
+    {
+        constexpr float kPeriod = 5.0F;   // seconds from one to the next
+        constexpr float kDuration = 0.7F; // seconds one is seen
+        constexpr int kTail = 14;         // texels
+        const float cycle = std::floor(m_time / kPeriod);
+        const float t = (m_time - (cycle * kPeriod)) / kDuration;
+        if (t >= 1.0F) {
+            return;
+        }
+        const auto random = [cycle](float seed) { // the same for the whole cycle
+            const float value = std::sin((cycle * 12.9898F) + (seed * 78.233F)) * 43758.547F;
+            return value - std::floor(value);
+        };
+        const glm::vec2 start{screen.x * (0.3F + (0.6F * random(1.0F))),
+                              screen.y * (0.65F + (0.3F * random(2.0F)))};
+        const glm::vec2 direction = glm::normalize(glm::vec2{-1.0F, -0.45F});
+        const glm::vec2 head = start + (direction * t * 160.0F * scale);
+        const float fade = std::min(1.0F, 4.0F * (1.0F - t));
+        for (int i = 0; i < kTail; ++i) {
+            const float along = static_cast<float>(i) / static_cast<float>(kTail);
+            m_renderer.drawQuad(glm::round(head - (direction * static_cast<float>(i) * scale)),
+                                glm::vec2{scale}, {1.0F, 0.95F, 0.85F, fade * (1.0F - along)});
         }
     }
 
@@ -1216,7 +1280,7 @@ private:
         }
     }
 
-    // The tiles of @p layer that the camera sees, tinted for the planet.
+    // The tiles of @p layer that the camera sees, multiplied by @p tint.
     void drawTiles(const std::vector<int>& layer, glm::vec4 tint)
     {
         const glm::vec2 min = m_camera.visibleMin() / kTileSize;
@@ -1273,6 +1337,7 @@ private:
             dim(screen, 0.25F);
             drawRoute(screen, middle + (86.0F * s), s);
             panel(screen, 196.0F * s, middle - (80.0F * s), middle + (60.0F * s), s);
+            drawTitleArt(screen, middle + (14.0F * s), s);
             drawCentered("ASTRA RUN", middle + (48.0F * s), 32.0F * s, kGold);
             drawCentered("a stranded astronaut, four planets, one way home", middle, text, kWhite);
             drawCentered("RUN  A/D   JUMP  SPACE   DROP  S+SPACE", middle - (22.0F * s), text,
@@ -1289,8 +1354,6 @@ private:
                 drawCentered(m_level.name, top - (16.0F * s), 16.0F * s,
                              {kGold.r, kGold.g, kGold.b, alpha});
                 drawCentered(m_level.hint, top - (40.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
-                drawCentered(std::format("gravity {:.1f} g", currentLook().gravity),
-                             top - (56.0F * s), text, {kGold.r, kGold.g, kGold.b, alpha});
             }
             break;
         case State::Paused:
@@ -1384,6 +1447,22 @@ private:
         drawText(level, {std::round((leftEnd + rightStart - width) * 0.5F), textTop}, text, kWhite);
     }
 
+    // The astronaut (twice the HUD's scale, bobbing) left of the title and their rocket right of
+    // it, both standing on @p ground.
+    void drawTitleArt(glm::vec2 screen, float ground, float s)
+    {
+        const float x = 170.0F * s;
+        const float bob = std::round(std::sin(m_time * 2.0F) * 1.5F) * s;
+        const int idle = kAstronautIdle + (static_cast<int>(m_time * 2.0F) % 2);
+        // A frame's art stands on row 19 of 24, 8 texels below its centre.
+        m_renderer.drawSprite({std::round((screen.x * 0.5F) - x), ground + (16.0F * s) + bob},
+                              kBigSize * 2.0F * s, m_big.frame(idle));
+        const glm::vec2 rocket{std::round((screen.x * 0.5F) + x), ground + (8.0F * s)};
+        m_renderer.drawSprite(rocket, kBigSize * s, m_big.frame(kRocketBottom));
+        m_renderer.drawSprite(rocket + glm::vec2{0.0F, kRocketTopOffset * s}, kBigSize * s,
+                              m_big.frame(kRocketTop));
+    }
+
     // The route across the top: every planet, linked by a dotted line, with Earth at the end.
     void drawRoute(glm::vec2 screen, float y, float s)
     {
@@ -1424,6 +1503,7 @@ private:
     Sounds m_sounds;
     astra2d::SpriteSheet m_sheet;
     astra2d::SpriteSheet m_tiles;
+    astra2d::SpriteSheet m_big;     // the astronaut and the rocket, 24x24 frames
     astra2d::SpriteSheet m_planets; // the route, see looks.hpp
     astra2d::Font m_font;
     astra2d::OrthographicCamera m_camera;
@@ -1433,7 +1513,8 @@ private:
     std::mt19937 m_random;
     MoveTuning m_tuning;
 
-    // Animations are data that Animators point to, so they are declared before the scene.
+    // Animations are data that Animators point to, so they are declared before the scene. The
+    // astronaut's and the rocket's frames are in m_big, the others in m_sheet.
     const astra2d::SpriteAnimation m_idleAnimation{.frames = {0, 1}, .frameDuration = 0.5F};
     const astra2d::SpriteAnimation m_runAnimation{.frames = {2, 3, 4, 5}, .frameDuration = 0.09F};
     const astra2d::SpriteAnimation m_jumpAnimation{.frames = {6}};
@@ -1442,12 +1523,13 @@ private:
     const astra2d::SpriteAnimation m_squashAnimation{.frames = {10}};
     const astra2d::SpriteAnimation m_spinAnimation{.frames = {11, 12, 13, 14},
                                                    .frameDuration = 0.12F};
-    const astra2d::SpriteAnimation m_rocketAnimation{.frames = {16, 17}, .frameDuration = 0.5F};
+    const astra2d::SpriteAnimation m_rocketAnimation{.frames = {kRocketBottom, kRocketBottom + 1},
+                                                     .frameDuration = 0.5F};
     const astra2d::SpriteAnimation m_rocketTopAnimation{.frames = {kRocketTop}};
-    const astra2d::SpriteAnimation m_exhaustAnimation{.frames = {kExhaust}};
+    const astra2d::SpriteAnimation m_exhaustAnimation{.frames = {12, 13}, .frameDuration = 0.06F};
     const astra2d::SpriteAnimation m_sparkleAnimation{
         .frames = {21, 22, 23}, .frameDuration = 0.07F, .loop = false};
-    const astra2d::SpriteAnimation m_hurtAnimation{.frames = {29}};
+    const astra2d::SpriteAnimation m_hurtAnimation{.frames = {8}};
     const astra2d::SpriteAnimation m_heartAnimation{.frames = {kHeartFull}};
     const astra2d::SpriteAnimation m_flyAnimation{.frames = {24, 25}, .frameDuration = 0.14F};
     const astra2d::SpriteAnimation m_stunnedAnimation{.frames = {26}};

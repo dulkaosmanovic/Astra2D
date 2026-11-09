@@ -41,82 +41,85 @@ struct Weather {
     bool flicker = false;     ///< Fades in and out.
 };
 
-/// A planet: its gravity and weather, and its sky (a gradient, stars, the next planet hanging in
-/// it, and up to three layers).
+/// A planet: its weather and its sky (a gradient, a nebula, stars, the next planet
+/// hanging in it, and up to three layers).
 struct Look {
-    float gravity = 1.0F;          ///< Times Earth's: changes how high and far the player jumps.
     Weather weather;               ///< Drifting in front of everything.
     glm::vec4 skyTop;              ///< Colour at the top of the screen.
     glm::vec4 skyBottom;           ///< Colour at the bottom.
-    bool stars = false;            ///< Stars over the gradient (not in a cave).
+    glm::vec4 nebula{0.0F};        ///< Tints the nebula over the gradient (alpha 0: none).
+    bool stars = false;            ///< Stars and shooting stars over the gradient (not in a cave).
+    bool rings = false;            ///< The planet's own rings arc across the sky.
     int skyPlanet = planet::kNone; ///< Seen in the sky: the next stop of the route.
-    glm::vec4 ground{1.0F};        ///< Tints the tiles, so shared tiles fit each planet.
     std::array<Layer, 3> layers{}; ///< Back to front.
 };
 
-// The bottom colours of mountains.png, hills.png and volcanoes.png, to fill below the strips
-// (times the tint).
-inline constexpr glm::vec4 kMountainFill{0.23F, 0.26F, 0.43F, 1.0F};
-inline constexpr glm::vec4 kHillFill{0.13F, 0.29F, 0.24F, 1.0F};
+// The bottom colours of the strips, to fill below them.
+inline constexpr glm::vec4 kSpireFill{0.251F, 0.259F, 0.486F, 1.0F};
+inline constexpr glm::vec4 kFloraFill{0.086F, 0.227F, 0.290F, 1.0F};
+inline constexpr glm::vec4 kCrystalFill{0.077F, 0.089F, 0.216F, 1.0F}; // with the layer's tint
 inline constexpr glm::vec4 kVolcanoFill{0.204F, 0.118F, 0.157F, 1.0F};
-/// The stars of every open sky.
+/// The stars and the nebula of every open sky (the nebula is tinted per planet).
 inline constexpr Layer kStars{
     .texture = "textures/stars.png", .parallax = {0.02F, 0.02F}, .fillsView = true};
+inline constexpr Layer kNebula{
+    .texture = "textures/nebula.png", .parallax = {0.01F, 0.01F}, .fillsView = true};
 
-/// One per level, in level order: Verda, the Crystal Moon (low gravity), Nimbus and Pyros (heavy).
+/// One per level, in level order: Verda, the Crystal Moon, Nimbus and Pyros.
 inline constexpr std::array<Look, 4> kLooks = {{
     {.weather = {.count = 36,
-                 .color = {0.80F, 1.0F, 0.60F, 0.7F},
+                 .color = {0.70F, 1.0F, 0.85F, 0.7F},
                  .velocity = {4.0F, 6.0F},
                  .sway = 6.0F,
                  .size = 1.5F,
                  .flicker = true},
      .skyTop = {0.02F, 0.02F, 0.07F, 1.0F},
-     .skyBottom = {0.16F, 0.40F, 0.48F, 1.0F},
+     .skyBottom = {0.42F, 0.28F, 0.56F, 1.0F},
+     .nebula = {0.55F, 1.0F, 0.90F, 0.9F},
      .stars = true,
      .skyPlanet = planet::kCrystalMoon,
-     .layers = {{{.texture = "textures/mountains.png",
-                  .parallax = {0.15F, 0.3F},
-                  .y = 70.0F,
-                  .tint = {0.75F, 1.0F, 1.0F, 1.0F},
-                  .fill = {0.17F, 0.26F, 0.43F, 1.0F}},
-                 {.texture = "textures/hills.png",
-                  .parallax = {0.4F, 0.5F},
-                  .y = 40.0F,
-                  .fill = kHillFill}}}},
-    {.gravity = 0.6F,
-     .weather = {.count = 60,
+     .layers = {{{.texture = "textures/spires.png",
+                  .parallax = {0.12F, 0.25F},
+                  .y = 80.0F,
+                  .fill = kSpireFill},
+                 {.texture = "textures/flora.png",
+                  .parallax = {0.35F, 0.45F},
+                  .y = 36.0F,
+                  .fill = kFloraFill}}}},
+    {.weather = {.count = 60,
                  .color = {0.80F, 0.95F, 1.0F, 0.8F},
                  .velocity = {-3.0F, -10.0F},
                  .sway = 4.0F,
                  .flicker = true},
      .skyTop = {0.02F, 0.02F, 0.06F, 1.0F},
      .skyBottom = {0.08F, 0.08F, 0.18F, 1.0F},
-     .layers = {{{.texture = "textures/cave.png",
-                  .parallax = {0.3F, 0.3F},
-                  .tint = {0.26F, 0.32F, 0.50F, 1.0F},
-                  .fillsView = true}}}},
-    {.gravity = 0.8F,
-     .weather = {.count = 30,
+     .layers = {{{.texture = "textures/cave.png", .parallax = {0.3F, 0.3F}, .fillsView = true},
+                 {.texture = "textures/crystals.png",
+                  .parallax = {0.5F, 0.55F},
+                  .y = 36.0F,
+                  .tint = {0.65F, 0.75F, 0.95F, 0.8F},
+                  .fill = kCrystalFill}}}},
+    {.weather = {.count = 30,
                  .color = {1.0F, 0.85F, 0.95F, 0.6F},
                  .velocity = {10.0F, 2.0F},
                  .sway = 3.0F,
                  .size = 2.0F},
      .skyTop = {0.03F, 0.02F, 0.10F, 1.0F},
      .skyBottom = {0.78F, 0.40F, 0.58F, 1.0F},
+     .nebula = {1.0F, 0.70F, 0.95F, 0.7F},
      .stars = true,
+     .rings = true,
      .skyPlanet = planet::kPyros,
-     .ground = {0.95F, 0.80F, 1.0F, 1.0F},
      .layers = {{{.texture = "textures/clouds.png",
                   .parallax = {0.05F, 0.1F},
                   .y = 72.0F,
                   .tint = {1.0F, 0.75F, 0.90F, 0.7F}},
+                 {.texture = "textures/islands.png", .parallax = {0.2F, 0.3F}, .y = 86.0F},
                  {.texture = "textures/clouds.png",
                   .parallax = {0.35F, 0.4F},
                   .y = 50.0F,
                   .tint = {1.0F, 0.88F, 0.95F, 0.95F}}}}},
-    {.gravity = 1.1F,
-     .weather = {.count = 70,
+    {.weather = {.count = 70,
                  .color = {1.0F, 0.55F, 0.20F, 0.9F},
                  .velocity = {3.0F, 22.0F},
                  .sway = 8.0F,
@@ -124,6 +127,7 @@ inline constexpr std::array<Look, 4> kLooks = {{
                  .flicker = true},
      .skyTop = {0.03F, 0.01F, 0.03F, 1.0F},
      .skyBottom = {0.50F, 0.13F, 0.07F, 1.0F},
+     .nebula = {1.0F, 0.50F, 0.35F, 0.8F},
      .stars = true,
      .skyPlanet = planet::kEarth,
      .layers = {{{.texture = "textures/mountains.png",
@@ -133,7 +137,7 @@ inline constexpr std::array<Look, 4> kLooks = {{
                   .fill = {0.127F, 0.065F, 0.108F, 1.0F}},
                  {.texture = "textures/volcanoes.png",
                   .parallax = {0.35F, 0.45F},
-                  .y = 45.0F,
+                  .y = 61.0F,
                   .fill = kVolcanoFill}}}},
 }};
 

@@ -49,6 +49,16 @@ inline constexpr int kIce = 23;
 inline constexpr int kBasaltTop = 24;
 inline constexpr int kBasalt = 25;
 inline constexpr int kAlienPlant = 26;
+inline constexpr int kMossTop = 27;
+inline constexpr int kMoss = 28;
+inline constexpr int kDish = 29;
+inline constexpr int kGeode = 30;
+inline constexpr int kPuffballs = 31;
+inline constexpr int kCloudShrub = 32;
+inline constexpr int kBellFlower = 33;
+inline constexpr int kCharredTree = 34;
+inline constexpr int kLavaVent = 35;
+inline constexpr int kMagmaBoulder = 36;
 } // namespace tile
 
 /// Something that starts somewhere in the level.

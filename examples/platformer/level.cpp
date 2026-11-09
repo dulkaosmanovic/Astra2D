@@ -33,6 +33,8 @@ constexpr bool isSolidFrame(int frame)
     case tile::kIce:
     case tile::kBasaltTop:
     case tile::kBasalt:
+    case tile::kMossTop:
+    case tile::kMoss:
         return true;
     default:
         return false;
@@ -109,12 +111,14 @@ int textTile(const TextGrid& grid, int x, int y)
         }
         return right ? tile::kGrassLeft : tile::kGrassSingle;
     }
-    case '=': // rock with a top: stone, ice and basalt
+    case '=': // rock with a top: stone, ice, basalt and moss
         return grid.at(x, y - 1) == '=' ? tile::kStone : tile::kStoneTop;
     case 'I':
         return grid.at(x, y - 1) == 'I' ? tile::kIce : tile::kIceTop;
     case 'R':
         return grid.at(x, y - 1) == 'R' ? tile::kBasalt : tile::kBasaltTop;
+    case 'N':
+        return grid.at(x, y - 1) == 'N' ? tile::kMoss : tile::kMossTop;
     case '-':
         return tile::kPlank;
     case '^':
@@ -155,6 +159,22 @@ int decorTile(char c)
         return tile::kPine;
     case 'a':
         return tile::kAlienPlant;
+    case 'd':
+        return tile::kDish;
+    case 'q':
+        return tile::kGeode;
+    case 'p':
+        return tile::kPuffballs;
+    case 'w':
+        return tile::kCloudShrub;
+    case 'l':
+        return tile::kBellFlower;
+    case 'x':
+        return tile::kCharredTree;
+    case 'n':
+        return tile::kLavaVent;
+    case 'm':
+        return tile::kMagmaBoulder;
     default:
         return tile::kNone;
     }
