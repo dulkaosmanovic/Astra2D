@@ -267,30 +267,41 @@ void PhysicsWorld::Impl::updateTrigger(Contact& contact, const Manifold& manifol
 
 void PhysicsWorld::Impl::decideOneWay(Contact& contact, const Manifold& manifold, float dt) const
 {
-    // One-way platforms decide once per encounter: a shape that arrives from the platform's top,
-    // not moving up and not already sunk into it, collides; any other is let through until they
-    // separate. The depth check matters for top-only tiles, whose normal is always up even when
-    // the shape enters from the side or below.
+    // One-way platforms: a shape that arrives from the platform's top, not moving up and not
+    // already sunk into it, collides; any other is let through. The depth check matters for
+    // top-only tiles, whose normal is always up even when the shape enters from the side or below.
     if (manifold.count == 0) {
         contact.oneWay = OneWayState::Undecided;
         return;
     }
-    if (contact.oneWay != OneWayState::Undecided) {
+    if (contact.oneWay == OneWayState::Enabled) {
         return;
     }
-    const bool platformIsA = shapes[contact.shapeA].def.oneWay;
-    const Body& platform = bodies[shapes[platformIsA ? contact.shapeA : contact.shapeB].body];
+    const auto platformShape = shapes[contact.shapeA].def.oneWay ? contact.shapeA : contact.shapeB;
+    const bool platformIsA = platformShape == contact.shapeA;
+    const Body& platform = bodies[shapes[platformShape].body];
     const Body& other = bodies[shapes[platformIsA ? contact.shapeB : contact.shapeA].body];
     const glm::vec2 up = platform.rotation.apply({0.0F, 1.0F});
     const glm::vec2 normalFromPlatform = platformIsA ? manifold.normal : -manifold.normal;
     const float rising = glm::dot(other.velocity - platform.velocity, up);
     const bool fromAbove = glm::dot(normalFromPlatform, up) > 0.5F;
     const float slop = settings.linearSlop * scale();
-    // A shape falling onto the top sinks in at most as far as it fell in the last step.
-    const float maxDepth = slop + (std::max(-rising, 0.0F) * dt);
-    const bool onTop = manifold.minSeparation() >= -maxDepth;
-    contact.oneWay =
-        fromAbove && onTop && rising <= slop / dt ? OneWayState::Enabled : OneWayState::Disabled;
+    const float depth = -manifold.minSeparation();
+    if (contact.oneWay == OneWayState::Undecided) {
+        // A shape falling onto the top sinks in at most as far as it fell in the last step.
+        const float maxDepth = slop + (std::max(-rising, 0.0F) * dt);
+        contact.oneWay = fromAbove && depth <= maxDepth && rising <= slop / dt
+                             ? OneWayState::Enabled
+                             : OneWayState::Disabled;
+        return;
+    }
+    // Let through, e.g. on its way up: once it falls again with its bottom in the platform's
+    // upper half (a jump that just reached the top), it lands on it instead of falling through.
+    const Aabb bounds = shapeBounds(shapes[platformShape].def, platform.pose());
+    const float halfThickness = std::abs(glm::dot(bounds.max - bounds.min, up)) * 0.5F;
+    if (fromAbove && rising < -slop / dt && depth <= halfThickness) {
+        contact.oneWay = OneWayState::Enabled;
+    }
 }
 
 void PhysicsWorld::Impl::warmStartFrom(const Manifold& before, Manifold& now)

@@ -78,15 +78,32 @@ TEST(PlatformerLevelTests, ParsesATextLevel)
     EXPECT_EQ(level.count(ThingKind::Goal), 1);
 }
 
-TEST(PlatformerLevelTests, IceAndBasaltGetATopAndCollide)
+TEST(PlatformerLevelTests, IceBasaltAndMossGetATopAndCollide)
 {
-    const Level level = platformer::parseTextLevel("map:\nP.aF\nIIRR\nIIRR\n");
+    const Level level = platformer::parseTextLevel("map:\nP.adqF\nIIRRNN\nIIRRNN\n");
     EXPECT_EQ(level.at(level.ground, 0, 1), tile::kIceTop);
     EXPECT_EQ(level.at(level.ground, 0, 0), tile::kIce);
     EXPECT_EQ(level.at(level.ground, 3, 1), tile::kBasaltTop);
     EXPECT_EQ(level.at(level.ground, 3, 0), tile::kBasalt);
+    EXPECT_EQ(level.at(level.ground, 4, 1), tile::kMossTop);
+    EXPECT_EQ(level.at(level.ground, 4, 0), tile::kMoss);
     EXPECT_EQ(level.solid.at(2, 0), astra2d::TileCollision::Solid);
+    EXPECT_EQ(level.solid.at(5, 1), astra2d::TileCollision::Solid);
     EXPECT_EQ(level.at(level.decor, 2, 2), tile::kAlienPlant);
+    EXPECT_EQ(level.at(level.decor, 3, 2), tile::kDish);
+    EXPECT_EQ(level.at(level.decor, 4, 2), tile::kGeode);
+}
+
+TEST(PlatformerLevelTests, ReadsTheDecorationOfNimbusAndPyros)
+{
+    const Level level = platformer::parseTextLevel("map:\nPpwlxnmF\n########\n");
+    EXPECT_EQ(level.at(level.decor, 1, 1), tile::kPuffballs);
+    EXPECT_EQ(level.at(level.decor, 2, 1), tile::kCloudShrub);
+    EXPECT_EQ(level.at(level.decor, 3, 1), tile::kBellFlower);
+    EXPECT_EQ(level.at(level.decor, 4, 1), tile::kCharredTree);
+    EXPECT_EQ(level.at(level.decor, 5, 1), tile::kLavaVent);
+    EXPECT_EQ(level.at(level.decor, 6, 1), tile::kMagmaBoulder);
+    EXPECT_EQ(level.at(level.ground, 4, 1), tile::kNone); // decoration does not collide
 }
 
 TEST(PlatformerLevelTests, ReadsEnemiesPlatformsAndClouds)

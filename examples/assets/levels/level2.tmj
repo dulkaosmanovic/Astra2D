@@ -21,7 +21,7 @@
   {
    "name": "hint",
    "type": "string",
-   "value": "Low gravity: you jump higher. Spikers cannot be stomped"
+   "value": "Spikers cannot be stomped; ride the platforms over the lava"
   }
  ],
  "tilesets": [
@@ -1763,7 +1763,7 @@
     0,
     0,
     0,
-    0,
+    17,
     0,
     0,
     0,
@@ -1820,7 +1820,7 @@
     0,
     0,
     0,
-    0,
+    18,
     0,
     0,
     0,

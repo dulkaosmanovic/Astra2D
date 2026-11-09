@@ -5,10 +5,10 @@
  "name": "tiles",
  "image": "../textures/tiles.png",
  "imagewidth": 144,
- "imageheight": 72,
+ "imageheight": 90,
  "tilewidth": 16,
  "tileheight": 16,
- "tilecount": 32,
+ "tilecount": 40,
  "columns": 8,
  "margin": 1,
  "spacing": 2,
@@ -175,6 +175,26 @@
   },
   {
    "id": 25,
+   "properties": [
+    {
+     "name": "collision",
+     "type": "string",
+     "value": "solid"
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "properties": [
+    {
+     "name": "collision",
+     "type": "string",
+     "value": "solid"
+    }
+   ]
+  },
+  {
+   "id": 28,
    "properties": [
     {
      "name": "collision",

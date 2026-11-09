@@ -471,6 +471,26 @@ TEST(PhysicsWorldTests, OneWayPlatformLetsBodiesUpAndHoldsThemOnTop)
     EXPECT_TRUE(world.isGrounded(ball));
 }
 
+TEST(PhysicsWorldTests, OneWayPlatformHoldsABodyThatBarelyReachedItsTop)
+{
+    PhysicsWorld world({.enableSleep = false});
+    const BodyId platform = world.createBody({.type = BodyType::Static, .position = {0.0F, 3.0F}});
+    ShapeDef def = ShapeDef::makeBox({2.0F, 0.25F});
+    def.oneWay = true;
+    world.addShape(platform, def);
+    // Thrown up from below so that at the top of its flight its bottom is still a little inside
+    // the platform (about 0.15 of 0.5): it falls back onto the top instead of through.
+    const BodyId ball = addBall(world, {0.0F, 1.0F}, 0.25F, {.velocity = {0.0F, 6.86F}});
+    float highest = 0.0F;
+    for (int i = 0; i < 180; ++i) {
+        world.step(kDt);
+        highest = std::max(highest, world.position(ball).y);
+    }
+    EXPECT_LT(highest, 3.25F + 0.25F); // never fully above the top
+    EXPECT_NEAR(world.position(ball).y, 3.25F + 0.25F, 0.02F);
+    EXPECT_TRUE(world.isGrounded(ball));
+}
+
 TEST(PhysicsWorldTests, BulletsDoNotTunnelThroughThinWalls)
 {
     for (const bool bullet : {false, true}) {

@@ -9,18 +9,14 @@ and the lava planet **Pyros**. On each one they collect coins, stomp crawlers an
 hedgehogs, spikes and lava, ride moving platforms and lifts, and reach the rocket that flies them to
 the next planet.
 
-Every planet feels different, not only looks it:
+Every planet has its own ground, weather and sky:
 
-| Planet | Gravity | Ground | Weather | In the sky |
-|---|---|---|---|---|
-| Verda | 1.0 g | grass, alien bulb plants | drifting spores | the Crystal Moon |
-| Crystal Moon | 0.6 g: higher, floatier jumps | ice rock with frost, crystals | falling ice glitter | (inside the moon) |
-| Nimbus | 0.8 g | lilac grass, one-way clouds | floating motes | Pyros |
-| Pyros | 1.1 g: shorter jumps | basalt with magma veins, lava | rising embers | Earth |
-
-The level banner shows the gravity. The levels are designed for the jumps of their planet, and a
-spring throws the player equally high on every planet (its speed scales with the square root of
-the gravity).
+| Planet | Ground | Weather | In the sky |
+|---|---|---|---|
+| Verda | teal turf on violet soil, mushroom forests, rock spires | drifting spores | the Crystal Moon |
+| Crystal Moon | ice rock with frost, giant crystals | falling ice glitter | (inside the moon) |
+| Nimbus | pink moss on sky rock, one-way clouds, floating islands | floating motes | its own rings, Pyros |
+| Pyros | basalt with magma veins, lava | rising embers | Earth |
 
 <div class="astra-figures">
 <div class="astra-figure"><img src="platformer_title.png" alt="The title screen with the route home; Verda runs behind it"/><span>The title screen with the route home; Verda runs behind it</span></div>
@@ -50,7 +46,7 @@ the gravity).
 <div class="astra-summary"><b>In short</b>
 <ul>
 <li>A complete game with four planets, three kinds of enemies, moving platforms, springs, hazards, checkpoints, sound and a HUD, written only against the public API.</li>
-<li>2,014 lines of code, 20 % of the engine's size; its level loading and movement rules are unit-tested.</li>
+<li>2,119 lines of code, 21 % of the engine's size; its level loading and movement rules are unit-tested.</li>
 <li>Shows Scene systems, physics signals, collision groups, kinematic bodies, coyote time and jump buffering, and Tiled maps working together.</li>
 </ul></div>
 
@@ -78,13 +74,13 @@ The game is split by what each part does, and the parts that do not draw are uni
 
 | File | Lines | What |
 |---|---|---|
-| `level.hpp/.cpp` | 556 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
+| `level.hpp/.cpp` | 586 | Levels as data: text maps and Tiled maps into tiles, collision grids, hazards and spawn points |
 | `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, jump cut, coyote time, jump buffering |
-| `game.cpp` | 1,506 | The game: entities, systems, physics events, camera, HUD, sound, game states |
-| `looks.hpp` | 140 | Each planet: gravity, weather, sky colours, stars, the planet in the sky, ground tint, parallax layers |
+| `game.cpp` | 1,588 | The game: entities, systems, physics events, camera, HUD, sound, game states |
+| `looks.hpp` | 144 | Each planet: weather, sky colours, nebula, stars, rings, the planet in the sky, parallax layers |
 | `main.cpp`, `game.hpp` | 79 | Entry point |
 
-About 2,420 lines of game code (2,014 without comments and blank lines, see @ref evaluation) on
+About 2,533 lines of game code (2,119 without comments and blank lines, see @ref evaluation) on
 about 10,100 lines of engine code: the engine does the
 window, input mapping, fixed timestep, rendering, animation, the ECS, physics, collision events,
 level file parsing and audio, and the game only says what happens.
@@ -157,15 +153,17 @@ The camera follows the player with exponential smoothing, a little ahead in the 
 and stays inside the level. It snaps to whole screen pixels, and the view height is chosen so a
 texel is a whole number of pixels (pixel-perfect scaling), so the 16×16 art never shimmers.
 
-Each frame draws the planet's look (`looks.hpp`): a sky gradient in 24 bands, stars, the next
-planet of the route hanging in the sky (it drifts only slightly as the camera moves, so it seems
-far away), then up to three parallax layers (clouds, mountains and hills, volcanoes; inside the
-Crystal Moon a cave wall that tiles in both directions). Then the decoration and ground tiles the
-camera sees, tinted per planet so the shared tiles fit each one, the moving platforms, the scene's sprites by
-layer, interpolated between fixed steps, and the HUD in screen space with the vendored pixel font:
+Each frame draws the planet's look (`looks.hpp`): a sky gradient in 24 bands, a nebula tinted
+for the planet, stars with a shooting star every few seconds, Nimbus's own rings arcing across
+its sky, and the next planet of the route hanging in it (the far things drift only slightly as
+the camera moves, so they seem far away). Then up to three parallax layers (Verda's rock spires
+and mushroom forest, the Crystal Moon's cave wall and giant crystals, Nimbus's clouds and floating
+islands, Pyros's smoking volcanoes), the decoration (darkened, so it reads as background and
+never looks like something to touch) and the ground tiles the camera sees, the moving
+platforms, the scene's sprites by layer, interpolated between fixed steps, and the HUD in screen space with the vendored pixel font:
 one bar along the top (hearts, coins, planet, time) and a panel behind the text of the title, pause,
 lift-off, game-over and victory screens. The title and victory screens show the whole route as a row
-of planets. Trauma-based camera shake marks stomps and hits, and
+of planets, and the title shows the astronaut and their rocket. Trauma-based camera shake marks stomps and hits, and
 dust puffs mark jumps, landings and springs. The planet's weather is a few dozen small squares that
 drift with their own speed and sway and are wrapped into the camera's view, so they fill it
 wherever the camera goes without being spawned or removed.
@@ -183,9 +181,9 @@ hint: Run with A/D, jump with SPACE, and reach the rocket
 map:
 ##............................o.....o.o.o.......
 ##......oooo.................o.o....-----.......
-##................f.............................
+##................fa............................
 ##...............###............................
-##..P.g.b..y...s.###.....e..............u.....j.
+##.dP.g.b..a.a.s.###.....e.......f......u.....j.
 #############################...################
 ...
 ```
@@ -211,14 +209,19 @@ them into few boxes without internal edges (see @ref physics_guide).
 All art and sound is original, made by `scripts/generate_platformer_assets.py` with only the Python
 standard library (CC0):
 
-- `textures/platformer.png`: the astronaut (idle, run, jump, fall, hurt), crawlers, bats,
-  spikers, coins, hearts, the rocket and its exhaust, beacons, springs, the moving platform,
-  sparkles and dust;
-  `textures/tiles.png`: 27 tiles (grass and dirt, stone, ice, basalt, brick, planks, clouds,
-  spikes, lava and decoration such as crystals and alien plants). Both use 1-texel extruded borders, so neighbouring frames never bleed in.
-- `textures/clouds.png`, `cave.png`, `volcanoes.png` and `stars.png`: parallax backgrounds that tile
-  without seams, drawn light enough to be tinted per planet (the mountains and hills are shared
-  with the sandbox).
+- `textures/astronaut.png`: the astronaut in a white suit with a life-support pack (idle, run,
+  jump, fall, hurt) and the rocket with its flickering exhaust, in 24×24 frames whose art stands
+  on a tile's bottom edge, so they are drawn centred on a tile like the 16×16 sprites;
+  `textures/platformer.png`: crawlers (one-eyed slimes), bats, crystal-backed spikers, coins,
+  hearts, beacons, springs, the hover platform, sparkles and dust;
+  `textures/tiles.png`: 37 tiles (turf and soil, stone, ice, basalt, moss rock, girders, clouds,
+  spikes, lava and decoration for each planet: coral bushes, glowing mushrooms and a dish on
+  Verda, crystals and geodes on the Crystal Moon, puffballs, cloud shrubs and bell flowers on
+  Nimbus, charred trees, lava vents, magma boulders and fire pits on Pyros). All use 1-texel extruded borders, so neighbouring frames never bleed in.
+- `textures/nebula.png`, `stars.png`, `cave.png`: skies that tile in both directions;
+  `spires.png`, `flora.png`, `crystals.png`, `clouds.png`, `islands.png` and `volcanoes.png`:
+  parallax strips that tile horizontally (the mountains behind Pyros's volcanoes are shared with
+  the sandbox); `rings.png`: the arc of Nimbus's rings.
 - `textures/planets.png`: the five planets of the route (Verda, the Crystal Moon, Nimbus, Pyros and
   Earth), 32×32 each.
 - `sounds/*.wav`: square, triangle and noise synthesis for the effects, and an 8-bar loop at 120 bpm
