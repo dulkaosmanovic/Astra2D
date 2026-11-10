@@ -1,5 +1,7 @@
 #include "astra2d/core/application.hpp"
 
+#include "astra2d/core/profiler.hpp"
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -25,8 +27,13 @@ void Application::run()
 
     double lastTime = glfwGetTime();
 
+    Profiler& profiler = Profiler::global();
     while (!m_window->shouldClose()) {
-        m_window->pollEvents();
+        profiler.beginFrame();
+        {
+            ASTRA_PROFILE_SCOPE("poll events");
+            m_window->pollEvents();
+        }
 
         if (m_window->isMinimized()) {
             // Nothing is visible: sleep until the window is restored instead of spinning. Events
@@ -40,11 +47,15 @@ void Application::run()
                 break;
             }
             lastTime = glfwGetTime();
+            profiler.beginFrame(); // the time spent minimized is not part of a frame
         }
 
         // Window events queued while polling (focus, gamepads) reach their handlers here, at a
         // fixed point of the frame instead of in the middle of GLFW's callbacks.
-        m_events.dispatchQueued();
+        {
+            ASTRA_PROFILE_SCOPE("dispatch events");
+            m_events.dispatchQueued();
+        }
 
         const double now = glfwGetTime();
         const double frameTime = std::clamp(now - lastTime, 0.0, m_timestep.maxFrameTime());
@@ -64,15 +75,24 @@ void Application::run()
         for (int i = 0; i < steps; ++i) {
             // Pressed/released inside a step report what happened since the previous step.
             in.beginFixedStep();
+            ASTRA_PROFILE_SCOPE("fixed update");
             onFixedUpdate(fixedDeltaTime);
             in.endFixedStep();
         }
 
-        onUpdate(static_cast<float>(frameTime));
-
-        onRender();
-
-        m_window->swapBuffers();
+        {
+            ASTRA_PROFILE_SCOPE("update");
+            onUpdate(static_cast<float>(frameTime));
+        }
+        {
+            ASTRA_PROFILE_SCOPE("render");
+            onRender();
+        }
+        {
+            ASTRA_PROFILE_SCOPE("swap buffers"); // includes waiting for vsync
+            m_window->swapBuffers();
+        }
+        profiler.endFrame();
     }
 
     onShutdown();

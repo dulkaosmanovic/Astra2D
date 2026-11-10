@@ -125,6 +125,12 @@ cmd_sandbox() {
         run_for 2 "./build/examples/$example"
     done
 
+    # The same examples with the ImGui debug overlay shown, so its drawing code runs too.
+    section "Debug overlay smoke tests"
+    for example in coin_collector scene physics_playground platformer Sandbox; do
+        run_for 2 env ASTRA2D_DEBUG_OVERLAY=1 "./build/examples/$example"
+    done
+
     section "ecs_benchmark smoke test"
     local approach method
     for approach in ecs oop oop_shuffled; do

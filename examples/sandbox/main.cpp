@@ -10,6 +10,7 @@
 //   P / Back                           CRT post-processing effect on/off
 //   B                                  batching on/off (compare the draw calls in the HUD)
 //   Space / Start                      reset the position
+//   F1                                 debug overlay (frame graph, profiler, entities)
 //   Escape                             quit
 //
 // While it runs, edit examples/assets/shaders/crt.frag: the effect is reloaded within half a
@@ -20,6 +21,7 @@
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/events.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/renderer/animation.hpp>
 #include <astra2d/renderer/camera.hpp>
@@ -36,6 +38,7 @@
 #include "../common/hud.hpp"
 
 #include <glad/gl.h>
+#include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -116,6 +119,31 @@ protected:
         buildScene();
         // Load the effect up front, so a broken shader is reported at start-up.
         (void)m_assets.effect("shaders/crt.frag");
+
+        m_overlay.setScene(&m_scene);
+        m_overlay.addToggle("CRT effect (P)", &m_postProcessing);
+        m_overlay.addPanel("Renderer", [this] {
+            bool batching = m_renderer.batching();
+            if (ImGui::Checkbox("Batching (B)", &batching)) {
+                m_renderer.setBatching(batching);
+            }
+            float zoom = m_camera.zoom();
+            if (ImGui::SliderFloat("Zoom", &zoom, 0.25F, 4.0F)) {
+                m_camera.setZoom(zoom);
+            }
+            ImGui::SliderAngle("Camera rotation", &m_cameraRotation);
+        });
+        m_overlay.inspector().addInspector<Bob>("Bob", [](Bob& bob) {
+            ImGui::DragFloat("Base y", &bob.baseY);
+            ImGui::DragFloat("Phase", &bob.phase, 0.01F);
+        });
+        m_overlay.inspector().addInspector<Spin>(
+            "Spin", [](Spin& spin) { ImGui::DragFloat("Speed (rad/s)", &spin.speed, 0.01F); });
+        m_overlay.inspector().addInspector<Blob>("Blob", [](Blob& blob) {
+            ImGui::BeginDisabled(); // set from the input every frame
+            ImGui::Checkbox("Moving", &blob.moving);
+            ImGui::EndDisabled();
+        });
     }
 
     void onFixedUpdate(float dt) override { m_scene.fixedUpdate(dt); }
@@ -137,6 +165,9 @@ protected:
         }
         if (m_actions.isPressed("postprocess", in)) {
             m_postProcessing = !m_postProcessing;
+        }
+        if (in.isPressed(astra2d::Key::F1)) {
+            m_overlay.toggle();
         }
         if (m_actions.isPressed("shake", in)) {
             m_shake.addTrauma(0.6F);
@@ -163,6 +194,7 @@ protected:
             m_assets.reloadChanged();
         }
         updateFps(dt);
+        m_frameTime = dt;
     }
 
     void onResize(int width, int height) override
@@ -200,6 +232,8 @@ protected:
                                 m_time);
         }
         drawHud(size); // after the effect, so the text stays sharp
+        m_overlay.addFrame(m_frameTime, m_renderer.stats());
+        m_overlay.draw();
     }
 
 private:
@@ -399,6 +433,8 @@ private:
     std::string m_notice;
     float m_noticeTime = 0.0F;
     astra2d::FrameStats m_frameStats{0.5F};
+    float m_frameTime = 0.0F;
+    astra2d::DebugOverlay m_overlay{window()};
 };
 
 } // namespace

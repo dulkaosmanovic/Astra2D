@@ -15,6 +15,7 @@
 //   P / T                  build a pyramid / a tower at the mouse
 //   B                      next broad phase (grid, sort and sweep, brute force)
 //   D                      debug draw: outlines, bounding boxes, contacts, normals, velocities
+//   F1                     debug overlay: physics settings, profiler, entity inspector
 //   F2                     log FPS, frame times and render statistics every second
 //   Z                      sleeping on / off
 //   Enter / N              pause / one step while paused
@@ -23,6 +24,7 @@
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/camera.hpp>
@@ -36,6 +38,7 @@
 #include "../common/hud.hpp"
 
 #include <glad/gl.h>
+#include <imgui.h>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
@@ -134,6 +137,7 @@ public:
                 ++m_hardHits; // bullets
             }
         });
+        setUpOverlay();
         reset();
     }
 
@@ -199,6 +203,9 @@ protected:
         if (in.isPressed(astra2d::Key::D)) {
             m_debug = !m_debug;
         }
+        if (in.isPressed(astra2d::Key::F1)) {
+            m_overlay.toggle();
+        }
         if (in.isPressed(astra2d::Key::F2)) {
             m_logStats = !m_logStats;
             m_frameStats.restart();
@@ -245,10 +252,12 @@ protected:
         m_renderer.end();
 
         drawHud();
+        m_overlay.addFrame(m_frameTime, m_renderer.stats());
         if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
+        m_overlay.draw(); // clicks on it do not reach the playground
     }
 
 private:
@@ -530,9 +539,50 @@ private:
 
     // The engine's physics debug view, on top of the bodies: outlines coloured by body state,
     // bounding boxes, contact points with normals, velocity arrows.
-    void drawDebug()
+    void drawDebug() { astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), m_debugSettings); }
+
+    // The F1 overlay: the debug view's parts as toggles, the solver settings to try out live,
+    // and the step's statistics.
+    void setUpOverlay()
     {
-        astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), {.boundingBoxes = true});
+        m_overlay.setScene(&m_scene);
+        m_overlay.addToggle("Debug view (D)", &m_debug);
+        m_overlay.addToggle("  shapes", &m_debugSettings.shapes);
+        m_overlay.addToggle("  bounding boxes", &m_debugSettings.boundingBoxes);
+        m_overlay.addToggle("  contacts", &m_debugSettings.contacts);
+        m_overlay.addToggle("  velocities", &m_debugSettings.velocities);
+        m_overlay.addToggle("Paused (Enter)", &m_paused);
+        m_overlay.addPanel("Physics", [this] {
+            astra2d::PhysicsSettings& settings = m_physics.world().settings();
+            ImGui::DragFloat2("Gravity", &settings.gravity.x, 0.1F);
+            ImGui::SliderInt("Velocity iterations", &settings.velocityIterations, 1, 30);
+            ImGui::SliderInt("Position iterations", &settings.positionIterations, 1, 30);
+            ImGui::Checkbox("Sleeping", &settings.enableSleep);
+            int broadPhase = static_cast<int>(m_broadPhase);
+            if (ImGui::Combo("Broad phase", &broadPhase,
+                             "Uniform grid\0Sort and sweep\0Brute force\0")) {
+                m_broadPhase = static_cast<std::size_t>(broadPhase);
+                settings.broadPhase = kBroadPhases[m_broadPhase];
+            }
+            const astra2d::PhysicsStats& stats = m_physics.world().stats();
+            const std::string line =
+                std::format("{} bodies ({} awake), {} contacts\n{} pair tests, {} candidate pairs\n"
+                            "step {:.3f} ms: broad {:.3f}, narrow {:.3f}, solver {:.3f}",
+                            stats.bodies, stats.awakeBodies, stats.touchingContacts,
+                            stats.pairTests, stats.candidatePairs, stats.stepMs, stats.broadPhaseMs,
+                            stats.narrowPhaseMs, stats.solverMs);
+            ImGui::TextUnformatted(line.c_str());
+            if (ImGui::Button("Reset (R)")) {
+                reset();
+            }
+        });
+        m_overlay.inspector().addInspector<Tint>(
+            "Tint", [](Tint& tint) { ImGui::ColorEdit4("Colour", &tint.color.r); });
+        m_overlay.inspector().addInspector<Patrol>("Patrol", [](Patrol& patrol) {
+            ImGui::DragFloat("Min x", &patrol.minX, 0.1F);
+            ImGui::DragFloat("Max x", &patrol.maxX, 0.1F);
+            ImGui::DragFloat("Speed", &patrol.speed, 0.1F, 0.0F, 20.0F);
+        });
     }
 
     void drawHud()
@@ -583,6 +633,8 @@ private:
     SpawnShape m_spawnShape = SpawnShape::Box;
     std::size_t m_broadPhase = 0;
     bool m_debug = false;
+    astra2d::PhysicsDebugSettings m_debugSettings{.boundingBoxes = true};
+    astra2d::DebugOverlay m_overlay{window()};
     astra2d::FrameStats m_frameStats;
     bool m_logStats = false;
     float m_frameTime = 0.0F;

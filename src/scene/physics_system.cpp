@@ -1,6 +1,7 @@
 #include "astra2d/scene/physics_system.hpp"
 
 #include "astra2d/core/log.hpp"
+#include "astra2d/core/profiler.hpp"
 #include "astra2d/physics/tilemap.hpp"
 #include "astra2d/scene/scene.hpp"
 
@@ -263,10 +264,22 @@ void PhysicsSystem::step(float deltaTime)
     // need not be known anymore. Those destroyed by the handlers below wait for the next step.
     std::vector<std::uint64_t> retired;
     retired.swap(m_retired);
-    sync();
-    m_world.step(deltaTime);
-    writeBack();
-    dispatchEvents();
+    {
+        ASTRA_PROFILE_SCOPE("sync");
+        sync();
+    }
+    {
+        ASTRA_PROFILE_SCOPE("world step");
+        m_world.step(deltaTime);
+    }
+    {
+        ASTRA_PROFILE_SCOPE("write back");
+        writeBack();
+    }
+    {
+        ASTRA_PROFILE_SCOPE("events"); // the game's collision handlers
+        dispatchEvents();
+    }
     for (const std::uint64_t key : retired) {
         m_entities.erase(key);
     }

@@ -14,6 +14,7 @@
 //   Space         spawn a coin at the cursor
 //   F5 / F9       save the scene to / load it from scene.json next to the executable
 //   R             rebuild the starting scene
+//   F1            debug overlay: the entity hierarchy and an inspector for every component
 //   Escape        quit
 
 #include <astra2d/assets/asset_cache.hpp>
@@ -22,6 +23,7 @@
 #include <astra2d/core/paths.hpp>
 #include <astra2d/ecs/registry.hpp>
 #include <astra2d/core/signal.hpp>
+#include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/font.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
@@ -34,6 +36,7 @@
 #include "../common/hud.hpp"
 
 #include <glad/gl.h>
+#include <imgui.h>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
@@ -95,6 +98,7 @@ public:
             spawnBurst(m_scene.worldTransform(coin).position);
         });
         buildScene();
+        setUpOverlay();
     }
 
 protected:
@@ -122,6 +126,10 @@ protected:
         if (in.isPressed(astra2d::Key::F9)) {
             load();
         }
+        if (in.isPressed(astra2d::Key::F1)) {
+            m_overlay.toggle();
+        }
+        m_frameTime = dt;
         m_scene.update(dt);
     }
 
@@ -147,9 +155,38 @@ protected:
         examples::drawTextPanel(m_renderer, m_font, hud,
                                 {24.0F, static_cast<float>(height) - 24.0F}, 16.0F, kText, 1.5F);
         m_renderer.end();
+        m_overlay.addFrame(m_frameTime, m_renderer.stats());
+        m_renderer.resetStats();
+        m_overlay.draw();
     }
 
 private:
+    // The F1 overlay. Its entity list shows the hierarchy: expand an orbit to find its planet,
+    // and change a Spin speed or a Transform to see the whole branch follow.
+    void setUpOverlay()
+    {
+        m_overlay.setScene(&m_scene);
+        m_overlay.inspector().addInspector<Spin>(
+            "Spin", [](Spin& spin) { ImGui::DragFloat("Speed (rad/s)", &spin.speed, 0.01F); });
+        m_overlay.inspector().addInspector<Pickup>(
+            "Pickup", [](Pickup& pickup) { ImGui::InputInt("Value", &pickup.value); });
+        m_overlay.inspector().addInspector<Burst>(
+            "Burst", [](Burst&) { ImGui::TextUnformatted("(a tag without data)"); });
+        m_overlay.addPanel("Scene file", [this] {
+            if (ImGui::Button("Save (F5)")) {
+                save();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Load (F9)")) {
+                load();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Rebuild (R)")) {
+                buildScene();
+            }
+        });
+    }
+
     // --- Systems ---------------------------------------------------------------------------------
 
     void addSystems()
@@ -340,6 +377,8 @@ private:
     bool m_rebuilding = false;
     int m_collected = 0;
     std::string m_status;
+    float m_frameTime = 0.0F;
+    astra2d::DebugOverlay m_overlay{window()};
 };
 
 } // namespace

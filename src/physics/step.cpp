@@ -3,6 +3,8 @@
 
 #include "world_impl.hpp"
 
+#include "astra2d/core/profiler.hpp"
+
 #include <glm/geometric.hpp>
 
 #include <algorithm>
@@ -104,17 +106,26 @@ void PhysicsWorld::Impl::step(float dt)
     flushTouchWakes();
 
     const auto broadStart = Clock::now();
-    findPairs(dt);
+    {
+        ASTRA_PROFILE_SCOPE("broad phase");
+        findPairs(dt);
+    }
     stats.broadPhaseMs = millisecondsSince(broadStart);
 
     const auto narrowStart = Clock::now();
-    updateContacts(dt);
+    {
+        ASTRA_PROFILE_SCOPE("narrow phase");
+        updateContacts(dt);
+    }
     stats.narrowPhaseMs = millisecondsSince(narrowStart);
 
     const auto solverStart = Clock::now();
-    buildIslands();
-    solve(dt);
-    updateSleep(dt);
+    {
+        ASTRA_PROFILE_SCOPE("solver");
+        buildIslands();
+        solve(dt);
+        updateSleep(dt);
+    }
     stats.solverMs = millisecondsSince(solverStart);
 
     for (Body& b : bodies) {

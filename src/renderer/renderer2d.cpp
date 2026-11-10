@@ -2,6 +2,7 @@
 
 #include "astra2d/core/assert.hpp"
 #include "astra2d/core/log.hpp"
+#include "astra2d/core/profiler.hpp"
 #include "astra2d/renderer/buffer.hpp"
 #include "astra2d/renderer/camera.hpp"
 #include "astra2d/renderer/font.hpp"
@@ -283,6 +284,7 @@ void Renderer2D::begin(const OrthographicCamera& camera)
 void Renderer2D::end()
 {
     ASTRA_ASSERT(m_impl->inScene, "Renderer2D::end() without begin()");
+    ASTRA_PROFILE_SCOPE("renderer flush");
     m_impl->flush();
     m_impl->inScene = false;
 }

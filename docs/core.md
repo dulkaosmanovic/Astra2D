@@ -309,6 +309,15 @@ is defined, so the condition must not have side effects (it is still type-checke
 the same formatter as the log macros. Errors the program can recover from, such as a missing file
 or invalid settings like a non-positive fixed step, throw exceptions instead.
 
+## Profiling
+
+`ASTRA_PROFILE_SCOPE("name")` measures the rest of a block as a scope of
+@ref astra2d::Profiler::global(). The profiler lives in core so that every module can mark its
+work; `Application::run()` marks each frame and its phases ("poll events", "fixed update",
+"update", "render", "swap buffers"). It records only while enabled, which the debug overlay does
+while it is visible, and otherwise costs one branch per scope. The call tree it builds and how to
+read it are described in @ref debug_guide.
+
 <div class="astra-pager">
 <span class="astra-pager-prev">← @ref architecture "Architecture"</span>
 <span class="astra-pager-next">Next: @ref renderer_guide "Renderer" →</span>

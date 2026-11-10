@@ -1,7 +1,11 @@
 #include "astra2d/scene/scene.hpp"
 
 #include "astra2d/core/assert.hpp"
+<<<<<<< Updated upstream
 #include "astra2d/physics/geometry.hpp"
+=======
+#include "astra2d/core/profiler.hpp"
+>>>>>>> Stashed changes
 #include "astra2d/renderer/renderer2d.hpp"
 
 #include <glm/common.hpp>
@@ -329,6 +333,7 @@ void Scene::runPhase(SystemPhase phase, float deltaTime)
         for (std::size_t i = 0; i < count; ++i) {
             const RegisteredSystem& system = m_systems[i];
             if (system.phase == phase) {
+                ASTRA_PROFILE_SCOPE(system.name);
                 system.run(*this, deltaTime);
             }
         }
@@ -396,6 +401,7 @@ void Scene::collectDrawItems(Entity root, float alpha)
 
 void Scene::render(Renderer2D& renderer, float alpha)
 {
+    ASTRA_PROFILE_SCOPE("scene render");
     // World transforms are computed top-down once per frame: every root, then its subtree.
     m_drawItems.clear();
     m_registry.forEach([this, alpha](Entity entity) {

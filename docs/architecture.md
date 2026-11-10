@@ -23,14 +23,14 @@ a lower layer, never a higher one. Games use only the public headers in `include
 
 | Module | Responsibility | Uses | OpenGL |
 |---|---|---|---|
-| @ref core "core" | Application, main loop, window, input, timestep, logging, assertions | GLFW, GLAD, spdlog | yes |
+| @ref core "core" | Application, main loop, window, input, timestep, logging, assertions, CPU profiler | GLFW, GLAD, spdlog | yes |
 | @ref renderer "renderer" | Shaders, textures, batched quads, camera, sprites, animation, text | core | yes |
 | @ref assets "assets" | Load each texture, shader and font once; hot reloading | renderer, core | yes |
 | @ref ecs "ecs" | Entities, sparse-set component storage, views, signals | core | no |
 | @ref physics "physics" | Bodies, shapes, broad and narrow phase, impulse solver, tile maps | core, GLM | no |
 | @ref audio "audio" | Sound effects and music: decoding, voices, buses, headless mixing | core, miniaudio | no |
 | @ref scene "scene" | Systems, components, hierarchy, sprite rendering, scene files, Tiled maps | ecs, physics, renderer, assets | for drawing |
-| @ref debug "debug" | Physics debug view, frame statistics | physics, renderer | for drawing |
+| @ref debug "debug" | Physics debug view, frame statistics, ImGui overlay with the profiler and an entity inspector | physics, renderer, scene, Dear ImGui | for drawing |
 
 Because the ECS, physics and audio modules do not depend on OpenGL, they are unit-tested and benchmarked
 headless, which is what the evaluation relies on.
@@ -110,7 +110,7 @@ tests/<module>/             unit tests (GoogleTest), one file per class or featu
 examples/                   example programs, from hello_window to the platformer game
 examples/assets/            textures, shaders, fonts, sounds and levels used by the examples
 docs/                       Doxygen configuration, these pages and the theme
-external/                   vendored code (GLAD, stb_image, stb_truetype, miniaudio, doxygen-awesome-css)
+external/                   vendored code (GLAD, stb_image, stb_truetype, miniaudio, Dear ImGui, doxygen-awesome-css)
 benchmarks/                 headless benchmark programs; results/ holds the CSV files and summary
 subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and GoogleTest
 ```
@@ -127,6 +127,7 @@ subprojects/                Meson wraps for GLFW, GLM, spdlog, nlohmann/json and
 | stb_image | Decoding PNG/JPEG/BMP/TGA textures (vendored, private to the engine library) |
 | stb_truetype | Baking TrueType fonts into atlases (vendored, private to the engine library) |
 | miniaudio | Decoding, mixing and playing sound (vendored, private to the engine library) |
+| Dear ImGui | The debug overlay (vendored with its GLFW and OpenGL 3 backends; public, so games can add their own windows) |
 | GoogleTest | Unit tests |
 
 Meson uses system packages when they are installed and falls back to the wraps in

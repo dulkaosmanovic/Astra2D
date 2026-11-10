@@ -1,4 +1,5 @@
 #include <astra2d/core/assert.hpp>
+#include <astra2d/core/profiler.hpp>
 #include <astra2d/scene/components.hpp>
 #include <astra2d/scene/scene.hpp>
 
@@ -94,6 +95,26 @@ TEST(SceneTests, SystemsRunInPhaseThenInsertionOrder)
     scene.fixedUpdate(0.02F);
     scene.update(0.016F);
     EXPECT_EQ(log, (std::vector<std::string>{"fixed 20", "b", "a", "late"}));
+}
+
+TEST(SceneTests, EachSystemIsAProfilerScope)
+{
+    Scene scene;
+    scene.addSystem(SystemPhase::Update, "player", [](Scene&, float) {});
+    astra2d::Profiler& profiler = astra2d::Profiler::global();
+    profiler.reset();
+    profiler.setEnabled(true);
+    profiler.beginFrame();
+    scene.update(0.016F);
+    profiler.endFrame();
+    profiler.setEnabled(false);
+
+    std::vector<std::string> names;
+    for (const int child : profiler.nodes()[0].children) {
+        names.push_back(profiler.nodes()[static_cast<std::size_t>(child)].name);
+    }
+    profiler.reset();
+    EXPECT_EQ(names, (std::vector<std::string>{"player", "animation", "lifetime"}));
 }
 
 TEST(SceneTests, BuiltInSystemsCanBeRemoved)

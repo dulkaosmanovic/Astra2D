@@ -11,7 +11,7 @@ they can be repeated; the numbers on this page come from one run of `scripts/ben
 <li>**E2:** at 1M objects the ECS updates 2.6× faster than OOP objects, 5× faster than scattered ones.</li>
 <li>**E3:** at 5,000 bodies the uniform grid makes the physics step 68× faster than brute force.</li>
 <li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
-<li>**E5:** the complete platformer is 20 % of the engine's size.</li>
+<li>**E5:** the complete platformer is 18 % of the engine's size.</li>
 </ul></div>
 
 Setup of the runs:
@@ -183,17 +183,17 @@ against the engine's and lists the engine names it uses.
 
 | part | code lines | comment lines |
 |---|---:|---:|
-| engine (include/ + src/) | 10,557 | 2,325 |
-| unit tests | 5,365 | 270 |
-| platformer (the game) | 2,114 | 224 |
-| other examples | 42 to 520 each | |
+| engine (include/ + src/) | 11,796 | 2,583 |
+| unit tests | 5,949 | 292 |
+| platformer (the game) | 2,173 | 226 |
+| other examples | 42 to 568 each | |
 
-**The game is 20 % of the engine's size.** It uses 51 engine names from all eight modules: most
+**The game is 18 % of the engine's size.** It uses 54 engine names from all eight modules: most
 from the scene (21: entities, components, the physics system, Tiled maps) and the renderer (13),
 and only a few from the lower layers (`Application`, `ActionMap`, `AudioEngine`, `AssetCache`). That
 is the intended shape: a game works with the high-level API and does not touch OpenGL, the physics
 world or the ECS storage directly. The smaller examples show the same at a smaller scale: a window
-is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 490. The tests are half
+is 42 lines, a sprite animation 115, a complete small game (`coin_collector`) 514. The tests are half
 the size of the engine, which is what made the refactorings during development safe.
 
 ## Correctness
