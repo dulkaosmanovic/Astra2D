@@ -59,3 +59,36 @@ miniaudio_dep = declare_dependency(
     meson.get_compiler('c').find_library('dl', required : false)
   ]
 )
+
+# Dear ImGui for the debug overlay (DebugOverlay, ImGuiLayer), with its GLFW and OpenGL 3 backends
+# and the std::string helpers (misc/cpp/imgui_stdlib). MIT license (imgui/LICENSE.txt):
+#   external/imgui  v1.93.0 (tag v1.93.0, commit c1aaac65e896a45f81f47a4d68f9959e0f86c859)
+# Its headers are part of the engine's public interface, so games can add their own windows. The
+# define must match in every file that includes imgui.h, so it is passed with the dependency.
+
+imgui_args = ['-DIMGUI_DISABLE_OBSOLETE_FUNCTIONS']
+imgui_inc = include_directories('imgui', 'imgui/backends', 'imgui/misc/cpp', is_system : true)
+
+imgui_lib = static_library(
+  'imgui',
+  [
+    'imgui/imgui.cpp',
+    'imgui/imgui_demo.cpp',
+    'imgui/imgui_draw.cpp',
+    'imgui/imgui_tables.cpp',
+    'imgui/imgui_widgets.cpp',
+    'imgui/misc/cpp/imgui_stdlib.cpp',
+    'imgui/backends/imgui_impl_glfw.cpp',
+    'imgui/backends/imgui_impl_opengl3.cpp'
+  ],
+  cpp_args : imgui_args,
+  include_directories : imgui_inc,
+  dependencies : [glfw_dep, meson.get_compiler('cpp').find_library('dl', required : false)],
+  override_options : ['warning_level=0', 'werror=false']
+)
+
+imgui_dep = declare_dependency(
+  include_directories : imgui_inc,
+  compile_args : imgui_args,
+  link_with : imgui_lib
+)

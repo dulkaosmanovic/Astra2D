@@ -7,6 +7,7 @@ engine_sources = files(
   'core/input.cpp',
   'core/log.cpp',
   'core/paths.cpp',
+  'core/profiler.cpp',
   'core/timestep.cpp',
   'core/window.cpp',
   'renderer/animation.cpp',
@@ -39,8 +40,15 @@ engine_sources = files(
   'scene/tiled_map.cpp',
   'assets/asset_cache.cpp',
   'audio/audio_engine.cpp',
+  'debug/component_widgets.cpp',
+  'debug/debug_overlay.cpp',
+  'debug/entity_inspector.cpp',
+  'debug/entity_rows.cpp',
+  'debug/frame_history.cpp',
   'debug/frame_stats.cpp',
+  'debug/imgui_layer.cpp',
   'debug/physics_debug_draw.cpp',
+  'debug/profiler_panel.cpp',
   'assets/file_watcher.cpp'
 )
 
@@ -50,7 +58,9 @@ engine_deps = [
   glm_dep,
   spdlog_dep,
   json_dep,
-  opengl_dep
+  opengl_dep,
+  # Public: games add their own ImGui windows to the DebugOverlay.
+  imgui_dep
 ]
 
 engine_lib = library(

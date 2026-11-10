@@ -103,7 +103,7 @@ physics and the drawing.
 | Input | keys and buttons | named actions (Input Map) | named actions (`ActionMap`), keyboard and gamepad |
 | Levels | the game's own | editor (TileMap), scenes | text maps, Tiled JSON, JSON scene files |
 | Audio | built in (raudio) | built in | built in (`AudioEngine`, miniaudio) |
-| Tools | none | editor, debugger, profiler | debug draw, frame statistics, hot reloading of assets |
+| Tools | none | editor, debugger, profiler | debug draw, frame statistics, an in-game overlay with a CPU profiler and entity inspector, hot reloading of assets |
 | Testing | the game's own | engine and editor | headless modules unit-tested; sanitizers, Valgrind, CI |
 
 ## What the comparison shows

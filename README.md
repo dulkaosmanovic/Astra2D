@@ -37,7 +37,7 @@ git clone --recurse-submodules https://github.com/dulkaosmanovic/Astra2D.git
 cd Astra2D
 ./scripts/setup.sh                 # installs the compiler, Meson, Ninja and libraries; configures build/
 ninja -C build                     # the engine, the tests and every example
-./build/examples/platformer        # A/D run, Space jump, F3 physics view
+./build/examples/platformer        # A/D run, Space jump, F3 physics view, F1 debug overlay
 meson test -C build                # the unit tests
 ```
 
@@ -47,14 +47,14 @@ Or with no local dependencies and no GPU, in Docker: `docker build -t astra2d . 
 
 | Module | What it does |
 |---|---|
-| **core** | Application loop with a fixed timestep, window, input and action mapping, events, logging |
+| **core** | Application loop with a fixed timestep, window, input and action mapping, events, logging, a scoped CPU profiler |
 | **renderer** | Batched 2D renderer, camera with parallax, follow, shake and pixel-perfect mode, sprite animation, tile layers, aligned text, particles, post-processing |
 | **assets** | Texture, shader and font loading with a cache and hot reloading |
 | **ecs** | Sparse-set entity component system with views and signals |
 | **physics** | Rigid bodies, three broad phases, SAT, an impulse solver, triggers, one-way platforms, tile maps, ray casts |
 | **scene** | Scenes with systems, components, hierarchy, JSON scene files and Tiled maps |
 | **audio** | Sound effects and music on miniaudio |
-| **debug** | Physics debug view and frame statistics |
+| **debug** | Physics debug view, frame statistics, and an ImGui overlay with a frame graph, the profiler and an entity inspector |
 
 Around the engine: *Astra Run*, a complete platformer, ten smaller examples in `examples/`, 300+
 unit tests, benchmarks E1–E5, CI with sanitizers and Valgrind, and a Docker image.
@@ -84,7 +84,7 @@ engine is used, in one commented `main.cpp` in `examples/`:
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **2.6× faster** than objects with a virtual `update()`, **5× faster** when the objects are scattered in memory; at 10k objects there is no real difference |
 | **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (0.92 vs. 62.4 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Towers of 5–20 boxes stand for 10 s with no sideways drift or rotation; a ball with restitution 1 keeps its energy within 2 % |
-| **E5** | Is the API usable? | The whole platformer is 2,114 lines, 20 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 2,173 lines, 18 % of the engine's size; compared with raylib and Godot in the docs |
 
 
 Tests cover 78 % of the engine's lines. Method and full tables: [Evaluation](https://dulkaosmanovic.github.io/Astra2D/evaluation.html).
@@ -99,7 +99,7 @@ it locally with `ninja -C build docs`.
 
 This project is licensed under the [MIT License](LICENSE). Vendored third-party code keeps its own
 license: GLAD (MIT/Apache-2.0 generated code), stb_image and stb_truetype (public domain / MIT),
-miniaudio (public domain / MIT-0).
+miniaudio (public domain / MIT-0), Dear ImGui (MIT, `external/imgui/LICENSE.txt`).
 
 The example font in `examples/assets/fonts/` is *Press Start 2P* by CodeMan38, licensed under the
 SIL Open Font License 1.1 (`examples/assets/fonts/OFL.txt`). All other example assets (textures,

@@ -8,7 +8,10 @@ core,Connection,astra2d/core/signal.hpp
 core,GamepadAxis,astra2d/core/input.hpp
 core,GamepadButton,astra2d/core/input.hpp
 core,Key,astra2d/core/input.hpp
+debug,DebugOverlay,astra2d/debug/debug_overlay.hpp
+debug,EntityInspector,astra2d/debug/entity_inspector.hpp
 debug,FrameStats,astra2d/debug/frame_stats.hpp
+debug,PhysicsDebugSettings,astra2d/debug/physics_debug_draw.hpp
 debug,drawPhysicsDebug,astra2d/debug/physics_debug_draw.hpp
 ecs,Entity,astra2d/ecs/entity.hpp
 physics,BodyType,astra2d/physics/world.hpp

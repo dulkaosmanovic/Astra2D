@@ -3,14 +3,17 @@
 [TOC]
 
 The @ref debug "debug" module helps to see what the engine does while a game runs: a debug view of
-the physics world and frame statistics for the log. Both are opt-in: a game decides on which key to
-show them, and nothing is drawn or measured otherwise.
+the physics world, frame statistics for the log, and an in-game overlay built with Dear ImGui that
+shows a frame time graph, a CPU profiler and the scene's entities. All of them are opt-in: a game
+decides on which key to show them, and nothing is drawn or measured otherwise.
 
 <div class="astra-summary"><b>In short</b>
 <ul>
 <li>`drawPhysicsDebug()` draws the real collision shapes, body states, contacts and velocities with the game's camera.</li>
 <li>`FrameStats` reports FPS, the min/mean/max frame time and draw calls once per interval.</li>
-<li>Both are opt-in; the examples use F3 for the physics view and F2 for statistics.</li>
+<li>`DebugOverlay` is an ImGui window with a frame graph, the profiler's call tree, the game's toggles and an entity list with a component inspector.</li>
+<li>`ASTRA_PROFILE_SCOPE("name")` times a block of code; the main loop, scene systems, physics and renderer are already marked.</li>
+<li>The examples use F1 for the overlay, F3 for the physics view and F2 for statistics.</li>
 </ul></div>
 
 ## Physics debug view
@@ -72,14 +75,109 @@ The minimum and maximum matter as much as the mean: a single 40 ms frame among s
 hardly moves the average but is a visible stutter. @ref astra2d::FrameReport has the same numbers
 for a HUD or the window title; the Sandbox shows the FPS and frame time in its HUD this way.
 
+## Debug overlay
+
+@ref astra2d::DebugOverlay draws two [Dear ImGui](https://github.com/ocornut/imgui) windows on top
+of the game:
+
+| Window | Section | Shows |
+|---|---|---|
+| Debug | Frame | A graph of the last 240 frame times, FPS, min / mean / max frame time, draw calls, quads, entities |
+| | Profiler | The call tree of the CPU profiler (below): average ms per scope, its share of the frame, calls per frame |
+| | Toggles | The game's switches (`addToggle()`), e.g. the physics debug view and its parts |
+| | the game's own | Anything the game draws with ImGui (`addPanel()`): tuning values, buttons, statistics |
+| Entities | | The scene's entities as the parent/child tree, a name filter, and an inspector for the selected entity |
+
+A game creates it after its window, feeds it each frame and draws it last:
+
+```cpp
+astra2d::DebugOverlay m_overlay{window()}; // a member of the Application
+
+// once:
+m_overlay.setScene(&m_scene);
+m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
+m_overlay.addPanel("Game", [this] { ImGui::SliderInt("Hearts", &m_hearts, 1, 3); });
+m_overlay.inspector().addInspector<Walker>("Walker", [](Walker& walker) {
+    ImGui::DragFloat("Speed", &walker.speed);
+});
+
+// in onUpdate():  if (input().isPressed(astra2d::Key::F1)) { m_overlay.toggle(); }
+// at the end of onRender():
+m_overlay.addFrame(m_frameTime, m_renderer.stats());
+m_renderer.resetStats();
+m_overlay.draw();
+```
+
+The **inspector** has widgets for every engine component (Name, Transform, SpriteRenderer with a
+preview of its sprite, Animator, Lifetime, RigidBody, Collider, TilemapCollider, Relationship,
+Interpolated). The registry stores components by type, not by name, so the game registers its own
+with `addInspector<T>()`. Edits are ordinary changes to the components, so the systems pick them up
+as if the game had made them: a moved Transform reaches the physics at its next step. The entity
+list draws only the rows that are on screen, so a scene with thousands of entities stays cheap.
+
+**Input.** @ref astra2d::ImGuiLayer installs its own GLFW callbacks in front of the Window's: every
+event goes to ImGui, and a press goes on to the game's @ref astra2d::Input only while ImGui does not
+want that device. A click on the overlay does not spawn a box in `physics_playground`, and typing in
+the filter does not make the player jump. A release reaches the game only if its press did, so no
+key stays held. The decision is a small class (`InputGate`) with its own tests.
+
+Dear ImGui (v1.93.0, MIT) is vendored in `external/imgui` with its GLFW and OpenGL 3 backends. Its
+headers are part of the engine's interface, so games can `#include <imgui.h>` for their panels;
+@ref astra2d::ImGuiLayer can also be used on its own, for a tool without the overlay. Setting the
+environment variable `ASTRA2D_DEBUG_OVERLAY=1` shows the overlay from the start, which the CI smoke
+test uses to run its drawing code.
+
+## CPU profiler
+
+@ref astra2d::Profiler measures how long named blocks of code take per frame and keeps them as a
+call tree. A block is marked with one line:
+
+```cpp
+void Game::moveEnemies()
+{
+    ASTRA_PROFILE_SCOPE("move enemies");
+    ...
+}
+```
+
+The engine marks its own work, so the tree has useful content without any game code:
+
+```text
+frame
+├─ poll events, dispatch events
+├─ fixed update            (once per fixed step: calls = steps this frame)
+│  └─ physics              (a scene system, by its name)
+│     ├─ sync, world step ─ broad phase, narrow phase, solver
+│     └─ write back, events
+├─ update                  (the scene's Update and LateUpdate systems by name)
+├─ render ─ scene render, renderer flush
+└─ swap buffers            (includes waiting for vsync)
+```
+
+- A scope is identified by its name **and its parent**, so the same scope reached from two places
+  gives two rows, and a scope entered several times in one frame (a loop, two fixed steps) is one
+  row with a call count.
+- The overlay shows the time averaged over recent frames (an exponential moving average), because
+  per-frame numbers change too fast to read; *Pause* freezes them.
+- Recording is off unless the overlay is visible. A scope then costs one branch, so the markers
+  stay in release builds and do not change the benchmarks.
+- Only scopes inside a frame (between `beginFrame()` and `endFrame()`, which `Application::run()`
+  calls) are recorded, so headless code such as the physics benchmark is never measured.
+
+Times include the scope's children. A parent's own time is its time minus its children's: in the
+tree above, most of "render" that is not in "scene render" or "renderer flush" is the game's direct
+`Renderer2D` calls. `tests/core/test_profiler.cpp` checks the tree, the call counts and the averages
+with a fake clock.
+
 ## In the examples
 
-| Example | Physics view | Statistics in the log |
-|---|---|---|
-| `platformer` | F3 | F2 |
-| `coin_collector` | F3 | F2 |
-| `physics_playground` | D (with bounding boxes) | F2 |
-| `Sandbox` | | always in the HUD |
+| Example | Overlay | Physics view | Statistics in the log |
+|---|---|---|---|
+| `platformer` | F1 (hearts, level select, the game's components) | F3 | F2 |
+| `coin_collector` | F1 (lives, time left) | F3 | F2 |
+| `physics_playground` | F1 (gravity, solver iterations, broad phase, step statistics) | D (with bounding boxes) | F2 |
+| `scene` | F1 (the hierarchy; save, load, rebuild) | | |
+| `Sandbox` | F1 (batching, zoom, camera rotation) | | always in the HUD |
 
 <div class="astra-pager">
 <span class="astra-pager-prev">← @ref audio_guide "Audio"</span>

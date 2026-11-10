@@ -17,6 +17,7 @@
 //   WASD, arrows / left stick, d-pad   move
 //   Enter, Space / A, Start            start / restart
 //   Escape                             quit
+//   F1                                 debug overlay (frame graph, profiler, entities)
 //   F3                                 physics debug view
 //   F2                                 log FPS, frame times and render statistics
 
@@ -25,6 +26,7 @@
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/events.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/animation.hpp>
@@ -42,6 +44,7 @@
 #include "../common/hud.hpp"
 
 #include <glad/gl.h>
+#include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -179,6 +182,23 @@ public:
             m_sparks.emit(event.position, 40);
             ASTRA_INFO("Hit! {} lives left", event.livesLeft);
         });
+
+        // F1: the engine's overlay, with this game's switches and components.
+        m_overlay.setScene(&m_scene);
+        m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
+        m_overlay.addToggle("Frame statistics in the log (F2)", &m_logStats);
+        m_overlay.addPanel("Round", [this] {
+            ImGui::SliderInt("Lives", &m_lives, 1, kLives);
+            ImGui::DragFloat("Time left", &m_timeLeft, 0.1F, 0.0F, kRoundTime);
+        });
+        m_overlay.inspector().addInspector<Player>("Player", [](Player& player) {
+            ImGui::DragFloat("Invulnerable (s)", &player.invulnerable, 0.01F, 0.0F, 10.0F);
+        });
+        m_overlay.inspector().addInspector<Burst>(
+            "Burst", [](Burst& burst) { ImGui::ColorEdit4("Colour", &burst.color.r); });
+        const auto tag = [](auto&) { ImGui::TextUnformatted("(a tag without data)"); };
+        m_overlay.inspector().addInspector<Coin>("Coin", tag);
+        m_overlay.inspector().addInspector<Spike>("Spike", tag);
     }
 
 protected:
@@ -199,6 +219,9 @@ protected:
         }
         if (m_actions.isPressed("debug", in)) {
             m_showPhysics = !m_showPhysics;
+        }
+        if (m_actions.isPressed("overlay", in)) {
+            m_overlay.toggle();
         }
         if (m_actions.isPressed("stats", in)) {
             m_logStats = !m_logStats;
@@ -263,10 +286,12 @@ protected:
         }
         drawHud();
         m_renderer.end();
+        m_overlay.addFrame(m_frameTime, m_renderer.stats());
         if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
+        m_overlay.draw();
     }
 
 private:
@@ -296,6 +321,7 @@ private:
         m_actions.bind("quit", Key::Escape);
         m_actions.bind("debug", Key::F3);
         m_actions.bind("stats", Key::F2);
+        m_actions.bind("overlay", Key::F1);
     }
 
     // --- Systems: the gameplay, run by the Scene in this order ------------------------------
@@ -592,6 +618,7 @@ private:
     bool m_logStats = false;
     astra2d::FrameStats m_frameStats;
     float m_frameTime = 0.0F;
+    astra2d::DebugOverlay m_overlay{window()};
 };
 
 } // namespace

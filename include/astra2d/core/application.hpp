@@ -45,6 +45,10 @@ struct ApplicationSettings {
 /// 4. onUpdate() runs once with the real frame time, clamped to ApplicationSettings::maxFrameTime;
 /// 5. onRender() runs once, then buffers are swapped.
 ///
+/// Each iteration is one frame of Profiler::global(), with the scopes "poll events",
+/// "dispatch events", "fixed update" (once per step), "update", "render" and "swap buffers"
+/// (which includes waiting for vsync); the game's own ASTRA_PROFILE_SCOPEs nest inside them.
+///
 /// While the window is minimized the loop sleeps until the next event and no updates run. Input
 /// events received while minimized (e.g. the click that restores the window) are kept and reported
 /// in the first frame after the window is restored.

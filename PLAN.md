@@ -32,7 +32,7 @@ Required items are the minimum for a defensible thesis; stretch items are added 
                               │ public API only (include/astra2d/)
             ┌──────────────────────────────────────────────┐
             │ scene     Scene, systems, level loading         │
-            │ debug     debug draw, stats (ImGui: stretch)    │
+            │ debug     debug draw, stats, ImGui overlay      │
             ├──────────────────────────────────────────────┤
             │ ecs       Registry, sparse sets, views          │
             │ physics   bodies, shapes, broad/narrow, solver  │
@@ -150,8 +150,8 @@ Required
 - [x] FPS / frame time and render stats (in the window title or log is enough): `FrameStats`, F2 logs them
 
 Stretch (in priority order)
-- [ ] ImGui overlay: stats graph, entity list, component inspector, debug toggles
-- [ ] Scoped CPU profiler (`ASTRA_PROFILE_SCOPE`) shown in the overlay
+- [x] ImGui overlay: stats graph, entity list, component inspector, debug toggles: `DebugOverlay` (F1 in the examples), Dear ImGui vendored in `external/imgui`; clicks and typing on it do not reach the game
+- [x] Scoped CPU profiler (`ASTRA_PROFILE_SCOPE`) shown in the overlay: `Profiler` in core, main loop, scene systems, physics phases and renderer flush marked; records only while the overlay is shown
 - [ ] Editor features: select/move entities, save scene. **Not needed for the thesis**
 
 ## 7. Showcase platformer

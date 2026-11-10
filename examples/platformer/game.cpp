@@ -11,6 +11,7 @@
 #include <astra2d/core/actions.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
 #include <astra2d/renderer/animation.hpp>
@@ -27,6 +28,7 @@
 #include <astra2d/scene/scene.hpp>
 
 #include <glad/gl.h>
+#include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/vec2.hpp>
@@ -246,6 +248,7 @@ public:
         bindControls();
         addSystems();
         connectPhysicsEvents();
+        setUpOverlay();
         // Whole screen pixels per texel, about kViewHeight texels high, so the art stays crisp.
         m_camera.setPixelPerfect(kViewHeight);
         startLevel(m_firstLevel); // the title screen's backdrop
@@ -271,6 +274,9 @@ protected:
         }
         if (m_actions.isPressed("debug", in)) {
             m_showPhysics = !m_showPhysics;
+        }
+        if (m_actions.isPressed("overlay", in)) {
+            m_overlay.toggle();
         }
         if (m_actions.isPressed("stats", in)) {
             m_logStats = !m_logStats;
@@ -342,10 +348,12 @@ protected:
             drawWorld(look);
         }
         drawHud();
+        m_overlay.addFrame(m_frameTime, m_renderer.stats());
         if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
+        m_overlay.draw(); // last, on top of the HUD
     }
 
 private:
@@ -369,13 +377,7 @@ private:
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
         drawWeather(look.weather);
         if (m_showPhysics) {
-            // Sizes in world units, where a tile is 16. Shows the merged tile boxes (inner edges
-            // faint), triggers, contacts and velocities.
-            astra2d::drawPhysicsDebug(m_renderer, m_physics.world(),
-                                      {.lineWidth = 0.75F,
-                                       .contactSize = 4.0F,
-                                       .normalLength = 8.0F,
-                                       .velocityScale = 0.1F});
+            astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), m_physicsDebug);
         }
         m_renderer.end();
     }
@@ -477,9 +479,65 @@ private:
         m_actions.bind("pause", Key::P).bind("pause", GamepadButton::Start);
         m_actions.bind("restart", Key::R).bind("restart", GamepadButton::Back);
         m_actions.bind("mute", Key::M);
-        m_actions.bind("debug", Key::F3); // physics debug view
-        m_actions.bind("stats", Key::F2); // FPS and render statistics in the log
+        m_actions.bind("debug", Key::F3);   // physics debug view
+        m_actions.bind("stats", Key::F2);   // FPS and render statistics in the log
+        m_actions.bind("overlay", Key::F1); // the ImGui debug overlay
         m_actions.bind("quit", Key::Escape);
+    }
+
+    // The F1 overlay: the engine's frame graph, profiler and entity inspector, plus the game's
+    // switches, its state and inspectors for its own components.
+    void setUpOverlay()
+    {
+        m_overlay.setScene(&m_scene);
+        m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
+        m_overlay.addToggle("  bounding boxes", &m_physicsDebug.boundingBoxes);
+        m_overlay.addToggle("  contacts", &m_physicsDebug.contacts);
+        m_overlay.addToggle("  velocities", &m_physicsDebug.velocities);
+        m_overlay.addToggle("Frame statistics in the log (F2)", &m_logStats);
+        m_overlay.addPanel("Game", [this] {
+            ImGui::SliderInt("Hearts", &m_hearts, 1, kMaxHearts);
+            const int shown = m_levelIndex + 1;
+            int level = shown;
+            if (ImGui::SliderInt("Level", &level, 1, static_cast<int>(m_levels.size())) &&
+                level != shown) {
+                startLevel(level - 1);
+                m_state = State::Playing;
+            }
+            if (ImGui::Button("Restart level")) {
+                startLevel(m_levelIndex);
+                m_state = State::Playing;
+            }
+        });
+
+        astra2d::EntityInspector& inspector = m_overlay.inspector();
+        inspector.addInspector<Player>("Player", [](Player& player) {
+            ImGui::BeginDisabled(); // decided by the controller every step
+            ImGui::Checkbox("Grounded", &player.grounded);
+            ImGui::EndDisabled();
+            ImGui::DragFloat("Invulnerable (s)", &player.invulnerable, 0.01F, 0.0F, 10.0F);
+            ImGui::DragFloat("Drop time (s)", &player.dropTime, 0.01F, 0.0F, 1.0F);
+        });
+        inspector.addInspector<Walker>("Walker", [](Walker& walker) {
+            ImGui::DragFloat("Speed", &walker.speed, 0.5F, 0.0F, 400.0F);
+            ImGui::SliderFloat("Direction", &walker.direction, -1.0F, 1.0F);
+        });
+        inspector.addInspector<Flyer>(
+            "Flyer", [](Flyer& flyer) { ImGui::DragFloat2("Home", &flyer.home.x); });
+        inspector.addInspector<Mover>("Mover", [](Mover& mover) {
+            ImGui::DragFloat2("Origin", &mover.origin.x);
+            ImGui::DragFloat2("Travel", &mover.travel.x);
+        });
+        inspector.addInspector<Checkpoint>("Checkpoint", [](Checkpoint& checkpoint) {
+            ImGui::Checkbox("Active", &checkpoint.active);
+        });
+        const auto tag = [](auto&) { ImGui::TextUnformatted("(a tag without data)"); };
+        inspector.addInspector<Enemy>(
+            "Enemy", [](Enemy& enemy) { ImGui::Checkbox("Stompable", &enemy.stompable); });
+        inspector.addInspector<Coin>("Coin", tag);
+        inspector.addInspector<HeartPickup>("Heart pickup", tag);
+        inspector.addInspector<Spring>("Spring", tag);
+        inspector.addInspector<HazardTile>("Hazard", tag);
     }
 
     // --- Systems: the gameplay, run by the Scene in this order -------------------------------
@@ -1566,6 +1624,11 @@ private:
     Entity m_rocket; // the goal the player boarded
     glm::vec2 m_respawn{0.0F};
     bool m_showPhysics = false;
+    // Sizes in world units, where a tile is 16. Shows the merged tile boxes (inner edges faint),
+    // triggers, contacts and velocities.
+    astra2d::PhysicsDebugSettings m_physicsDebug{
+        .lineWidth = 0.75F, .contactSize = 4.0F, .normalLength = 8.0F, .velocityScale = 0.1F};
+    astra2d::DebugOverlay m_overlay{window()};
     bool m_logStats = false;
     astra2d::FrameStats m_frameStats;
     float m_frameTime = 0.0F;
