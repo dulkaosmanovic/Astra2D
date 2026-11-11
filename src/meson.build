@@ -42,6 +42,7 @@ engine_sources = files(
   'audio/audio_engine.cpp',
   'debug/component_widgets.cpp',
   'debug/debug_overlay.cpp',
+  'debug/entity_picking.cpp',
   'debug/entity_inspector.cpp',
   'debug/entity_rows.cpp',
   'debug/frame_history.cpp',

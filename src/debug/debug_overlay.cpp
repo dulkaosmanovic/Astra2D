@@ -2,8 +2,10 @@
 
 #include "astra2d/core/application.hpp"
 #include "astra2d/core/profiler.hpp"
+#include "astra2d/renderer/camera.hpp"
 #include "astra2d/scene/scene.hpp"
 #include "imgui_helpers.hpp"
+#include "entity_picking.hpp"
 #include "profiler_panel.hpp"
 #include "selection_outline.hpp"
 
@@ -65,6 +67,49 @@ void DebugOverlay::setVisible(bool visible)
 {
     m_visible = visible;
     Profiler::global().setEnabled(m_visible && !m_profilerPaused);
+    if (!visible) {
+        setPicking(false);
+    }
+}
+
+void DebugOverlay::setCamera(const OrthographicCamera* camera)
+{
+    m_camera = camera;
+    if (camera == nullptr) {
+        setPicking(false);
+    }
+}
+
+void DebugOverlay::setPicking(bool picking)
+{
+    m_picking = picking;
+    m_imgui.setCaptureMouse(picking); // the click that picks must not also act in the game
+    m_hovered = kNullEntity;
+}
+
+void DebugOverlay::updatePicking()
+{
+    if (m_scene == nullptr || m_camera == nullptr) {
+        setPicking(false);
+        return;
+    }
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive()) {
+        m_hovered = kNullEntity; // over the overlay: its own widgets get the click
+        return;
+    }
+    // Input's cursor position is in framebuffer pixels, as screenToWorld() expects (ImGui's is in
+    // screen coordinates, which differ on HiDPI displays).
+    const glm::vec2 point = m_camera->screenToWorld(m_app->input().mousePosition());
+    m_hovered = detail::entityAt(*m_scene, point, m_app->interpolationAlpha());
+    ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (!m_hovered.isNull()) {
+            m_inspector.select(m_hovered);
+        }
+        setPicking(false); // one pick, like a browser's element picker
+    } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+        setPicking(false);
+    }
 }
 
 // NOLINTNEXTLINE(readability-non-const-parameter): ImGui::Checkbox writes through it later
@@ -93,6 +138,9 @@ void DebugOverlay::draw()
         drawDebugWindow();
         if (m_scene != nullptr) {
             drawEntitiesWindow();
+        }
+        if (m_picking) {
+            updatePicking();
         }
     }
     m_imgui.endFrame();
@@ -208,6 +256,16 @@ void DebugOverlay::drawEntitiesWindow()
     ImGui::SetNextWindowSize(ImVec2(340.0F, std::min(display.y - (2.0F * kMargin), 640.0F)), when);
     ImGui::SetNextWindowBgAlpha(0.85F);
     if (ImGui::Begin("Entities")) {
+        if (m_camera != nullptr) {
+            ImGui::BeginDisabled(m_picking);
+            if (ImGui::Button("Pick")) {
+                setPicking(true);
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            detail::hint(m_picking ? "click an entity in the game (right click: cancel)"
+                                   : "select an entity by clicking it in the game");
+        }
         m_inspector.draw(*m_scene);
     }
     ImGui::End();
@@ -215,17 +273,25 @@ void DebugOverlay::drawEntitiesWindow()
 
 void DebugOverlay::drawSelection(Renderer2D& renderer, float lineWidth) const
 {
-    const Entity selected = m_inspector.selected();
-    if (!m_visible || m_scene == nullptr || !m_scene->registry().valid(selected)) {
+    if (!m_visible || m_scene == nullptr) {
         return;
     }
-    const std::array<glm::vec2, 4> corners =
-        detail::selectionOutline(*m_scene, selected, 4.0F * lineWidth, m_app->interpolationAlpha());
-    // Pulses, so it stands out against any background.
-    const auto pulse = static_cast<float>(0.5 + (0.5 * std::sin(8.0 * ImGui::GetTime())));
-    const glm::vec4 color{1.0F, 0.85F + (0.15F * pulse), 0.2F, 0.6F + (0.4F * pulse)};
-    for (std::size_t i = 0; i < corners.size(); ++i) {
-        renderer.drawLine(corners[i], corners[(i + 1) % corners.size()], color, lineWidth);
+    const Registry& registry = m_scene->registry();
+    const auto outline = [&](Entity entity, glm::vec4 color) {
+        const std::array<glm::vec2, 4> corners = detail::selectionOutline(
+            *m_scene, entity, 4.0F * lineWidth, m_app->interpolationAlpha());
+        for (std::size_t i = 0; i < corners.size(); ++i) {
+            renderer.drawLine(corners[i], corners[(i + 1) % corners.size()], color, lineWidth);
+        }
+    };
+    const Entity selected = m_inspector.selected();
+    if (m_picking && registry.valid(m_hovered) && m_hovered != selected) {
+        outline(m_hovered, {1.0F, 1.0F, 1.0F, 0.5F}); // what a click would pick
+    }
+    if (registry.valid(selected)) {
+        // Pulses, so it stands out against any background.
+        const auto pulse = static_cast<float>(0.5 + (0.5 * std::sin(8.0 * ImGui::GetTime())));
+        outline(selected, {1.0F, 0.85F + (0.15F * pulse), 0.2F, 0.6F + (0.4F * pulse)});
     }
 }
 

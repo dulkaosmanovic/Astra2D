@@ -166,6 +166,7 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
         m_overlay.inspector().addInspector<Spin>(
             "Spin", [](Spin& spin) { ImGui::DragFloat("Speed (rad/s)", &spin.speed, 0.01F); });
         m_overlay.inspector().addInspector<Pickup>(

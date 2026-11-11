@@ -31,6 +31,7 @@ test_sources = files(
   'audio/test_audio.cpp',
   'debug/test_debug.cpp',
   'debug/test_entity_inspector.cpp',
+  'debug/test_entity_picking.cpp',
   'debug/test_entity_rows.cpp',
   'debug/test_frame_history.cpp',
   'debug/test_input_gate.cpp',

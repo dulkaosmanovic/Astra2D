@@ -38,8 +38,10 @@ struct detail::ImGuiForwarding {
     GLFWcharfun character = nullptr;
     detail::InputGate<GLFW_KEY_LAST + 1> keys;
     detail::InputGate<GLFW_MOUSE_BUTTON_LAST + 1> buttons;
+    bool captureMouse = false; // see ImGuiLayer::setCaptureMouse()
 
     [[nodiscard]] const ImGuiIO& io() const { return ImGui::GetIO(context); }
+    [[nodiscard]] bool wantsMouse() const { return captureMouse || io().WantCaptureMouse; }
 };
 
 namespace {
@@ -98,7 +100,7 @@ void onCursorPos(GLFWwindow* window, double x, double y)
 void onMouseButton(GLFWwindow* window, int button, int action, int mods)
 {
     detail::ImGuiForwarding& f = forwardingOf(window);
-    const bool imguiWants = f.io().WantCaptureMouse; // decided before ImGui sees this click
+    const bool imguiWants = f.wantsMouse(); // decided before ImGui sees this click
     ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
     if (passOn(f.buttons, button, action, imguiWants) && f.button != nullptr) {
         f.button(window, button, action, mods);
@@ -109,7 +111,7 @@ void onScroll(GLFWwindow* window, double x, double y)
 {
     ImGui_ImplGlfw_ScrollCallback(window, x, y);
     const detail::ImGuiForwarding& f = forwardingOf(window);
-    if (!f.io().WantCaptureMouse && f.scroll != nullptr) {
+    if (!f.wantsMouse() && f.scroll != nullptr) {
         f.scroll(window, x, y);
     }
 }
@@ -212,7 +214,12 @@ void ImGuiLayer::endFrame()
 
 bool ImGuiLayer::wantsMouse() const
 {
-    return m_forwarding->io().WantCaptureMouse;
+    return m_forwarding->wantsMouse();
+}
+
+void ImGuiLayer::setCaptureMouse(bool capture)
+{
+    m_forwarding->captureMouse = capture;
 }
 
 bool ImGuiLayer::wantsKeyboard() const

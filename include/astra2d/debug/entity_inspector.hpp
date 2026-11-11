@@ -65,8 +65,13 @@ public:
     /// ImGui window. A selected entity that was destroyed is deselected.
     void draw(Scene& scene);
 
-    /// Selects @p entity (the null entity: none).
-    void select(Entity entity) { m_selected = entity; }
+    /// Selects @p entity (the null entity: none). The next draw() shows it in the list: its
+    /// parents are expanded, the filter is cleared and the list scrolls to it.
+    void select(Entity entity)
+    {
+        m_selected = entity;
+        m_reveal = !entity.isNull();
+    }
     /// The selected entity, or the null entity. It may have been destroyed since; draw() checks.
     [[nodiscard]] Entity selected() const { return m_selected; }
 
@@ -84,6 +89,7 @@ private:
     Entity m_selected;
     std::unordered_set<Entity> m_expanded; // entities whose children are listed
     std::string m_filter;
+    bool m_reveal = false; // select() asked to show the selection in the list
 };
 
 } // namespace astra2d

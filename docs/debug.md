@@ -87,7 +87,7 @@ of the game:
 | | Profiler | The call tree of the CPU profiler (below): per scope the average time, the self time, the recent peak, the share of the frame and the calls per frame |
 | | Toggles | The game's switches (`addToggle()`), e.g. the physics debug view and its parts |
 | | the game's own | Anything the game draws with ImGui (`addPanel()`): tuning values, buttons, statistics |
-| Entities | | The scene's entities as the parent/child tree, a name filter, and an inspector for the selected entity, which is also outlined in the game |
+| Entities | | The scene's entities as the parent/child tree, a name filter, *Pick* (select an entity by clicking it in the game), and an inspector for the selected entity, which is also outlined in the game |
 
 A game creates it with its Application, feeds it each frame and draws it last:
 
@@ -96,6 +96,7 @@ astra2d::DebugOverlay m_overlay{*this}; // a member of the Application
 
 // once:
 m_overlay.setScene(&m_scene);
+m_overlay.setCamera(&m_camera); // for picking entities with the mouse
 m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
 m_overlay.addPanel("Game", [this] { ImGui::SliderInt("Hearts", &m_hearts, 1, 3); });
 m_overlay.inspector().addInspector<Walker>("Walker", [](Walker& walker) {
@@ -121,10 +122,20 @@ forward cannot cause the "spiral of death" either. All of it lives in
 frame statistics use @ref astra2d::Application::frameTime, the real time, so they stay correct in
 slow motion.
 
-**Selection.** The entity selected in the list is outlined in the game with a pulsing box around its
-sprite (its size times the scale, rotated), or its collider if it has no sprite, so it is easy to
-see which entity is which. The game calls `drawSelection()` in its world pass, with a line width in
-its own world units.
+**Selection and picking.** The entity selected in the list is outlined in the game with a pulsing
+box around its sprite (its size times the scale, rotated), or its collider if it has no sprite, so
+it is easy to see which entity is which. The game calls `drawSelection()` in its world pass, with a
+line width in its own world units.
+
+It works the other way round too: after *Pick* in the Entities window, the entity under the cursor
+is outlined faintly, and a click selects it. The list then expands its parents and scrolls to it,
+and the inspector shows its components. As with a browser's element picker, one click picks and
+ends the mode; a right click cancels. While picking, the overlay takes the mouse
+(@ref astra2d::ImGuiLayer::setCaptureMouse), so the click does not also act in the game (no box
+spawns in `physics_playground`). The entity under the cursor is the one whose box contains it and
+that is drawn on top: the higher sprite layer, then the smaller box, so a coin in front of the
+ground is found rather than the ground. That test is a function without OpenGL
+(`tests/debug/test_entity_picking.cpp`).
 
 The **inspector** has widgets for every engine component (Name, Transform, SpriteRenderer with a
 preview of its sprite, Animator, Lifetime, RigidBody, Collider, TilemapCollider, Relationship,

@@ -490,6 +490,7 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
         m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
         m_overlay.addToggle("  bounding boxes", &m_physicsDebug.boundingBoxes);
         m_overlay.addToggle("  contacts", &m_physicsDebug.contacts);

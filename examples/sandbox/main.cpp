@@ -121,6 +121,7 @@ protected:
         (void)m_assets.effect("shaders/crt.frag");
 
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
         m_overlay.addToggle("CRT effect (P)", &m_postProcessing);
         m_overlay.addPanel("Renderer", [this] {
             bool batching = m_renderer.batching();

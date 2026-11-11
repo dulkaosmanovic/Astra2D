@@ -546,6 +546,7 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
         m_overlay.addToggle("Debug view (D)", &m_debug);
         m_overlay.addToggle("  shapes", &m_debugSettings.shapes);
         m_overlay.addToggle("  bounding boxes", &m_debugSettings.boundingBoxes);
