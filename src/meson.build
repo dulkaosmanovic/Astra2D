@@ -44,6 +44,7 @@ engine_sources = files(
   'debug/debug_overlay.cpp',
   'debug/entity_picking.cpp',
   'debug/entity_inspector.cpp',
+  'debug/entity_moving.cpp',
   'debug/entity_rows.cpp',
   'debug/frame_history.cpp',
   'debug/frame_stats.cpp',

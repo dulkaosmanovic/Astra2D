@@ -185,7 +185,7 @@ public:
 
         // F1: the engine's overlay, with this game's switches and components.
         m_overlay.setScene(&m_scene);
-        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
         m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
         m_overlay.addToggle("Frame statistics in the log (F2)", &m_logStats);
         m_overlay.addPanel("Round", [this] {

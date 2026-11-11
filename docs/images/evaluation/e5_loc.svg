@@ -19,28 +19,28 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <text class="ink2" x="20" y="47" font-size="12">Code lines without blank and comment-only lines; the platformer is the game</text>
 <text class="ink2" x="182" y="82" font-size="12" text-anchor="end">engine</text>
 <path class="f1" d="M190 71 h406.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-406.0 Z"/>
-<text class="ink" x="606.0" y="82" font-size="12">12,266</text>
+<text class="ink" x="606.0" y="82" font-size="12">12,389</text>
 <text class="ink2" x="182" y="104" font-size="12" text-anchor="end">tests</text>
 <path class="f1" d="M190 93 h202.8 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-202.8 Z"/>
-<text class="ink" x="402.8" y="104" font-size="12">6,188</text>
+<text class="ink" x="402.8" y="104" font-size="12">6,248</text>
 <text class="ink2" x="182" y="126" font-size="12" text-anchor="end">platformer</text>
-<path class="f1" d="M190 115 h68.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-68.6 Z"/>
-<text class="ink" x="268.6" y="126" font-size="12">2,173</text>
+<path class="f1" d="M190 115 h67.9 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-67.9 Z"/>
+<text class="ink" x="267.9" y="126" font-size="12">2,173</text>
 <text class="ink2" x="182" y="148" font-size="12" text-anchor="end">physics_playground</text>
-<path class="f1" d="M190 137 h15.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-15.0 Z"/>
-<text class="ink" x="215.0" y="148" font-size="12">568</text>
+<path class="f1" d="M190 137 h14.9 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-14.9 Z"/>
+<text class="ink" x="214.9" y="148" font-size="12">572</text>
 <text class="ink2" x="182" y="170" font-size="12" text-anchor="end">coin_collector</text>
-<path class="f1" d="M190 159 h13.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-13.2 Z"/>
-<text class="ink" x="213.2" y="170" font-size="12">514</text>
+<path class="f1" d="M190 159 h13.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-13.0 Z"/>
+<text class="ink" x="213.0" y="170" font-size="12">514</text>
 <text class="ink2" x="182" y="192" font-size="12" text-anchor="end">sandbox</text>
-<path class="f1" d="M190 181 h8.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-8.4 Z"/>
-<text class="ink" x="208.4" y="192" font-size="12">372</text>
+<path class="f1" d="M190 181 h8.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-8.3 Z"/>
+<text class="ink" x="208.3" y="192" font-size="12">372</text>
 <text class="ink2" x="182" y="214" font-size="12" text-anchor="end">renderer_stress</text>
-<path class="f1" d="M190 203 h7.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-7.3 Z"/>
-<text class="ink" x="207.3" y="214" font-size="12">337</text>
+<path class="f1" d="M190 203 h7.2 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-7.2 Z"/>
+<text class="ink" x="207.2" y="214" font-size="12">337</text>
 <text class="ink2" x="182" y="236" font-size="12" text-anchor="end">scene</text>
-<path class="f1" d="M190 225 h6.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-6.5 Z"/>
-<text class="ink" x="206.5" y="236" font-size="12">314</text>
+<path class="f1" d="M190 225 h6.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-6.3 Z"/>
+<text class="ink" x="206.3" y="236" font-size="12">311</text>
 <text class="ink2" x="182" y="258" font-size="12" text-anchor="end">post_processing</text>
 <path class="f1" d="M190 247 h2.1 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-2.1 Z"/>
 <text class="ink" x="202.1" y="258" font-size="12">183</text>

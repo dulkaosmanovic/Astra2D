@@ -24,6 +24,7 @@
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/core/paths.hpp>
 #include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
@@ -33,6 +34,7 @@
 #include <astra2d/scene/components.hpp>
 #include <astra2d/scene/physics_system.hpp>
 #include <astra2d/scene/scene.hpp>
+#include <astra2d/scene/serializer.hpp>
 
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
@@ -546,7 +548,8 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
-        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
+        m_overlay.setSceneFile(&m_serializer, astra2d::executableDirectory() / "playground.json");
         m_overlay.addToggle("Debug view (D)", &m_debug);
         m_overlay.addToggle("  shapes", &m_debugSettings.shapes);
         m_overlay.addToggle("  bounding boxes", &m_debugSettings.boundingBoxes);
@@ -626,6 +629,9 @@ private:
     astra2d::Renderer2D m_renderer;
     astra2d::Scene m_scene;
     astra2d::PhysicsSystem m_physics{m_scene}; // after the scene: destroyed before it
+    // For the overlay's "Save scene": bodies, colliders and transforms (Tint and Patrol are the
+    // example's own and are not saved).
+    astra2d::SceneSerializer m_serializer{&m_assets};
     astra2d::Connection m_enter;
     astra2d::Connection m_exit;
     astra2d::Connection m_hits;

@@ -166,18 +166,17 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
-        m_overlay.setCamera(&m_camera); // "Pick": click an entity to inspect it
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
         m_overlay.inspector().addInspector<Spin>(
             "Spin", [](Spin& spin) { ImGui::DragFloat("Speed (rad/s)", &spin.speed, 0.01F); });
         m_overlay.inspector().addInspector<Pickup>(
             "Pickup", [](Pickup& pickup) { ImGui::InputInt("Value", &pickup.value); });
         m_overlay.inspector().addInspector<Burst>(
             "Burst", [](Burst&) { ImGui::TextUnformatted("(a tag without data)"); });
+        // The overlay's "Save scene" uses this example's serializer, with Spin, Pickup, Burst and
+        // Animator registered; loading needs the example's own care (see load()).
+        m_overlay.setSceneFile(&m_serializer, m_saveFile);
         m_overlay.addPanel("Scene file", [this] {
-            if (ImGui::Button("Save (F5)")) {
-                save();
-            }
-            ImGui::SameLine();
             if (ImGui::Button("Load (F9)")) {
                 load();
             }

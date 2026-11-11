@@ -122,7 +122,9 @@ physics and the drawing.
   follow the same rules; the platformer adds coyote time and jump buffering on top
   (@ref platformer_guide).
 - **No editor.** The largest gap to Godot. Levels come from text maps or the Tiled editor and
-  scenes from JSON files; the in-game debug view replaces part of what an editor shows.
+  scenes from JSON files. The in-game overlay covers the basic editing a running game needs
+  (select an entity by clicking it, move it, change its components, save the scene), but there is
+  no asset browser, undo or separate edit mode.
 - **Debug tools in the game, not beside it.** Godot shows its profiler, monitors and the running
   game's scene tree in the editor, connected to the game over the debugger; Unity does the same with
   its Profiler, Stats window and Inspector. Astra2D has no editor, so these tools are drawn in the
