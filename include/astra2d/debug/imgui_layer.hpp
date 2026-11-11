@@ -34,6 +34,9 @@ struct ImGuiForwarding;
 /// a text field do not reach the game (a release does if its press did). wantsMouse() and
 /// wantsKeyboard() tell when that is the case. No `imgui.ini` file is written. Create it after
 /// the Window and destroy it before.
+///
+/// The windows use the engine's theme (dark, with the Astra2D blue as accent) and a scalable font,
+/// both scaled by the window's content scale, so they keep their size on HiDPI displays.
 class ImGuiLayer {
 public:
     /// Creates the ImGui context and starts its backends on @p window (making its OpenGL context

@@ -141,9 +141,13 @@ private:
     };
 
     void drawDebugWindow();
+    void drawHeader();
     void drawFrameSection();
     void drawTimeSection();
     void drawProfilerSection();
+    void drawGameSection();
+    void drawBadges();
+    void drawSelectionLabel();
     void drawEntitiesWindow();
     // What a click in the game does while the overlay is shown.
     enum class MouseTool {

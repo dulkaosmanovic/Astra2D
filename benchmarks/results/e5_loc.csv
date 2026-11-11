@@ -1,6 +1,6 @@
 part,kind,files,code_lines,comment_lines
-engine,engine library (include/ + src/),115,12389,2686
-tests,unit tests,39,6248,304
+engine,engine library (include/ + src/),119,12653,2708
+tests,unit tests,41,6296,308
 examples/coin_collector,example,1,514,66
 examples/hello_window,example,1,42,11
 examples/input,example,1,177,21
