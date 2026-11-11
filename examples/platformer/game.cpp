@@ -283,7 +283,6 @@ protected:
             m_frameStats.restart();
             ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
         }
-        m_frameTime = dt;
         if (m_actions.isPressed("mute", in)) {
             m_audio.setMuted(!m_audio.muted());
         }
@@ -348,8 +347,8 @@ protected:
             drawWorld(look);
         }
         drawHud();
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
-        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+        m_overlay.addFrame(m_renderer.stats());
+        if (m_logStats && m_frameStats.addFrame(frameTime(), m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
@@ -379,6 +378,7 @@ private:
         if (m_showPhysics) {
             astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), m_physicsDebug);
         }
+        m_overlay.drawSelection(m_renderer, 1.0F); // the entity picked in the F1 overlay
         m_renderer.end();
     }
 
@@ -1628,10 +1628,9 @@ private:
     // triggers, contacts and velocities.
     astra2d::PhysicsDebugSettings m_physicsDebug{
         .lineWidth = 0.75F, .contactSize = 4.0F, .normalLength = 8.0F, .velocityScale = 0.1F};
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
     bool m_logStats = false;
     astra2d::FrameStats m_frameStats;
-    float m_frameTime = 0.0F;
 
     State m_state = State::Title;
     float m_stateTime = 0.0F;

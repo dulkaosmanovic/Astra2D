@@ -35,6 +35,7 @@ test_sources = files(
   'debug/test_frame_history.cpp',
   'debug/test_input_gate.cpp',
   'debug/test_profiler_panel.cpp',
+  'debug/test_selection_outline.cpp',
   'examples/test_platformer.cpp',
   # The platformer example's game logic (no OpenGL), tested in examples/test_platformer.cpp.
   '../examples/platformer/level.cpp',

@@ -113,3 +113,60 @@ TEST(TimestepTests, MaxFrameTimeShorterThanStepThrows)
     EXPECT_THROW((FixedTimestep{0.5, 0.25}), std::invalid_argument);
     EXPECT_NO_THROW((FixedTimestep{0.5, 0.5}));
 }
+
+// ---------------------------------------------------------------------------------------------
+// Time scale, pause and single steps (the debug overlay's time controls)
+
+TEST(TimestepTests, TimeScaleSlowsTheSimulation)
+{
+    FixedTimestep ts(0.5, 1.0);
+    ts.setTimeScale(0.5);
+    EXPECT_EQ(ts.advance(0.5), 0); // 0.25 s of game time
+    EXPECT_DOUBLE_EQ(ts.gameTime(), 0.25);
+    EXPECT_EQ(ts.advance(0.5), 1);
+}
+
+TEST(TimestepTests, FastForwardIsClampedToTheMaximumFrameTime)
+{
+    FixedTimestep ts(0.25, 1.0);
+    ts.setTimeScale(4.0);
+    EXPECT_EQ(ts.advance(1.0), 4); // 4 s of game time, clamped to 1 s
+    EXPECT_DOUBLE_EQ(ts.gameTime(), 1.0);
+}
+
+TEST(TimestepTests, PausedRunsNoStepsAndKeepsTheAccumulator)
+{
+    FixedTimestep ts(0.5, 1.0);
+    EXPECT_EQ(ts.advance(0.25), 0);
+    ts.setTimeScale(0.0);
+    EXPECT_TRUE(ts.paused());
+    EXPECT_EQ(ts.advance(1.0), 0);
+    EXPECT_DOUBLE_EQ(ts.gameTime(), 0.0);
+    EXPECT_DOUBLE_EQ(ts.alpha(), 0.5); // drawn at the same moment
+}
+
+TEST(TimestepTests, RequestedStepRunsOnceWhilePaused)
+{
+    FixedTimestep ts(0.5, 1.0);
+    ts.setTimeScale(0.0);
+    ts.requestStep();
+    EXPECT_EQ(ts.advance(0.016), 1);
+    EXPECT_DOUBLE_EQ(ts.gameTime(), 0.5);
+    EXPECT_EQ(ts.advance(0.016), 0); // only once
+}
+
+TEST(TimestepTests, StepRequestIsIgnoredWhileRunning)
+{
+    FixedTimestep ts(0.5, 1.0);
+    ts.requestStep();
+    ts.setTimeScale(0.0);
+    EXPECT_EQ(ts.advance(0.016), 0);
+}
+
+TEST(TimestepTests, RejectsNegativeOrNonFiniteTimeScale)
+{
+    FixedTimestep ts;
+    EXPECT_THROW(ts.setTimeScale(-1.0), std::invalid_argument);
+    EXPECT_THROW(ts.setTimeScale(std::numeric_limits<double>::quiet_NaN()), std::invalid_argument);
+    EXPECT_DOUBLE_EQ(ts.timeScale(), 1.0);
+}

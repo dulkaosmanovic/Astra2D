@@ -129,7 +129,6 @@ protected:
         if (in.isPressed(astra2d::Key::F1)) {
             m_overlay.toggle();
         }
-        m_frameTime = dt;
         m_scene.update(dt);
     }
 
@@ -141,7 +140,8 @@ protected:
         glClear(GL_COLOR_BUFFER_BIT);
 
         m_renderer.begin(m_camera);
-        m_scene.render(m_renderer); // every SpriteRenderer, sorted by layer
+        m_scene.render(m_renderer);                // every SpriteRenderer, sorted by layer
+        m_overlay.drawSelection(m_renderer, 2.0F); // the entity picked in the F1 overlay
         m_renderer.end();
 
         const int width = std::max(window().framebufferWidth(), 1);
@@ -155,7 +155,7 @@ protected:
         examples::drawTextPanel(m_renderer, m_font, hud,
                                 {24.0F, static_cast<float>(height) - 24.0F}, 16.0F, kText, 1.5F);
         m_renderer.end();
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
+        m_overlay.addFrame(m_renderer.stats());
         m_renderer.resetStats();
         m_overlay.draw();
     }
@@ -377,8 +377,7 @@ private:
     bool m_rebuilding = false;
     int m_collected = 0;
     std::string m_status;
-    float m_frameTime = 0.0F;
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
 };
 
 } // namespace

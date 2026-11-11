@@ -164,6 +164,25 @@ TEST_F(ProfilerTests, AverageStartsAtTheFirstFrameThenMovesBySmoothing)
     EXPECT_NEAR(profiler().nodes()[0].averageMs, 17.5, 1e-9);
 }
 
+TEST_F(ProfilerTests, PeakKeepsASpikeForAtLeastOneBlock)
+{
+    const auto frame = [&](double ms) {
+        profiler().beginFrame();
+        advanceMs(ms);
+        profiler().endFrame();
+    };
+    constexpr int kBlock = ProfileNode::kPeakFrames;
+    frame(40.0); // the spike, first frame of the first block
+    for (int i = 1; i < (2 * kBlock) - 1; ++i) {
+        frame(1.0);
+    }
+    EXPECT_NEAR(profiler().nodes()[0].peakMs, 40.0, 1e-9); // still in the previous block
+    EXPECT_LT(profiler().nodes()[0].averageMs, 2.0);       // the average forgot it long ago
+    frame(1.0); // the second block ends: the spike's block drops out
+    frame(1.0);
+    EXPECT_NEAR(profiler().nodes()[0].peakMs, 1.0, 1e-9);
+}
+
 TEST_F(ProfilerTests, ReenablingRestartsTheAverages)
 {
     profiler().beginFrame();

@@ -42,7 +42,8 @@ struct ApplicationSettings {
 /// 3. onFixedUpdate() runs zero or more times with a constant step (see FixedTimestep); in it,
 ///    Input's pressed/released report what happened since the previous step, so a press is seen
 ///    by exactly one step;
-/// 4. onUpdate() runs once with the real frame time, clamped to ApplicationSettings::maxFrameTime;
+/// 4. onUpdate() runs once with the frame's game time: the real frame time times timeScale(),
+///    clamped to ApplicationSettings::maxFrameTime (0 while paused);
 /// 5. onRender() runs once, then buffers are swapped.
 ///
 /// Each iteration is one frame of Profiler::global(), with the scopes "poll events",
@@ -87,6 +88,21 @@ public:
     /// Length of one fixed update step in seconds.
     [[nodiscard]] double fixedTimestep() const { return m_timestep.step(); }
 
+    /// Game seconds per real second, for debugging: 1 is normal, 0.25 slow motion, 0 pauses the
+    /// game (no fixed steps; onUpdate() gets 0, so animations stop) while it is still drawn and
+    /// gets input. Presses made while paused are not seen by the first step after it.
+    /// @throws std::invalid_argument if @p scale is negative or not finite.
+    void setTimeScale(double scale);
+    /// Real seconds of the current frame (clamped to the maximum frame time), whatever the time
+    /// scale: for frame statistics, not for gameplay (which uses onUpdate()'s game time).
+    [[nodiscard]] float frameTime() const { return static_cast<float>(m_frameTime); }
+
+    /// Game seconds per real second (0: paused).
+    [[nodiscard]] double timeScale() const { return m_timestep.timeScale(); }
+    /// While paused, runs exactly one fixed step in the next frame (onUpdate() then gets one
+    /// step's time). Ignored while the game runs.
+    void stepOnce() { m_timestep.requestStep(); }
+
     /// How far the current frame is between the last two fixed updates, in [0, 1).
     /// Can be used in onRender() to interpolate positions for smooth movement.
     [[nodiscard]] float interpolationAlpha() const
@@ -101,7 +117,8 @@ protected:
     /// Called at a fixed rate with fixedTimestep() seconds; use for physics and simulation.
     virtual void onFixedUpdate(float /*fixedDeltaTime*/) {}
 
-    /// Called once per frame with the elapsed time in seconds (clamped to the maximum frame time);
+    /// Called once per frame with the elapsed game time in seconds (scaled by timeScale(), clamped
+    /// to the maximum frame time);
     /// use for input and animation.
     virtual void onUpdate(float /*deltaTime*/) {}
 
@@ -119,6 +136,7 @@ private:
     EventDispatcher m_events;
     std::unique_ptr<Window> m_window;
     FixedTimestep m_timestep;
+    double m_frameTime = 0.0;
 };
 
 } // namespace astra2d

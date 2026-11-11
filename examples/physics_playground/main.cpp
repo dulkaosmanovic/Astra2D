@@ -211,7 +211,6 @@ protected:
             m_frameStats.restart();
             ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
         }
-        m_frameTime = dt;
         if (in.isPressed(astra2d::Key::Z)) {
             auto& settings = m_physics.world().settings();
             settings.enableSleep = !settings.enableSleep;
@@ -249,11 +248,12 @@ protected:
                 world.position + astra2d::Rotation::fromAngle(world.rotation).apply(m_grabLocal);
             m_renderer.drawLine(anchor, m_mouse, {1.0F, 1.0F, 1.0F, 0.6F}, 0.05F);
         }
+        m_overlay.drawSelection(m_renderer, 0.06F); // the entity picked in the F1 overlay
         m_renderer.end();
 
         drawHud();
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
-        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+        m_overlay.addFrame(m_renderer.stats());
+        if (m_logStats && m_frameStats.addFrame(frameTime(), m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
@@ -634,10 +634,9 @@ private:
     std::size_t m_broadPhase = 0;
     bool m_debug = false;
     astra2d::PhysicsDebugSettings m_debugSettings{.boundingBoxes = true};
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
     astra2d::FrameStats m_frameStats;
     bool m_logStats = false;
-    float m_frameTime = 0.0F;
     bool m_paused = false;
     bool m_stepOnce = false;
     glm::vec2 m_mouse{0.0F};

@@ -6,6 +6,8 @@
 #include "astra2d/debug/imgui_layer.hpp"
 #include "astra2d/renderer/renderer2d.hpp"
 
+#include <glm/vec2.hpp>
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -15,25 +17,26 @@
 
 namespace astra2d {
 
+class Application;
 class Scene;
-class Window;
 
 /// An in-game debug window drawn with Dear ImGui, hidden until shown (the examples use F1).
 ///
 /// Its "Debug" window has:
-/// - **Frame**: a graph of the last frame times, FPS, mean / min / max frame time, draw calls and
-///   quads (from addFrame());
-/// - **Profiler**: the call tree of Profiler::global(), averaged over recent frames. The profiler
-///   records only while the overlay is visible;
+/// - **Frame**: a graph of the last frame times with the 60 and 30 FPS budgets, FPS, mean / min /
+///   max frame time, a bar of where the frame's time goes (update, render, ...), draw calls and
+///   quads;
+/// - **Time**: pause, single steps and slow motion for the game (Application::setTimeScale());
+/// - **Profiler**: the call tree of Profiler::global() with average, self and peak times. The
+///   profiler records only while the overlay is visible;
 /// - **Toggles**: the game's debug switches (addToggle()), e.g. the physics debug view;
 /// - the game's own sections (addPanel()).
 ///
 /// With a scene (setScene()), an "Entities" window lists its entities and inspects the selected
-/// one (see EntityInspector).
+/// one (see EntityInspector); drawSelection() outlines that entity in the game.
 ///
 /// @code
-/// // members, after the Application's window exists:
-/// astra2d::DebugOverlay m_overlay{window()};
+/// astra2d::DebugOverlay m_overlay{*this}; // a member of the Application
 ///
 /// void onStart() override
 /// {
@@ -42,24 +45,26 @@ class Window;
 /// }
 /// void onUpdate(float dt) override
 /// {
-///     m_frameTime = dt;
 ///     if (input().isPressed(astra2d::Key::F1)) { m_overlay.toggle(); }
-///     if (!m_overlay.wantsMouse() && input().isPressed(astra2d::MouseButton::Left)) { ... }
 /// }
 /// void onRender() override
 /// {
-///     ... // draw the game
-///     m_overlay.addFrame(m_frameTime, m_renderer.stats());
+///     m_renderer.begin(m_camera);
+///     ... // draw the world
+///     m_overlay.drawSelection(m_renderer, 1.0F);
+///     m_renderer.end();
+///     m_overlay.addFrame(m_renderer.stats());
 ///     m_renderer.resetStats();
 ///     m_overlay.draw(); // last: on top of everything
 /// }
 /// @endcode
 class DebugOverlay {
 public:
-    /// Starts ImGui on @p window (see ImGuiLayer). The overlay starts hidden, or shown if the
-    /// environment variable `ASTRA2D_DEBUG_OVERLAY` is `1` (e.g. for screenshots and smoke tests).
+    /// Starts ImGui on @p app's window (see ImGuiLayer); the time controls act on @p app, which
+    /// must outlive the overlay. The overlay starts hidden, or shown if the environment variable
+    /// `ASTRA2D_DEBUG_OVERLAY` is `1` (e.g. for screenshots and smoke tests).
     /// @throws std::runtime_error if ImGui cannot be started.
-    explicit DebugOverlay(Window& window);
+    explicit DebugOverlay(Application& app);
     /// Stops ImGui and turns Profiler::global() off.
     ~DebugOverlay();
 
@@ -87,9 +92,16 @@ public:
     /// (`#include <imgui.h>`) each frame while the section is open.
     void addPanel(std::string title, std::function<void()> draw);
 
-    /// Records a frame that took @p seconds and drew @p render, for the frame section. Call once
-    /// per frame, also while hidden, so the numbers are current when it is shown.
-    void addFrame(float seconds, const RenderStats& render = {});
+    /// Records the current frame, which drew @p render, for the frame section; its time is the
+    /// real Application::frameTime(). Call once per frame, also while hidden, so the numbers are
+    /// current when it is shown.
+    void addFrame(const RenderStats& render = {});
+
+    /// Outlines the entity selected in the "Entities" window (its sprite, else its collider) with
+    /// lines @p lineWidth world units thick. Call between Renderer2D::begin() and end() with the
+    /// camera the scene is seen through. Draws nothing while the overlay is hidden or nothing is
+    /// selected.
+    void drawSelection(Renderer2D& renderer, float lineWidth = 1.0F) const;
 
     /// Draws the overlay into the current framebuffer, on top of what is there. Call once per
     /// frame at the end of Application::onRender(), also while hidden (ImGui then only takes the
@@ -115,9 +127,11 @@ private:
 
     void drawDebugWindow();
     void drawFrameSection();
+    void drawTimeSection();
     void drawProfilerSection();
     void drawEntitiesWindow();
 
+    Application* m_app;
     ImGuiLayer m_imgui;
     EntityInspector m_inspector;
     FrameHistory m_frameTimes;     // milliseconds, for the graph
@@ -128,6 +142,8 @@ private:
     std::vector<Panel> m_panels;
     bool m_visible = false;
     bool m_profilerPaused = false;
+    float m_runningScale = 1.0F;   // the time scale "Pause" returns to
+    glm::vec2 m_displaySize{0.0F}; // as of the last frame, to notice resizes
 };
 
 } // namespace astra2d

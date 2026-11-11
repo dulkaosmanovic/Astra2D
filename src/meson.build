@@ -49,6 +49,7 @@ engine_sources = files(
   'debug/imgui_layer.cpp',
   'debug/physics_debug_draw.cpp',
   'debug/profiler_panel.cpp',
+  'debug/selection_outline.cpp',
   'assets/file_watcher.cpp'
 )
 

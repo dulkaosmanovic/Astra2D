@@ -27,7 +27,7 @@ the game makes. The game's own rules (movement tuning, enemies, levels) are in t
 
 <div class="astra-summary"><b>In short</b>
 <ul>
-<li>2,173 lines of game code on top of the engine, 18 % of the engine's size (@ref evaluation "E5"); it uses 54 engine names from all eight modules.</li>
+<li>2,172 lines of game code on top of the engine, 18 % of the engine's size (@ref evaluation "E5"); it uses 54 engine names from all eight modules.</li>
 <li>The game is an <code>Application</code>, its objects are entities in a <code>Scene</code>, its logic is Scene systems, and it reacts to physics through signals.</li>
 <li>The parts without OpenGL (level loading, movement rules) are unit-tested.</li>
 </ul></div>

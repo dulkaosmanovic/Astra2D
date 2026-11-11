@@ -59,6 +59,7 @@ void Application::run()
 
         const double now = glfwGetTime();
         const double frameTime = std::clamp(now - lastTime, 0.0, m_timestep.maxFrameTime());
+        m_frameTime = frameTime;
         lastTime = now;
 
         if (m_window->consumeResize()) {
@@ -82,7 +83,7 @@ void Application::run()
 
         {
             ASTRA_PROFILE_SCOPE("update");
-            onUpdate(static_cast<float>(frameTime));
+            onUpdate(static_cast<float>(m_timestep.gameTime()));
         }
         {
             ASTRA_PROFILE_SCOPE("render");
@@ -96,6 +97,15 @@ void Application::run()
     }
 
     onShutdown();
+}
+
+void Application::setTimeScale(double scale)
+{
+    const bool wasPaused = m_timestep.paused();
+    m_timestep.setTimeScale(scale);
+    if (wasPaused && !m_timestep.paused()) {
+        m_window->input().clearFixedStepPresses(); // e.g. the click on "resume" is no jump
+    }
 }
 
 void Application::quit()

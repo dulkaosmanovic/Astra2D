@@ -27,6 +27,12 @@ struct ProfileNode {
     /// ms smoothed over recent frames (an exponential moving average), so the numbers can be read
     /// while they change every frame.
     double averageMs = 0.0;
+    /// The largest ms within the last kPeakFrames to 2 * kPeakFrames frames, so a rare spike that
+    /// hardly moves the average stays visible for a second or two.
+    double peakMs = 0.0;
+    /// Frames per block of the peak: peakMs is the larger of this block's and the last block's
+    /// maximum.
+    static constexpr int kPeakFrames = 60;
 };
 
 /// Measures how long named scopes of code take per frame, as a call tree: a scoped CPU profiler.
@@ -113,8 +119,13 @@ private:
     std::size_t m_frames = 0;
     std::vector<ProfileNode> m_nodes;
     std::vector<Accumulator> m_current; // per node: the frame in progress
-    std::vector<bool> m_measured;       // per node: has an average yet
-    std::vector<OpenScope> m_open;      // the root while a frame runs, then the open scopes
+    struct History {
+        bool measured = false;     // has an average yet
+        double blockPeak = 0.0;    // largest ms in the current block of kPeakFrames frames
+        double previousPeak = 0.0; // largest ms in the block before
+    };
+    std::vector<History> m_history; // per node
+    std::vector<OpenScope> m_open;  // the root while a frame runs, then the open scopes
 };
 
 /// Records the time from its construction to its destruction as a scope of a Profiler.

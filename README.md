@@ -84,7 +84,7 @@ engine is used, in one commented `main.cpp` in `examples/`:
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **2.6× faster** than objects with a virtual `update()`, **5× faster** when the objects are scattered in memory; at 10k objects there is no real difference |
 | **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (0.92 vs. 62.4 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Towers of 5–20 boxes stand for 10 s with no sideways drift or rotation; a ball with restitution 1 keeps its energy within 2 % |
-| **E5** | Is the API usable? | The whole platformer is 2,173 lines, 18 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 2,172 lines, 18 % of the engine's size; compared with raylib and Godot in the docs |
 
 
 Tests cover 78 % of the engine's lines. Method and full tables: [Evaluation](https://dulkaosmanovic.github.io/Astra2D/evaluation.html).
