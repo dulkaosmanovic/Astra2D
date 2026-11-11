@@ -1,11 +1,8 @@
 #include "astra2d/scene/scene.hpp"
 
 #include "astra2d/core/assert.hpp"
-<<<<<<< Updated upstream
-#include "astra2d/physics/geometry.hpp"
-=======
 #include "astra2d/core/profiler.hpp"
->>>>>>> Stashed changes
+#include "astra2d/physics/geometry.hpp"
 #include "astra2d/renderer/renderer2d.hpp"
 
 #include <glm/common.hpp>

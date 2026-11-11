@@ -150,9 +150,9 @@ Required
 - [x] FPS / frame time and render stats (in the window title or log is enough): `FrameStats`, F2 logs them
 
 Stretch (in priority order)
-- [x] ImGui overlay: stats graph, entity list, component inspector, debug toggles: `DebugOverlay` (F1 in the examples), Dear ImGui vendored in `external/imgui`; clicks and typing on it do not reach the game
-- [x] Scoped CPU profiler (`ASTRA_PROFILE_SCOPE`) shown in the overlay: `Profiler` in core, main loop, scene systems, physics phases and renderer flush marked; records only while the overlay is shown
-- [ ] Editor features: select/move entities, save scene. **Not needed for the thesis**
+- [x] ImGui overlay: stats graph, entity list, component inspector, debug toggles: `DebugOverlay` (F1 in the examples), Dear ImGui vendored in `external/imgui`; clicks and typing on it do not reach the game; time controls (pause, step, slow motion), frame budget bar, selected entity outlined in the game
+- [x] Scoped CPU profiler (`ASTRA_PROFILE_SCOPE`) shown in the overlay: `Profiler` in core, main loop, scene systems, physics phases and renderer flush marked; records only while the overlay is shown; average, self and peak times
+- [x] Editor features: select/move entities, save scene, in the overlay rather than a separate editor: *Pick* selects an entity by clicking it in the game, *Move* drags entities, *Save scene* writes it with `SceneSerializer`
 
 ## 7. Showcase platformer
 

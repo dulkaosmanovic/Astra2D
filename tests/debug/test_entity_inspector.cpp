@@ -103,3 +103,25 @@ TEST(EntityInspectorTests, DrawsEveryBuiltInComponent)
     }
     EXPECT_EQ(inspector.selected(), entity);
 }
+
+// select() (used by the overlay's pick mode) expands the parents and scrolls the list to the
+// entity, also when it is far outside the visible rows.
+TEST(EntityInspectorTests, SelectRevealsAnEntityDeepInTheList)
+{
+    Scene scene;
+    for (int i = 0; i < 300; ++i) {
+        scene.createEntity("filler");
+    }
+    const Entity parent = scene.createEntity("parent");
+    const Entity child = scene.createEntity("child");
+    scene.setParent(child, parent);
+
+    EntityInspector inspector;
+    HeadlessImGui imgui;
+    imgui.frame([&] { inspector.draw(scene); });
+    inspector.select(child);
+    for (int frame = 0; frame < 2; ++frame) {
+        imgui.frame([&] { inspector.draw(scene); });
+    }
+    EXPECT_EQ(inspector.selected(), child);
+}

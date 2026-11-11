@@ -185,6 +185,7 @@ public:
 
         // F1: the engine's overlay, with this game's switches and components.
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
         m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
         m_overlay.addToggle("Frame statistics in the log (F2)", &m_logStats);
         m_overlay.addPanel("Round", [this] {
@@ -228,7 +229,6 @@ protected:
             m_frameStats.restart();
             ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
         }
-        m_frameTime = dt;
         switch (m_state) {
         case State::Title:
         case State::GameOver:
@@ -284,10 +284,11 @@ protected:
                                        .normalLength = 16.0F,
                                        .velocityScale = 0.15F});
         }
+        m_overlay.drawSelection(m_renderer, 2.0F); // the entity picked in the F1 overlay
         drawHud();
         m_renderer.end();
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
-        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+        m_overlay.addFrame(m_renderer.stats());
+        if (m_logStats && m_frameStats.addFrame(frameTime(), m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
@@ -617,8 +618,7 @@ private:
     bool m_showPhysics = false;
     bool m_logStats = false;
     astra2d::FrameStats m_frameStats;
-    float m_frameTime = 0.0F;
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
 };
 
 } // namespace

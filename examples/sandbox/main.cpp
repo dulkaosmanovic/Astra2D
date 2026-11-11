@@ -121,6 +121,7 @@ protected:
         (void)m_assets.effect("shaders/crt.frag");
 
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
         m_overlay.addToggle("CRT effect (P)", &m_postProcessing);
         m_overlay.addPanel("Renderer", [this] {
             bool batching = m_renderer.batching();
@@ -193,8 +194,7 @@ protected:
             m_reloadTimer = 0.0F;
             m_assets.reloadChanged();
         }
-        updateFps(dt);
-        m_frameTime = dt;
+        updateFps(frameTime()); // real time, also in slow motion
     }
 
     void onResize(int width, int height) override
@@ -232,7 +232,7 @@ protected:
                                 m_time);
         }
         drawHud(size); // after the effect, so the text stays sharp
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
+        m_overlay.addFrame(m_renderer.stats());
         m_overlay.draw();
     }
 
@@ -376,6 +376,7 @@ private:
         m_renderer.drawCircle(player, kTile * 1.5F, kDebugYellow, 1.0F, 40);
         m_renderer.drawLine(player, m_camera.screenToWorld(input().mousePosition()), kDebugYellow,
                             1.0F);
+        m_overlay.drawSelection(m_renderer, 2.0F); // the entity picked in the F1 overlay
         m_renderer.end();
     }
 
@@ -433,8 +434,7 @@ private:
     std::string m_notice;
     float m_noticeTime = 0.0F;
     astra2d::FrameStats m_frameStats{0.5F};
-    float m_frameTime = 0.0F;
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
 };
 
 } // namespace

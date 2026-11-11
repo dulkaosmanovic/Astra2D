@@ -31,10 +31,13 @@ test_sources = files(
   'audio/test_audio.cpp',
   'debug/test_debug.cpp',
   'debug/test_entity_inspector.cpp',
+  'debug/test_entity_moving.cpp',
+  'debug/test_entity_picking.cpp',
   'debug/test_entity_rows.cpp',
   'debug/test_frame_history.cpp',
   'debug/test_input_gate.cpp',
   'debug/test_profiler_panel.cpp',
+  'debug/test_selection_outline.cpp',
   'examples/test_platformer.cpp',
   # The platformer example's game logic (no OpenGL), tested in examples/test_platformer.cpp.
   '../examples/platformer/level.cpp',

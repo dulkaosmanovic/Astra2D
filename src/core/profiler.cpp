@@ -37,7 +37,7 @@ void Profiler::setEnabled(bool enabled)
 {
     if (enabled && !m_enabled) {
         m_frames = 0;
-        m_measured.assign(m_measured.size(), false);
+        m_history.assign(m_history.size(), History{});
     }
     m_enabled = enabled;
 }
@@ -54,7 +54,7 @@ void Profiler::beginFrame()
     if (m_nodes.empty()) {
         m_nodes.push_back({.name = "frame"});
         m_current.emplace_back();
-        m_measured.push_back(false);
+        m_history.emplace_back();
     }
     clearAccumulators();
     m_open.push_back({.node = 0, .start = m_clock()});
@@ -72,14 +72,23 @@ void Profiler::endFrame()
         ProfileNode& node = m_nodes[i];
         node.calls = m_current[i].calls;
         node.ms = m_current[i].ms;
-        if (m_measured[i]) {
+        History& history = m_history[i];
+        if (history.measured) {
             node.averageMs += m_smoothing * (node.ms - node.averageMs);
         } else {
             node.averageMs = node.ms; // first frame of this node: nothing to smooth with
-            m_measured[i] = true;
+            history.measured = true;
         }
+        history.blockPeak = std::max(history.blockPeak, node.ms);
+        node.peakMs = std::max(history.blockPeak, history.previousPeak);
     }
     ++m_frames;
+    if (m_frames % ProfileNode::kPeakFrames == 0) { // next block: the oldest maxima drop out
+        for (History& history : m_history) {
+            history.previousPeak = history.blockPeak;
+            history.blockPeak = 0.0;
+        }
+    }
     m_open.clear();
     m_recording = false;
 }
@@ -111,7 +120,7 @@ void Profiler::reset()
     ASTRA_ASSERT(m_open.size() <= 1, "Profiler::reset() while a scope is open");
     m_nodes.clear();
     m_current.clear();
-    m_measured.clear();
+    m_history.clear();
     m_open.clear();
     m_recording = false;
     m_frames = 0;
@@ -130,7 +139,7 @@ int Profiler::childNamed(int parent, std::string_view name)
     m_nodes.push_back({.name = std::string(name), .parent = parent, .depth = depth});
     m_nodes[static_cast<std::size_t>(parent)].children.push_back(child);
     m_current.emplace_back();
-    m_measured.push_back(false);
+    m_history.emplace_back();
     return child;
 }
 

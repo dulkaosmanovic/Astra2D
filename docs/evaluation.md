@@ -183,10 +183,10 @@ against the engine's and lists the engine names it uses.
 
 | part | code lines | comment lines |
 |---|---:|---:|
-| engine (include/ + src/) | 11,796 | 2,583 |
-| unit tests | 5,949 | 292 |
+| engine (include/ + src/) | 12,389 | 2,686 |
+| unit tests | 6,248 | 304 |
 | platformer (the game) | 2,173 | 226 |
-| other examples | 42 to 568 each | |
+| other examples | 42 to 572 each | |
 
 **The game is 18 % of the engine's size.** It uses 54 engine names from all eight modules: most
 from the scene (21: entities, components, the physics system, Tiled maps) and the renderer (13),

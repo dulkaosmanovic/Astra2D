@@ -82,19 +82,22 @@ of the game:
 
 | Window | Section | Shows |
 |---|---|---|
-| Debug | Frame | A graph of the last 240 frame times, FPS, min / mean / max frame time, draw calls, quads, entities |
-| | Profiler | The call tree of the CPU profiler (below): average ms per scope, its share of the frame, calls per frame |
+| Debug | Frame | A graph of the last 240 frame times with the 60 and 30 FPS budgets marked; FPS, min / mean / max frame time; a bar of the frame split into its phases (update, render, swap buffers, ...) against the 60 FPS budget; draw calls, quads, entities |
+| | Time | Pause, single fixed steps while paused, and slow motion or fast forward (0.05× to 4×) |
+| | Profiler | The call tree of the CPU profiler (below): per scope the average time, the self time, the recent peak, the share of the frame and the calls per frame |
 | | Toggles | The game's switches (`addToggle()`), e.g. the physics debug view and its parts |
 | | the game's own | Anything the game draws with ImGui (`addPanel()`): tuning values, buttons, statistics |
-| Entities | | The scene's entities as the parent/child tree, a name filter, and an inspector for the selected entity |
+| Entities | | The scene's entities as the parent/child tree, a name filter, *Pick* (select an entity by clicking it in the game), *Move* (drag entities with the mouse), *Save scene*, and an inspector for the selected entity, which is also outlined in the game |
 
-A game creates it after its window, feeds it each frame and draws it last:
+A game creates it with its Application, feeds it each frame and draws it last:
 
 ```cpp
-astra2d::DebugOverlay m_overlay{window()}; // a member of the Application
+astra2d::DebugOverlay m_overlay{*this}; // a member of the Application
 
 // once:
 m_overlay.setScene(&m_scene);
+m_overlay.setCamera(&m_camera); // for picking and moving entities with the mouse
+m_overlay.setSceneFile(&m_serializer, "level.json"); // optional: a "Save scene" button
 m_overlay.addToggle("Physics debug view (F3)", &m_showPhysics);
 m_overlay.addPanel("Game", [this] { ImGui::SliderInt("Hearts", &m_hearts, 1, 3); });
 m_overlay.inspector().addInspector<Walker>("Walker", [](Walker& walker) {
@@ -102,11 +105,53 @@ m_overlay.inspector().addInspector<Walker>("Walker", [](Walker& walker) {
 });
 
 // in onUpdate():  if (input().isPressed(astra2d::Key::F1)) { m_overlay.toggle(); }
+// in onRender(), in the world pass:
+m_overlay.drawSelection(m_renderer, 1.0F); // outlines the selected entity
 // at the end of onRender():
-m_overlay.addFrame(m_frameTime, m_renderer.stats());
+m_overlay.addFrame(m_renderer.stats());
 m_renderer.resetStats();
 m_overlay.draw();
 ```
+
+**Time controls.** Pausing sets @ref astra2d::Application::setTimeScale to 0: no fixed steps run
+and `onUpdate()` gets 0 seconds, so the world and its animations stand still while the game is
+still drawn and the overlay stays usable. *Step* then runs exactly one fixed step, which is how a
+collision or a jump can be followed frame by frame with the physics debug view on. The time scale
+slows the game down or speeds it up; the scaled frame time is clamped like a real one, so a fast
+forward cannot cause the "spiral of death" either. All of it lives in
+@ref astra2d::FixedTimestep, which `tests/core/test_timestep.cpp` checks without a window. The
+frame statistics use @ref astra2d::Application::frameTime, the real time, so they stay correct in
+slow motion.
+
+**Selection and picking.** The entity selected in the list is outlined in the game with a pulsing
+box around its sprite (its size times the scale, rotated), or its collider if it has no sprite, so
+it is easy to see which entity is which. The game calls `drawSelection()` in its world pass, with a
+line width in its own world units.
+
+It works the other way round too: after *Pick* in the Entities window, the entity under the cursor
+is outlined faintly, and a click selects it. The list then expands its parents and scrolls to it,
+and the inspector shows its components. As with a browser's element picker, one click picks and
+ends the mode; a right click cancels. While picking, the overlay takes the mouse
+(@ref astra2d::ImGuiLayer::setCaptureMouse), so the click does not also act in the game (no box
+spawns in `physics_playground`). The entity under the cursor is the one whose box contains it and
+that is drawn on top: the higher sprite layer, then the smaller box, so a coin in front of the
+ground is found rather than the ground. That test is a function without OpenGL
+(`tests/debug/test_entity_picking.cpp`).
+
+**Moving.** *Move* keeps the mouse until a right click: pressing on an entity selects it, and
+dragging moves it, held at the point where it was grabbed. The overlay sets the entity's world
+position, converted into its parent's space if it has one, so a child of a rotated or scaled
+parent follows the cursor exactly. A moved entity is drawn at its new place at once, without the
+interpolated slide, and a RigidBody stops (velocity 0), so gravity does not pull a crate away from
+the mouse; the PhysicsSystem takes the new Transform at its next step, as for any move by the game.
+Combined with *Pause* this places bodies precisely before stepping the physics. The move is a
+function without OpenGL (`tests/debug/test_entity_moving.cpp`).
+
+**Saving.** With a @ref astra2d::SceneSerializer (`setSceneFile()`), *Save scene* writes the scene
+to a JSON file with whatever the game has registered, e.g. after arranging entities with *Move*.
+There is no load button: loading replaces the scene, and only the game knows what must happen
+around that (the `scene` example suppresses its "coin collected" handler while it clears the old
+scene, and loads with F9). `scene` and `physics_playground` have the button.
 
 The **inspector** has widgets for every engine component (Name, Transform, SpriteRenderer with a
 preview of its sprite, Animator, Lifetime, RigidBody, Collider, TilemapCollider, Relationship,
@@ -158,16 +203,22 @@ frame
   gives two rows, and a scope entered several times in one frame (a loop, two fixed steps) is one
   row with a call count.
 - The overlay shows the time averaged over recent frames (an exponential moving average), because
-  per-frame numbers change too fast to read; *Pause* freezes them.
+  per-frame numbers change too fast to read; *Freeze* stops them changing.
+- An average hides spikes: one 40 ms hitch every few seconds hardly moves it. So each scope also
+  has a **peak**, the longest time within the last 60 to 120 frames (two blocks of 60 frames: the
+  maximum of the current and the previous block), which keeps a spike visible for one to two
+  seconds.
+- **Self** is a scope's time minus its children's: work done directly in it, or in code that has no
+  scope of its own.
 - Recording is off unless the overlay is visible. A scope then costs one branch, so the markers
   stay in release builds and do not change the benchmarks.
 - Only scopes inside a frame (between `beginFrame()` and `endFrame()`, which `Application::run()`
   calls) are recorded, so headless code such as the physics benchmark is never measured.
 
-Times include the scope's children. A parent's own time is its time minus its children's: in the
-tree above, most of "render" that is not in "scene render" or "renderer flush" is the game's direct
-`Renderer2D` calls. `tests/core/test_profiler.cpp` checks the tree, the call counts and the averages
-with a fake clock.
+Times include the scope's children. In the platformer, most of the self time of "render" is the
+game's direct `Renderer2D` calls (background layers, tiles, the HUD), and "swap buffers" is mostly
+waiting for vsync: a frame that has to wait there is within its budget. `tests/core/test_profiler.cpp`
+checks the tree, the call counts, the averages and the peaks with a fake clock.
 
 ## In the examples
 

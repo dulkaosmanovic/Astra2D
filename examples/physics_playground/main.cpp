@@ -24,6 +24,7 @@
 #include <astra2d/assets/asset_cache.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/core/paths.hpp>
 #include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
@@ -33,6 +34,7 @@
 #include <astra2d/scene/components.hpp>
 #include <astra2d/scene/physics_system.hpp>
 #include <astra2d/scene/scene.hpp>
+#include <astra2d/scene/serializer.hpp>
 
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
@@ -211,7 +213,6 @@ protected:
             m_frameStats.restart();
             ASTRA_INFO("Frame statistics in the log: {}", m_logStats ? "on" : "off");
         }
-        m_frameTime = dt;
         if (in.isPressed(astra2d::Key::Z)) {
             auto& settings = m_physics.world().settings();
             settings.enableSleep = !settings.enableSleep;
@@ -249,11 +250,12 @@ protected:
                 world.position + astra2d::Rotation::fromAngle(world.rotation).apply(m_grabLocal);
             m_renderer.drawLine(anchor, m_mouse, {1.0F, 1.0F, 1.0F, 0.6F}, 0.05F);
         }
+        m_overlay.drawSelection(m_renderer, 0.06F); // the entity picked in the F1 overlay
         m_renderer.end();
 
         drawHud();
-        m_overlay.addFrame(m_frameTime, m_renderer.stats());
-        if (m_logStats && m_frameStats.addFrame(m_frameTime, m_renderer.stats())) {
+        m_overlay.addFrame(m_renderer.stats());
+        if (m_logStats && m_frameStats.addFrame(frameTime(), m_renderer.stats())) {
             ASTRA_INFO("{}", m_frameStats.summary());
         }
         m_renderer.resetStats();
@@ -546,6 +548,8 @@ private:
     void setUpOverlay()
     {
         m_overlay.setScene(&m_scene);
+        m_overlay.setCamera(&m_camera); // "Pick" and "Move" with the mouse
+        m_overlay.setSceneFile(&m_serializer, astra2d::executableDirectory() / "playground.json");
         m_overlay.addToggle("Debug view (D)", &m_debug);
         m_overlay.addToggle("  shapes", &m_debugSettings.shapes);
         m_overlay.addToggle("  bounding boxes", &m_debugSettings.boundingBoxes);
@@ -625,6 +629,9 @@ private:
     astra2d::Renderer2D m_renderer;
     astra2d::Scene m_scene;
     astra2d::PhysicsSystem m_physics{m_scene}; // after the scene: destroyed before it
+    // For the overlay's "Save scene": bodies, colliders and transforms (Tint and Patrol are the
+    // example's own and are not saved).
+    astra2d::SceneSerializer m_serializer{&m_assets};
     astra2d::Connection m_enter;
     astra2d::Connection m_exit;
     astra2d::Connection m_hits;
@@ -634,10 +641,9 @@ private:
     std::size_t m_broadPhase = 0;
     bool m_debug = false;
     astra2d::PhysicsDebugSettings m_debugSettings{.boundingBoxes = true};
-    astra2d::DebugOverlay m_overlay{window()};
+    astra2d::DebugOverlay m_overlay{*this};
     astra2d::FrameStats m_frameStats;
     bool m_logStats = false;
-    float m_frameTime = 0.0F;
     bool m_paused = false;
     bool m_stepOnce = false;
     glm::vec2 m_mouse{0.0F};

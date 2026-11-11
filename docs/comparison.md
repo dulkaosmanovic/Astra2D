@@ -103,7 +103,7 @@ physics and the drawing.
 | Input | keys and buttons | named actions (Input Map) | named actions (`ActionMap`), keyboard and gamepad |
 | Levels | the game's own | editor (TileMap), scenes | text maps, Tiled JSON, JSON scene files |
 | Audio | built in (raudio) | built in | built in (`AudioEngine`, miniaudio) |
-| Tools | none | editor, debugger, profiler | debug draw, frame statistics, an in-game overlay with a CPU profiler and entity inspector, hot reloading of assets |
+| Tools | none | editor, debugger, profiler | debug draw, frame statistics, an in-game ImGui overlay (profiler, entity inspector, time controls), hot reloading of assets |
 | Testing | the game's own | engine and editor | headless modules unit-tested; sanitizers, Valgrind, CI |
 
 ## What the comparison shows
@@ -122,7 +122,18 @@ physics and the drawing.
   follow the same rules; the platformer adds coyote time and jump buffering on top
   (@ref platformer_guide).
 - **No editor.** The largest gap to Godot. Levels come from text maps or the Tiled editor and
-  scenes from JSON files; the in-game debug view replaces part of what an editor shows.
+  scenes from JSON files. The in-game overlay covers the basic editing a running game needs
+  (select an entity by clicking it, move it, change its components, save the scene), but there is
+  no asset browser, undo or separate edit mode.
+- **Debug tools in the game, not beside it.** Godot shows its profiler, monitors and the running
+  game's scene tree in the editor, connected to the game over the debugger; Unity does the same with
+  its Profiler, Stats window and Inspector. Astra2D has no editor, so these tools are drawn in the
+  game itself: the F1 overlay with Dear ImGui, the library that many studio engines use for their
+  internal debug menus. This is closer to Unreal's in-game tools (the `stat` commands, the Gameplay
+  Debugger) than to an editor. Its profiler works like Tracy's `ZoneScoped` or Unreal's
+  `SCOPE_CYCLE_COUNTER`: a named scope measured from its start to its end and gathered into a
+  per-frame call tree. raylib has none of this built in (`DrawFPS()` only) and leaves it to add-ons
+  such as rlImGui.
 - **Measured and tested.** Astra2D's own systems are compared against naive baselines (batching,
   ECS layout, broad phase) and unit-tested headless, which is possible because the ECS, the physics
   and the audio do not depend on OpenGL.

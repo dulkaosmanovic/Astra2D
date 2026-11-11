@@ -53,8 +53,12 @@ public:
     void endFrame();
 
     /// True when ImGui uses the mouse (the cursor is over one of its windows, or a drag that
-    /// started there goes on), as of the last frame.
+    /// started there goes on), as of the last frame, or while setCaptureMouse() is on.
     [[nodiscard]] bool wantsMouse() const;
+    /// While @p capture is true, mouse presses and the scroll wheel reach only ImGui, wherever the
+    /// cursor is; e.g. so a click in the game picks an entity instead of acting in the game.
+    /// Cursor movement still reaches the game.
+    void setCaptureMouse(bool capture);
     /// True when ImGui uses the keyboard (a text field is active), as of the last frame.
     [[nodiscard]] bool wantsKeyboard() const;
 

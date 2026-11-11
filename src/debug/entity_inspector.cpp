@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <algorithm>
 #include <cfloat>
 
 namespace astra2d {
@@ -74,6 +75,14 @@ void EntityInspector::draw(Scene& scene)
         m_selected = kNullEntity;
     }
     std::erase_if(m_expanded, [&](Entity entity) { return !registry.valid(entity); });
+    if (m_reveal && !m_selected.isNull()) {
+        m_filter.clear();
+        for (Entity e = scene.parent(m_selected); !e.isNull(); e = scene.parent(e)) {
+            m_expanded.insert(e);
+        }
+    } else {
+        m_reveal = false;
+    }
     drawList(scene);
     drawSelected(scene);
 }
@@ -96,11 +105,23 @@ void EntityInspector::drawList(Scene& scene)
         // Only the visible rows are drawn, so a scene with thousands of entities stays cheap.
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(rows.size()));
+        int reveal = -1; // the row to scroll to, drawn even if it is outside the view
+        if (m_reveal) {
+            const auto found = std::ranges::find(rows, m_selected, &detail::EntityRow::entity);
+            if (found != rows.end()) {
+                reveal = static_cast<int>(found - rows.begin());
+                clipper.IncludeItemByIndex(reveal);
+            }
+            m_reveal = false;
+        }
         while (clipper.Step()) {
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
                 const detail::EntityRow& row = rows[static_cast<std::size_t>(i)];
                 if (drawRow(registry, row, row.entity == m_selected, m_expanded)) {
                     m_selected = row.entity;
+                }
+                if (i == reveal) {
+                    ImGui::SetScrollHereY(0.5F);
                 }
             }
         }

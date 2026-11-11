@@ -309,6 +309,14 @@ is defined, so the condition must not have side effects (it is still type-checke
 the same formatter as the log macros. Errors the program can recover from, such as a missing file
 or invalid settings like a non-positive fixed step, throw exceptions instead.
 
+## Time scale
+
+For debugging, @ref astra2d::Application::setTimeScale runs game time slower or faster than real
+time, and 0 pauses it: no fixed steps run and `onUpdate()` gets 0 seconds, while rendering and
+input go on. @ref astra2d::Application::stepOnce then runs a single fixed step. The debug overlay
+uses both (@ref debug_guide). @ref astra2d::Application::frameTime stays the real frame time, for
+statistics.
+
 ## Profiling
 
 `ASTRA_PROFILE_SCOPE("name")` measures the rest of a block as a scope of

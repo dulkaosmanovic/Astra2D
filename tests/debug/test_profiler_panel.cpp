@@ -1,4 +1,5 @@
-// The overlay's profiler table, drawn in a headless ImGui context from a recorded call tree.
+// The overlay's profiler table and frame breakdown bar, drawn in a headless ImGui context from a
+// recorded call tree.
 
 #include "debug/profiler_panel.hpp"
 #include "headless_imgui.hpp"
@@ -28,7 +29,10 @@ TEST(ProfilerPanelTests, DrawsBeforeAndAfterTheFirstFrame)
             const ProfileScope render(profiler, "render");
         }
         profiler.endFrame();
-        imgui.frame([&] { astra2d::detail::drawProfilerTable(profiler); });
+        imgui.frame([&] {
+            astra2d::detail::drawFrameBreakdown(profiler, 1000.0 / 60.0);
+            astra2d::detail::drawProfilerTable(profiler);
+        });
     }
     EXPECT_EQ(profiler.nodes().size(), 5U);
 }

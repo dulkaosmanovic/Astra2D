@@ -1463,43 +1463,94 @@ PLANET = 32
 
 
 def make_earth():
-    """Earth for the ending, 256x256: oceans, continents with deserts, clouds and a glowing
-    atmosphere, lit from the top left. Only its top is seen, with land at the top for the
-    astronaut to stand on."""
+    """Earth for the ending, 256x256: mostly ocean (deep and shallow water, a coastal shelf),
+    continents with forests, meadows, deserts in the subtropics, mountains with snow, polar ice
+    and bands of cloud, lit from the top left with a glint of the sun on the sea and a crisp line
+    of atmosphere. The globe is tilted so the top of the disc is temperate land: the ending shows
+    only the top, where the flag, the astronaut and the rocket stand."""
     size, radius = 256, 120.0
-    land = fbm(size, size, 61, octaves=4, cells=4)
-    dry = fbm(size, size, 71, octaves=2, cells=3)
-    cloud = fbm(size, size, 81, octaves=4, cells=8)
+    land = fbm(size, size, 61, octaves=5, cells=4)
+    wet = fbm(size, size, 71, octaves=3, cells=4)
+    cloud = fbm(size, size, 81, octaves=4, cells=6)
+    detail = fbm(size, size, 91, octaves=3, cells=12)  # forests and a ragged coast
+    light = (-0.5, -0.62, 0.6)
+    ln = math.sqrt(sum(c * c for c in light))
+    light = tuple(c / ln for c in light)
+    sea = 0.53
+    deep, ocean, shelf = (22, 52, 128), (30, 76, 164), (56, 124, 198)
+    forest, grass, steppe = (36, 108, 56), (82, 150, 64), (150, 150, 84)
+    desert, rock, snow = (206, 176, 108), (118, 106, 92), (236, 242, 250)
+    air_lit, air_dark = (110, 184, 255), (44, 86, 168)
     image = [[TRANSPARENT] * size for _ in range(size)]
     for y in range(size):
         for x in range(size):
             nx, ny = (x + 0.5 - 128) / radius, (y + 0.5 - 128) / radius
             d2 = nx * nx + ny * ny
             if d2 > 1.0:
-                if d2 < 1.09:  # the atmosphere's glow around the planet
-                    image[y][x] = (130, 200, 255, round(150 * (1.09 - d2) / 0.09))
+                if math.sqrt(d2) * radius <= radius + 2.0:  # a crisp line of atmosphere
+                    lit = nx * light[0] + ny * light[1] > -0.25
+                    image[y][x] = rgb(*(air_lit if lit else air_dark))
                 continue
             nz = math.sqrt(1.0 - d2)
-            # Sample the noise as if wrapped on a sphere, so the continents curve with it.
-            u = int((nx / (nz + 0.7) * 0.5 + 0.5) * (size - 1)) % size
-            v = int((ny / (nz + 0.7) * 0.5 + 0.5) * (size - 1)) % size
-            top = math.exp(-(nx * nx + (ny + 0.95) ** 2) / 0.08)  # where the astronaut stands
-            height = land[v][u] + 0.35 * top
-            if height > 0.45:
-                color = (204, 178, 108) if dry[v][u] > 0.8 and top < 0.3 else (70, 160, 84) \
-                    if height < 0.58 else (44, 122, 72)
+            # Tilted so the top of the disc is at 45 degrees north (temperate land for the
+            # astronaut) and the south pole shows near the bottom.
+            px, py, pz = nx, -ny, nz
+            tilt = math.radians(45)
+            qy = py * math.cos(tilt) - pz * math.sin(tilt)
+            qz = py * math.sin(tilt) + pz * math.cos(tilt)
+            # The noise is read through a projection of the tilted sphere from a point behind it,
+            # so continents curve with the surface and shrink towards the limb, without the
+            # pinch a longitude/latitude grid has at the poles. Latitude only sets the climate.
+            lat = math.asin(max(-1.0, min(1.0, qy)))
+            k = 1.0 / (qz + 1.8)
+            u = int((px * k * 0.95 + 0.5) * size) % size
+            v = int((0.5 - qy * k * 0.95) * size) % size
+            # The ending shows only the top of the planet, with the flag, the astronaut and the
+            # rocket standing up to 0.5 radians either side: that stretch of the rim is land.
+            angle = abs(math.atan2(nx, -ny))
+            rim = math.sqrt(d2)
+            along = max(0.0, min(1.0, (0.85 - angle) / 0.25))  # near the top of the rim
+            near = max(0.0, min(1.0, (rim - 0.72) / 0.12))  # close to the rim
+            top = along * near
+            h = land[v][u] + 0.2 * top + 0.12 * (detail[v][u] - 0.5)
+            if rim > 0.9 and angle < 0.62:
+                h = max(h, sea + 0.01)  # the flag, the astronaut and the rocket stand here
+            alat = abs(math.degrees(lat))
+            if h < sea:
+                color = shelf if h > sea - 0.025 else ocean if h > sea - 0.09 else deep
+                water = True
             else:
-                color = (62, 124, 214) if height > 0.4 else (34, 82, 176)
-            if ny > 0.86:
-                color = (236, 244, 255)  # the south pole's ice
-            if cloud[(v + 40) % size][u] > 0.69 and top < 0.3:
-                color = mixed(color, (255, 255, 255), 0.85)
-            light = -0.5 * nx - 0.62 * ny + 0.6 * nz + 0.1 * dither(x, y)
-            factor = 1.12 if light > 0.75 else 1.0 if light > 0.25 else 0.76 if light > -0.1 \
-                else 0.52
-            pixel = shade(rgb(*color[:3]), factor)
-            if d2 > 0.9:
-                pixel = mixed(pixel, (150, 210, 255), 0.5)
+                water = False
+                m = wet[(v + 30) % size][u]
+                if top > 0.2:
+                    # Green land for the ending, forest and meadows.
+                    color = forest if detail[v][u] > 0.52 else grass
+                elif alat > 77 or h > sea + 0.24:
+                    color = snow
+                elif h > sea + 0.17:
+                    color = rock
+                elif 14 < alat < 38 and m < 0.47 and top < 0.3:
+                    color = desert if m < 0.42 else steppe
+                else:
+                    color = forest if m > 0.52 or detail[v][u] > 0.6 else grass
+            if alat > 83 and h < sea:
+                color, water = snow, False  # sea ice
+            c = cloud[(v * 2) % size][u]  # thin in latitude: stretched east-west like weather
+            # Dithered at the edge, so clouds fade in pixel steps instead of a blur.
+            if (c > 0.715 or (c > 0.70 and dither(x, y) > 0.0)) and top < 0.25:
+                color, water = (246, 249, 255), False
+            n = (nx, ny, nz)
+            diffuse = n[0] * light[0] + n[1] * light[1] + n[2] * light[2]
+            level = diffuse + 0.12 * dither(x, y)
+            factor = 1.08 if level > 0.72 else 1.0 if level > 0.3 else 0.8 if level > 0.0 \
+                else 0.62 if level > -0.25 else 0.46
+            pixel = shade(rgb(*color), factor)
+            if water:  # the sun's glint on the sea
+                hx, hy, hz = light[0], light[1], light[2] + 1.0
+                hl = math.sqrt(hx * hx + hy * hy + hz * hz)
+                spec = (n[0] * hx + n[1] * hy + n[2] * hz) / hl
+                if spec + 0.02 * dither(x, y) > 0.985:
+                    pixel = mixed(pixel, (200, 230, 255), 0.5)
             image[y][x] = pixel
     return image
 
