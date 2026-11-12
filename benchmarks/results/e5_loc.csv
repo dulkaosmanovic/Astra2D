@@ -5,7 +5,7 @@ examples/coin_collector,example,1,512,66
 examples/hello_window,example,1,41,11
 examples/input,example,1,175,21
 examples/physics_playground,example,1,570,47
-examples/platformer,game,8,2177,226
+examples/platformer,game,8,2307,246
 examples/post_processing,example,1,181,17
 examples/renderer_stress,example,1,336,37
 examples/sandbox,example,1,370,40

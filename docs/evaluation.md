@@ -11,7 +11,7 @@ they can be repeated; the numbers on this page come from one run of `scripts/ben
 <li>**E2:** at 1M objects the ECS updates 2.6× faster than OOP objects, 5× faster than scattered ones.</li>
 <li>**E3:** at 5,000 bodies the uniform grid makes the physics step 68× faster than brute force.</li>
 <li>**E4:** box towers stand without drift; an elastic ball keeps its energy within 2 %.</li>
-<li>**E5:** the complete platformer is 17 % of the engine's size.</li>
+<li>**E5:** the complete platformer is 18 % of the engine's size.</li>
 </ul></div>
 
 Setup of the runs:
@@ -185,10 +185,10 @@ against the engine's and lists the engine names it uses.
 |---|---:|---:|
 | engine (include/ + src/) | 12,659 | 2,710 |
 | unit tests | 6,296 | 308 |
-| platformer (the game) | 2,177 | 226 |
+| platformer (the game) | 2,307 | 246 |
 | other examples | 41 to 570 each | |
 
-**The game is 17 % of the engine's size.** It uses 54 engine names from all eight modules: most
+**The game is 18 % of the engine's size.** It uses 54 engine names from all eight modules: most
 from the scene (21: entities, components, the physics system, Tiled maps) and the renderer (13),
 and only a few from the lower layers (`Application`, `ActionMap`, `AudioEngine`, `AssetCache`). That
 is the intended shape: a game works with the high-level API and does not touch OpenGL, the physics
