@@ -24,7 +24,6 @@
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
 
-#include <glad/gl.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
@@ -131,8 +130,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(0.08F, 0.09F, 0.12F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.08F, 0.09F, 0.12F, 1.0F});
 
         m_renderer.begin(m_camera);
         m_renderer.drawQuad({-150.0F, kGround - (kSize * 0.5F) - 10.0F}, {600.0F, 20.0F}, kOff);

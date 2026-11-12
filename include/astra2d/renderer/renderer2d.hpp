@@ -110,6 +110,10 @@ public:
     Renderer2D(Renderer2D&&) = delete;
     Renderer2D& operator=(Renderer2D&&) = delete;
 
+    /// Fills the current render target (the window, or a bound Framebuffer) with @p color. Call
+    /// it outside begin() / end(), usually first in Application::onRender().
+    static void clear(glm::vec4 color);
+
     /// Starts a scene seen through @p camera. Sets alpha blending and binds the renderer's shader.
     void begin(const OrthographicCamera& camera);
     /// Draws everything still in the batch. Must follow begin().

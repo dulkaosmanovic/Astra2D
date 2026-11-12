@@ -19,7 +19,6 @@
 
 #include "../common/example_assets.hpp"
 
-#include <glad/gl.h>
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
@@ -90,8 +89,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(0.10F, 0.11F, 0.18F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.10F, 0.11F, 0.18F, 1.0F});
 
         m_renderer.begin(m_camera);
         // The ground: a plain quad.

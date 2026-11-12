@@ -37,7 +37,6 @@
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
 
-#include <glad/gl.h>
 #include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -213,8 +212,7 @@ protected:
         } else {
             astra2d::Framebuffer::bindDefault(size.x, size.y);
         }
-        glClearColor(kSky.r, kSky.g, kSky.b, kSky.a);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear(kSky);
         m_renderer.resetStats();
 
         // Interpolate between the last two fixed steps for smooth motion at any frame rate.

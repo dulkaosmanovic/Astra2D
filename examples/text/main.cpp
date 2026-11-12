@@ -18,7 +18,6 @@
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
 
-#include <glad/gl.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
@@ -68,8 +67,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(0.07F, 0.07F, 0.10F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.07F, 0.07F, 0.10F, 1.0F});
 
         // World text: position and size in world units.
         m_renderer.begin(m_camera);

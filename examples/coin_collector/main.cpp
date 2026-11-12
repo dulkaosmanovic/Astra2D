@@ -43,7 +43,6 @@
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
 
-#include <glad/gl.h>
 #include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -253,8 +252,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(kBackground.r, kBackground.g, kBackground.b, kBackground.a);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear(kBackground);
 
         m_shake.apply(m_camera, {0.0F, 0.0F});
         const float alpha = interpolationAlpha();

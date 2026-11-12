@@ -15,7 +15,6 @@
 #include <astra2d/renderer/camera.hpp>
 #include <astra2d/renderer/renderer2d.hpp>
 
-#include <glad/gl.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
@@ -70,8 +69,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(kBackground.r, kBackground.g, kBackground.b, kBackground.a);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear(kBackground);
 
         // Everything between begin() and end() is collected and drawn in as few draw calls as
         // possible (here: one).

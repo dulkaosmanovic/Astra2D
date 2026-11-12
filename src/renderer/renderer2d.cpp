@@ -265,6 +265,12 @@ Renderer2D::Renderer2D(const Renderer2DSettings& settings)
 
 Renderer2D::~Renderer2D() = default;
 
+void Renderer2D::clear(glm::vec4 color)
+{
+    glClearColor(color.r, color.g, color.b, color.a);
+    glClear(GL_COLOR_BUFFER_BIT);
+}
+
 void Renderer2D::begin(const OrthographicCamera& camera)
 {
     ASTRA_ASSERT(!m_impl->inScene, "Renderer2D::begin() called twice without end()");

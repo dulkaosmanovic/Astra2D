@@ -11,6 +11,7 @@
 #include <astra2d/core/actions.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/core/profiler.hpp>
 #include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
@@ -27,7 +28,6 @@
 #include <astra2d/scene/physics_system.hpp>
 #include <astra2d/scene/scene.hpp>
 
-#include <glad/gl.h>
 #include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/gtc/constants.hpp>
@@ -175,11 +175,10 @@ struct Mover {
 struct Coin {};
 struct HeartPickup {};
 struct Spring {};
-// The parked rocket: its lower half is the goal's trigger, the nose and exhaust are separate
-// sprites that move with it when it lifts off.
+// The parked rocket: its lower half is the goal's trigger; the nose and the exhaust are its
+// children in the scene hierarchy, so they move with it when it lifts off.
 struct Goal {
     glm::vec2 base{0.0F};
-    Entity top;
     Entity exhaust;
 };
 struct HazardTile {};
@@ -327,6 +326,11 @@ protected:
         m_shake.update(dt);
         m_smoke.update(dt);
         m_audio.update();
+        m_reloadTimer += dt;
+        if (m_reloadTimer > 0.5F) { // edited textures show up while playing
+            m_reloadTimer = 0.0F;
+            m_assets.reloadChanged();
+        }
         m_banner = std::max(m_banner - dt, 0.0F);
         driftWeather(dt);
         m_time += dt;
@@ -339,8 +343,7 @@ protected:
     {
         // After the last planet the game ends on Earth instead of in the level.
         const Look& look = m_state == State::Victory ? kEndingLook : currentLook();
-        glClearColor(look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F});
         if (m_state == State::Victory) {
             drawEnding();
         } else {
@@ -360,6 +363,7 @@ private:
     // view if it is on.
     void drawWorld(const Look& look)
     {
+        ASTRA_PROFILE_SCOPE("draw world");
         m_shake.apply(m_camera, m_follow.position());
 
         drawSky(look);
@@ -371,8 +375,7 @@ private:
         m_renderer.begin(m_camera);
         m_renderer.drawTileLayer(m_level.decor, m_tiles, kDecorTint);
         m_renderer.drawTileLayer(m_level.ground, m_tiles);
-        m_smoke.draw(m_renderer); // behind the rocket
-        drawMovers();
+        m_smoke.draw(m_renderer);                         // behind the rocket
         m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
         drawWeather(look.weather);
         if (m_showPhysics) {
@@ -387,6 +390,7 @@ private:
     // texel of earth.png is a HUD pixel, the sprites are twice as big.
     void drawEnding()
     {
+        ASTRA_PROFILE_SCOPE("draw ending");
         drawSky(kEndingLook);
         const glm::vec2 screen(framebufferSize());
         const float s = hudScale(screen);
@@ -840,9 +844,7 @@ private:
         }
         m_shake.addTrauma(time < 1.0F ? 0.03F : 0.0F);
         const glm::vec2 at = goal->base + glm::vec2{0.0F, 0.5F * kLiftOffAccel * time * time};
-        registry.get<Transform>(m_rocket).position = at;
-        registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kRocketTopOffset};
-        registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kExhaustOffset};
+        registry.get<Transform>(m_rocket).position = at; // the nose and the exhaust follow
         m_smoke.stream(at - glm::vec2{0.0F, kExhaustOffset + 6.0F}, 40.0F, dt);
     }
 
@@ -1045,13 +1047,17 @@ private:
         }
         case ThingKind::Goal: {
             const Entity goal = spawnAnimated("rocket", at, m_rocketAnimation, 1, &m_big);
-            const Entity top = spawnAnimated("rocket top", at + glm::vec2{0.0F, kRocketTopOffset},
+            // Children: positioned relative to the rocket.
+            const Entity top = spawnAnimated("rocket top", {0.0F, kRocketTopOffset},
                                              m_rocketTopAnimation, 1, &m_big);
-            const Entity exhaust = spawnAnimated("exhaust", at, m_exhaustAnimation, 1, &m_big);
+            const Entity exhaust =
+                spawnAnimated("exhaust", {0.0F, -kExhaustOffset}, m_exhaustAnimation, 1, &m_big);
             registry.remove<astra2d::Collider>(top);
             registry.remove<astra2d::Collider>(exhaust);
+            m_scene.setParent(top, goal);
+            m_scene.setParent(exhaust, goal);
             registry.get<astra2d::SpriteRenderer>(exhaust).visible = false;
-            registry.emplace<Goal>(goal, Goal{.base = at, .top = top, .exhaust = exhaust});
+            registry.emplace<Goal>(goal, Goal{.base = at, .exhaust = exhaust});
             registry.get<astra2d::Collider>(goal) = trigger({5.0F, 8.0F});
             break;
         }
@@ -1109,7 +1115,7 @@ private:
     }
 
     // A kinematic one-way platform, 3 tiles wide, in the planks' group (so the player can drop
-    // through it too). Drawn by drawMovers().
+    // through it too). Its tiles are child sprites, so the scene draws them where it moves.
     void spawnMover(glm::vec2 position, glm::vec2 travel)
     {
         const Entity entity = m_scene.createEntity("mover", position);
@@ -1125,6 +1131,14 @@ private:
                                                                       .category = kPlatformGroup,
                                                                       .mask = kPlayerGroup});
         registry.emplace<astra2d::Interpolated>(entity);
+        for (int i = 0; i < 3; ++i) { // left end, middle, right end
+            const Entity tile = m_scene.createEntity("platform tile",
+                                                     {kTileSize * static_cast<float>(i - 1), 0.0F});
+            registry.emplace<astra2d::SpriteRenderer>(
+                tile, astra2d::SpriteRenderer{.sprite = m_sheet.frame(kPlatformLeft + i),
+                                              .size = kSpriteSize});
+            m_scene.setParent(tile, entity);
+        }
     }
 
     void spawnHazard(const Hazard& hazard)
@@ -1195,6 +1209,7 @@ private:
     // it.
     void drawSky(const Look& look)
     {
+        ASTRA_PROFILE_SCOPE("draw sky");
         constexpr int kBands = 24;
         const glm::vec2 screen(framebufferSize());
         const float band = std::ceil(screen.y / kBands);
@@ -1298,20 +1313,6 @@ private:
         m_renderer.end();
     }
 
-    // Moving platforms are three sprites wide, so they are drawn here rather than by the scene.
-    void drawMovers()
-    {
-        const float alpha = interpolationAlpha();
-        m_scene.registry().view<Mover>().each([&](Entity entity, const Mover&) {
-            const glm::vec2 center = m_scene.worldTransform(entity, alpha).position;
-            for (int i = 0; i < 3; ++i) {
-                m_renderer.drawSprite(center +
-                                          glm::vec2{kTileSize * static_cast<float>(i - 1), 0.0F},
-                                      kSpriteSize, m_sheet.frame(kPlatformLeft + i));
-            }
-        });
-    }
-
     [[nodiscard]] const Look& currentLook() const
     {
         return kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
@@ -1377,6 +1378,7 @@ private:
 
     void drawHud()
     {
+        ASTRA_PROFILE_SCOPE("draw HUD");
         const glm::vec2 screen(framebufferSize());
         const float s = hudScale(screen);
         const float text = 8.0F * s;
@@ -1643,6 +1645,7 @@ private:
     float m_totalTime = 0.0F;
     float m_banner = 0.0F;
     float m_time = 0.0F;
+    float m_reloadTimer = 0.0F;
     std::vector<glm::vec3> m_weather; // see driftWeather()
 };
 

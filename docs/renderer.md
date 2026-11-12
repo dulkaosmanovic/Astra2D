@@ -33,7 +33,7 @@ class Game : public astra2d::Application {
 
     void onRender() override
     {
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.1F, 0.1F, 0.15F, 1.0F});
         m_renderer.begin(m_camera);
         m_renderer.drawQuad({0, 0}, {64, 64}, {0.2F, 0.6F, 1.0F, 1.0F});   // solid colour
         m_renderer.drawSprite({100, 0}, {32, 32}, m_sheet.frame(3));       // sprite sheet frame
