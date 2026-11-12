@@ -41,9 +41,9 @@ bool drawRow(const std::vector<ProfileNode>& nodes, const ProfileNode& node, dou
     // Siblings have different names, so the name is a unique ID under its parent's tree node.
     const bool open = ImGui::TreeNodeEx(node.name.c_str(), flags);
     ImGui::TableNextColumn();
-    text("{:.3f}", node.averageMs);
+    text("{:.2f}", node.averageMs);
     ImGui::TableNextColumn();
-    text("{:.3f}", selfMs(nodes, node));
+    text("{:.2f}", selfMs(nodes, node));
     ImGui::TableNextColumn();
     text("{:.2f}", node.peakMs);
     ImGui::TableNextColumn();
@@ -94,7 +94,7 @@ void drawProfilerTable(const Profiler& profiler)
     ImGui::TableSetupColumn("ms");
     ImGui::TableSetupColumn("self");
     ImGui::TableSetupColumn("peak");
-    ImGui::TableSetupColumn("frame", ImGuiTableColumnFlags_WidthFixed, 6.0F * ImGui::GetFontSize());
+    ImGui::TableSetupColumn("frame", ImGuiTableColumnFlags_WidthFixed, 4.5F * ImGui::GetFontSize());
     ImGui::TableSetupColumn("calls");
     ImGui::TableHeadersRow();
     drawTree(nodes);

@@ -1,6 +1,7 @@
 #include "astra2d/debug/imgui_layer.hpp"
 
 #include "astra2d/core/window.hpp"
+#include "imgui_style.hpp"
 #include "input_gate.hpp"
 
 #include <GLFW/glfw3.h>
@@ -150,13 +151,15 @@ ImGuiLayer::ImGuiLayer(Window& window)
     ImGui::SetCurrentContext(m_context);
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr; // window positions are not saved next to the game
-    ImGui::StyleColorsDark();
 
     GLFWwindow* handle = window.nativeHandle();
     if (!ImGui_ImplGlfw_InitForOpenGL(handle, false)) { // callbacks: installed below
         ImGui::DestroyContext(m_context);
         throw std::runtime_error("Failed to start the ImGui GLFW backend");
     }
+    // Sizes and text follow the monitor's scale (e.g. 1.25 on a 125 % display); the backend must
+    // be started to ask for it.
+    detail::applyStyle(ImGui_ImplGlfw_GetContentScaleForWindow(handle));
     if (!ImGui_ImplOpenGL3_Init("#version 330 core")) {
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext(m_context);

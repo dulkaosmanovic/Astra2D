@@ -35,7 +35,6 @@
 #include "../common/example_assets.hpp"
 #include "../common/hud.hpp"
 
-#include <glad/gl.h>
 #include <imgui.h>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -136,8 +135,7 @@ protected:
 
     void onRender() override
     {
-        glClearColor(0.04F, 0.04F, 0.08F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.04F, 0.04F, 0.08F, 1.0F});
 
         m_renderer.begin(m_camera);
         m_scene.render(m_renderer);                // every SpriteRenderer, sorted by layer

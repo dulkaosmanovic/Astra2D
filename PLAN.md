@@ -52,7 +52,7 @@ Rules:
 
 ## Recommended order
 
-1. Foundation → 2. Core → 3. Renderer → 4. ECS → 5. Physics → 6. Debug tools → 7. Platformer → 8. Evaluation & docs
+1. Foundation → 2. Core → 3. Renderer → 4. ECS → 5. Physics → 6. Debug tools → 7. Platformer → 8. Evaluation & docs → 9. Before submission
 
 Write the matching thesis chapter right after finishing each module, while the details are fresh
 (see [Thesis chapters](#thesis-chapters)).
@@ -180,6 +180,27 @@ Required
 Stretch
 - [x] Architecture page with diagrams in `docs/` (module layers, one frame through the modules)
 - [x] Comparison of the engine API with an existing engine/framework: raylib and Godot (`docs/comparison.md`)
+
+## 9. Before submission
+
+Feature set is frozen: no new engine features from here on, only the items below.
+
+Required
+- [ ] Write the thesis text in the faculty's language and template, following [Thesis chapters](#thesis-chapters): theory with equations (impulse, SAT, fixed timestep), citations, numbered figures; reuse `docs/*.md` and the evaluation charts
+- [ ] E2 at 10k objects is noise (3.56 ± 1.89 ns): more iterations, or explain timer resolution in the text
+- [ ] E1: more runs (now 3); explain why batching gives 2× and not 100× using the CPU/GPU split table
+- [ ] Explain the low coverage of renderer (43 %), assets (48 %) and core (58 %): they need an OpenGL context
+- [ ] Check the faculty's rules on AI-assisted work and declare it if required
+
+Stretch
+- [ ] External baselines: the same scene in Box2D (E3/E4) and the same update in EnTT (E2)
+- [ ] E1 on a second machine with a dedicated GPU
+- [ ] GL tests under Xvfb/llvmpipe (Docker image already has it) to raise renderer/assets coverage
+- [ ] Physics tests against analytic results: projectile range, box sliding on a slope with friction μ, momentum in elastic collisions
+
+Defense prep
+- [ ] Be able to derive the impulse formula, explain sparse-set cache locality and the timestep accumulator on a whiteboard
+- [ ] 2-minute live demo: platformer, F3 physics view, F1 overlay, `renderer_stress` batched vs. naive
 
 ---
 

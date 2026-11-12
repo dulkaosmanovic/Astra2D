@@ -1,7 +1,6 @@
 #include "game.hpp"
 
 #include "../common/example_assets.hpp"
-#include "../common/hud.hpp"
 #include "controller.hpp"
 #include "level.hpp"
 #include "looks.hpp"
@@ -11,6 +10,7 @@
 #include <astra2d/core/actions.hpp>
 #include <astra2d/core/application.hpp>
 #include <astra2d/core/log.hpp>
+#include <astra2d/core/profiler.hpp>
 #include <astra2d/debug/debug_overlay.hpp>
 #include <astra2d/debug/frame_stats.hpp>
 #include <astra2d/debug/physics_debug_draw.hpp>
@@ -27,7 +27,6 @@
 #include <astra2d/scene/physics_system.hpp>
 #include <astra2d/scene/scene.hpp>
 
-#include <glad/gl.h>
 #include <imgui.h>
 #include <glm/common.hpp>
 #include <glm/gtc/constants.hpp>
@@ -95,6 +94,14 @@ constexpr glm::vec4 kWhite{1.0F};
 constexpr glm::vec4 kGold{1.0F, 0.85F, 0.3F, 1.0F};
 constexpr glm::vec4 kRed{1.0F, 0.4F, 0.4F, 1.0F};
 constexpr glm::vec4 kShadow{0.0F, 0.0F, 0.0F, 0.6F};
+constexpr glm::vec4 kOrange{0.85F, 0.4F, 0.15F, 1.0F}; // the title's lower layer
+constexpr glm::vec4 kMuted{0.66F, 0.7F, 0.9F, 1.0F};   // labels, next to white values
+// Panels of the HUD and the menus.
+constexpr glm::vec4 kPanelFill{0.05F, 0.06F, 0.12F, 0.86F};
+constexpr glm::vec4 kPanelEdge{0.42F, 0.48F, 0.76F, 1.0F};
+constexpr glm::vec4 kPanelHighlight{0.62F, 0.68F, 1.0F, 0.3F};
+constexpr glm::vec4 kKeyFill{0.17F, 0.19F, 0.32F, 1.0F};
+constexpr glm::vec4 kKeyFront{0.08F, 0.09F, 0.16F, 1.0F};
 // Decoration is darker than the ground and everything the player meets, so it reads as background.
 constexpr glm::vec4 kDecorTint{0.75F, 0.75F, 0.85F, 1.0F};
 
@@ -175,11 +182,10 @@ struct Mover {
 struct Coin {};
 struct HeartPickup {};
 struct Spring {};
-// The parked rocket: its lower half is the goal's trigger, the nose and exhaust are separate
-// sprites that move with it when it lifts off.
+// The parked rocket: its lower half is the goal's trigger; the nose and the exhaust are its
+// children in the scene hierarchy, so they move with it when it lifts off.
 struct Goal {
     glm::vec2 base{0.0F};
-    Entity top;
     Entity exhaust;
 };
 struct HazardTile {};
@@ -187,6 +193,34 @@ struct HazardTile {};
 struct Checkpoint {
     bool active = false;
 };
+
+// A piece of a row of the controls on the menus: a key, drawn as a keycap, or text; an empty one is
+// a wider gap between two controls.
+struct KeySegment {
+    std::string_view text;
+    bool key = false;
+};
+
+constexpr KeySegment key(std::string_view text)
+{
+    return {.text = text, .key = true};
+}
+constexpr KeySegment label(std::string_view text)
+{
+    return {.text = text};
+}
+constexpr KeySegment kSeparator{};
+
+constexpr std::array kMoveRow = {key("A"),     key("D"),      label("run"), kSeparator,
+                                 key("SPACE"), label("jump"), kSeparator,   key("S"),
+                                 label("+"),   key("SPACE"),  label("drop")};
+constexpr std::array kMenuRow = {key("P"),         label("pause"), kSeparator, key("R"),
+                                 label("restart"), kSeparator,     key("M"),   label("mute")};
+constexpr std::array kStartRow = {label("press"), key("ENTER"), label("to start")};
+constexpr std::array kResumeRow = {key("P"), label("or"), key("ENTER"), label("to continue")};
+constexpr std::array kRetryRow = {key("ENTER"), label("try again"), kSeparator, key("ESC"),
+                                  label("quit")};
+constexpr std::array kAgainRow = {key("ENTER"), label("play again")};
 
 enum class State { Title, Playing, Paused, LevelClear, GameOver, Victory };
 
@@ -327,7 +361,13 @@ protected:
         m_shake.update(dt);
         m_smoke.update(dt);
         m_audio.update();
+        m_reloadTimer += dt;
+        if (m_reloadTimer > 0.5F) { // edited textures show up while playing
+            m_reloadTimer = 0.0F;
+            m_assets.reloadChanged();
+        }
         m_banner = std::max(m_banner - dt, 0.0F);
+        m_coinPop = std::max(m_coinPop - (dt * 5.0F), 0.0F);
         driftWeather(dt);
         m_time += dt;
         followPlayer(dt, false);
@@ -339,8 +379,7 @@ protected:
     {
         // After the last planet the game ends on Earth instead of in the level.
         const Look& look = m_state == State::Victory ? kEndingLook : currentLook();
-        glClearColor(look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({look.skyBottom.r, look.skyBottom.g, look.skyBottom.b, 1.0F});
         if (m_state == State::Victory) {
             drawEnding();
         } else {
@@ -360,6 +399,7 @@ private:
     // view if it is on.
     void drawWorld(const Look& look)
     {
+        ASTRA_PROFILE_SCOPE("draw world");
         m_shake.apply(m_camera, m_follow.position());
 
         drawSky(look);
@@ -371,9 +411,10 @@ private:
         m_renderer.begin(m_camera);
         m_renderer.drawTileLayer(m_level.decor, m_tiles, kDecorTint);
         m_renderer.drawTileLayer(m_level.ground, m_tiles);
-        m_smoke.draw(m_renderer); // behind the rocket
-        drawMovers();
-        m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
+        m_smoke.draw(m_renderer);      // behind the rocket
+        if (m_state != State::Title) { // the title shows the level without its things
+            m_scene.render(m_renderer, interpolationAlpha()); // every sprite, by layer
+        }
         drawWeather(look.weather);
         if (m_showPhysics) {
             astra2d::drawPhysicsDebug(m_renderer, m_physics.world(), m_physicsDebug);
@@ -387,6 +428,7 @@ private:
     // texel of earth.png is a HUD pixel, the sprites are twice as big.
     void drawEnding()
     {
+        ASTRA_PROFILE_SCOPE("draw ending");
         drawSky(kEndingLook);
         const glm::vec2 screen(framebufferSize());
         const float s = hudScale(screen);
@@ -429,6 +471,13 @@ private:
     [[nodiscard]] float hudScale(glm::vec2 screen) const
     {
         return std::max(1.0F, std::min(m_camera.pixelsPerUnit(), std::floor(screen.x / 320.0F)));
+    }
+
+    // The status bar's pixel scale: smaller than the menus', so it stays a thin strip along the
+    // top that leaves the view to the level (3 on a 1920 pixel wide window, 2 on a 1280 one).
+    [[nodiscard]] float statusBarScale(glm::vec2 screen) const
+    {
+        return std::max(1.0F, std::min(hudScale(screen), std::round(screen.x / 560.0F)));
     }
 
     struct Sounds {
@@ -792,6 +841,7 @@ private:
             registry.remove<Coin>(thing); // counted once, even if the trigger fires again
             m_scene.destroyLater(thing);
             ++m_coins;
+            m_coinPop = 1.0F;
             playSound(*m_sounds.coin, 0.45F);
             spawnEffect(position, m_sparkleAnimation);
         } else if (registry.has<HeartPickup>(thing)) {
@@ -840,9 +890,7 @@ private:
         }
         m_shake.addTrauma(time < 1.0F ? 0.03F : 0.0F);
         const glm::vec2 at = goal->base + glm::vec2{0.0F, 0.5F * kLiftOffAccel * time * time};
-        registry.get<Transform>(m_rocket).position = at;
-        registry.get<Transform>(goal->top).position = at + glm::vec2{0.0F, kRocketTopOffset};
-        registry.get<Transform>(goal->exhaust).position = at - glm::vec2{0.0F, kExhaustOffset};
+        registry.get<Transform>(m_rocket).position = at; // the nose and the exhaust follow
         m_smoke.stream(at - glm::vec2{0.0F, kExhaustOffset + 6.0F}, 40.0F, dt);
     }
 
@@ -1045,13 +1093,17 @@ private:
         }
         case ThingKind::Goal: {
             const Entity goal = spawnAnimated("rocket", at, m_rocketAnimation, 1, &m_big);
-            const Entity top = spawnAnimated("rocket top", at + glm::vec2{0.0F, kRocketTopOffset},
+            // Children: positioned relative to the rocket.
+            const Entity top = spawnAnimated("rocket top", {0.0F, kRocketTopOffset},
                                              m_rocketTopAnimation, 1, &m_big);
-            const Entity exhaust = spawnAnimated("exhaust", at, m_exhaustAnimation, 1, &m_big);
+            const Entity exhaust =
+                spawnAnimated("exhaust", {0.0F, -kExhaustOffset}, m_exhaustAnimation, 1, &m_big);
             registry.remove<astra2d::Collider>(top);
             registry.remove<astra2d::Collider>(exhaust);
+            m_scene.setParent(top, goal);
+            m_scene.setParent(exhaust, goal);
             registry.get<astra2d::SpriteRenderer>(exhaust).visible = false;
-            registry.emplace<Goal>(goal, Goal{.base = at, .top = top, .exhaust = exhaust});
+            registry.emplace<Goal>(goal, Goal{.base = at, .exhaust = exhaust});
             registry.get<astra2d::Collider>(goal) = trigger({5.0F, 8.0F});
             break;
         }
@@ -1109,7 +1161,7 @@ private:
     }
 
     // A kinematic one-way platform, 3 tiles wide, in the planks' group (so the player can drop
-    // through it too). Drawn by drawMovers().
+    // through it too). Its tiles are child sprites, so the scene draws them where it moves.
     void spawnMover(glm::vec2 position, glm::vec2 travel)
     {
         const Entity entity = m_scene.createEntity("mover", position);
@@ -1125,6 +1177,14 @@ private:
                                                                       .category = kPlatformGroup,
                                                                       .mask = kPlayerGroup});
         registry.emplace<astra2d::Interpolated>(entity);
+        for (int i = 0; i < 3; ++i) { // left end, middle, right end
+            const Entity tile = m_scene.createEntity("platform tile",
+                                                     {kTileSize * static_cast<float>(i - 1), 0.0F});
+            registry.emplace<astra2d::SpriteRenderer>(
+                tile, astra2d::SpriteRenderer{.sprite = m_sheet.frame(kPlatformLeft + i),
+                                              .size = kSpriteSize});
+            m_scene.setParent(tile, entity);
+        }
     }
 
     void spawnHazard(const Hazard& hazard)
@@ -1195,6 +1255,7 @@ private:
     // it.
     void drawSky(const Look& look)
     {
+        ASTRA_PROFILE_SCOPE("draw sky");
         constexpr int kBands = 24;
         const glm::vec2 screen(framebufferSize());
         const float band = std::ceil(screen.y / kBands);
@@ -1232,7 +1293,7 @@ private:
                                                      screen.y - (size.y * 0.32F)}),
                                 size, rings, {1.0F, 1.0F, 1.0F, 0.85F});
         }
-        if (look.skyPlanet != planet::kNone) {
+        if (look.skyPlanet != planet::kNone && m_state != State::Title) {
             // The next stop of the route.
             const glm::vec2 at{(screen.x * 0.72F) - drift, screen.y * 0.72F};
             m_renderer.drawSprite(glm::round(at), glm::vec2{1.5F * kPlanetSize * scale},
@@ -1298,20 +1359,6 @@ private:
         m_renderer.end();
     }
 
-    // Moving platforms are three sprites wide, so they are drawn here rather than by the scene.
-    void drawMovers()
-    {
-        const float alpha = interpolationAlpha();
-        m_scene.registry().view<Mover>().each([&](Entity entity, const Mover&) {
-            const glm::vec2 center = m_scene.worldTransform(entity, alpha).position;
-            for (int i = 0; i < 3; ++i) {
-                m_renderer.drawSprite(center +
-                                          glm::vec2{kTileSize * static_cast<float>(i - 1), 0.0F},
-                                      kSpriteSize, m_sheet.frame(kPlatformLeft + i));
-            }
-        });
-    }
-
     [[nodiscard]] const Look& currentLook() const
     {
         return kLooks[static_cast<std::size_t>(m_levelIndex) % kLooks.size()];
@@ -1356,65 +1403,58 @@ private:
                             {.size = size,
                              .color = color,
                              .shadowOffset = {shadow, -shadow},
-                             .shadowColor = kShadow});
+                             .shadowColor = faded(kShadow, color.a)});
     }
 
     // Centred text, made smaller (in whole steps of the 8 pixel font, so it stays crisp) if it
     // does not fit the window's width.
-    void drawCentered(std::string_view text, float y, float size, glm::vec4 color)
+    void drawCentered(std::string_view text, float y, float size, glm::vec4 color,
+                      bool shadow = true)
     {
         const float width = static_cast<float>(framebufferSize().x);
         const float fits = 0.94F * width / m_font.atlas().measure(text, 1.0F).x;
         size = std::max(8.0F, std::min(size, std::floor(fits / 8.0F) * 8.0F));
-        const float shadow = std::max(1.0F, size / 8.0F);
+        const float offset = shadow ? std::max(1.0F, size / 8.0F) : 0.0F;
         m_renderer.drawText(m_font, text, {std::round(width * 0.5F), y},
                             {.size = size,
                              .color = color,
                              .anchor = {0.5F, 1.0F},
-                             .shadowOffset = {shadow, -shadow},
-                             .shadowColor = kShadow});
+                             .shadowOffset = {offset, -offset},
+                             .shadowColor = faded(kShadow, color.a)});
+    }
+
+    [[nodiscard]] float textWidth(std::string_view text, float s) const
+    {
+        return m_font.atlas().measure(text, 8.0F * s).x;
     }
 
     void drawHud()
     {
+        ASTRA_PROFILE_SCOPE("draw HUD");
         const glm::vec2 screen(framebufferSize());
         const float s = hudScale(screen);
         const float text = 8.0F * s;
         m_renderer.begin(
             astra2d::OrthographicCamera::screenSpace(framebufferSize().x, framebufferSize().y));
         if (m_state != State::Title && m_state != State::Victory) {
-            drawStatusBar(screen, s);
+            drawStatusBar(screen, statusBarScale(screen));
         }
         const float middle = screen.y * 0.5F;
+        const float pulse = 0.75F + (0.25F * std::sin(m_time * 4.0F)); // for "press ..." prompts
         switch (m_state) {
         case State::Title:
-            dim(screen, 0.25F);
-            drawRoute(screen, middle + (86.0F * s), s);
-            panel(screen, 196.0F * s, middle - (80.0F * s), middle + (60.0F * s), s);
-            drawTitleArt(screen, middle + (14.0F * s), s);
-            drawCentered("ASTRA RUN", middle + (48.0F * s), 32.0F * s, kGold);
-            drawCentered("a stranded astronaut, four planets, one way home", middle, text, kWhite);
-            drawCentered("RUN  A/D   JUMP  SPACE   DROP  S+SPACE", middle - (22.0F * s), text,
-                         kWhite);
-            drawCentered("PAUSE  P   RESTART  R   MUTE  M", middle - (36.0F * s), text, kWhite);
-            if (std::fmod(m_time, 1.0F) < 0.7F) {
-                drawCentered("press ENTER or A to start", middle - (64.0F * s), text, kGold);
-            }
+            drawTitle(screen, middle, s, pulse);
             break;
         case State::Playing:
             if (m_banner > 0.0F) {
-                const float alpha = std::min(m_banner, 1.0F);
-                const float top = screen.y - (36.0F * s);
-                drawCentered(m_level.name, top - (16.0F * s), 16.0F * s,
-                             {kGold.r, kGold.g, kGold.b, alpha});
-                drawCentered(m_level.hint, top - (40.0F * s), text, {1.0F, 1.0F, 1.0F, alpha});
+                drawBanner(screen, statusBarScale(screen), std::min(m_banner, 1.0F));
             }
             break;
         case State::Paused:
             dim(screen, 0.4F);
-            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (18.0F * s), s);
-            drawCentered("PAUSED", middle + (8.0F * s), 16.0F * s, kWhite);
-            drawCentered("P or ENTER to continue", middle - (16.0F * s), text, kWhite);
+            panel(screen, 120.0F * s, middle - (34.0F * s), middle + (28.0F * s), s);
+            drawCentered("PAUSED", middle + (16.0F * s), 16.0F * s, kWhite);
+            drawKeyRow(kResumeRow, middle - (16.0F * s), s, faded(kWhite, pulse));
             break;
         case State::LevelClear: {
             if (kLevelClearTime - m_stateTime < kLiftOffPanelTime) {
@@ -1426,7 +1466,7 @@ private:
                 std::cmp_less(next, m_levels.size())
                     ? std::string_view(m_levels[static_cast<std::size_t>(next)].name)
                     : "Earth";
-            panel(screen, 150.0F * s, middle - (52.0F * s), middle + (40.0F * s), s);
+            panel(screen, 120.0F * s, middle - (52.0F * s), middle + (42.0F * s), s);
             drawCentered("LIFT OFF!", middle + (30.0F * s), 16.0F * s, kGold);
             m_renderer.drawSprite({std::round(screen.x * 0.5F), middle}, glm::vec2{kPlanetSize * s},
                                   m_planets.frame(std::min(next, planet::kEarth)));
@@ -1438,9 +1478,9 @@ private:
         }
         case State::GameOver:
             dim(screen, 0.45F);
-            panel(screen, 150.0F * s, middle - (34.0F * s), middle + (34.0F * s), s);
-            drawCentered("GAME OVER", middle + (24.0F * s), 24.0F * s, kRed);
-            drawCentered("ENTER to try again   ESC to quit", middle - (16.0F * s), text, kWhite);
+            panel(screen, 140.0F * s, middle - (34.0F * s), middle + (34.0F * s), s);
+            drawCentered("GAME OVER", middle + (22.0F * s), 24.0F * s, kRed);
+            drawKeyRow(kRetryRow, middle - (18.0F * s), s, faded(kWhite, pulse));
             break;
         case State::Victory: {
             int allCoins = 0;
@@ -1448,65 +1488,162 @@ private:
                 allCoins += level.count(ThingKind::Coin);
             }
             const float top = screen.y;
-            panel(screen, 160.0F * s, top - (92.0F * s), top - (10.0F * s), s);
+            panel(screen, 160.0F * s, top - (94.0F * s), top - (10.0F * s), s);
             drawCentered("YOU MADE IT HOME!", top - (22.0F * s), 16.0F * s, kGold);
-            drawCentered("welcome back to Earth, astronaut", top - (46.0F * s), text, kWhite);
+            drawCentered("welcome back to Earth, astronaut", top - (46.0F * s), text, kMuted);
             drawCentered(std::format("coins {}/{}   time {}:{:02}", m_totalCoins, allCoins,
                                      static_cast<int>(m_totalTime) / 60,
                                      static_cast<int>(m_totalTime) % 60),
-                         top - (62.0F * s), text, kWhite);
-            if (std::fmod(m_time, 1.0F) < 0.7F) {
-                drawCentered("ENTER to play again", top - (78.0F * s), text, kGold);
-            }
+                         top - (60.0F * s), text, kWhite);
+            drawKeyRow(kAgainRow, top - (80.0F * s), s, faded(kWhite, pulse));
             break;
         }
         }
         m_renderer.end();
     }
 
-    // One bar along the top: hearts and coins on the left, the level in the middle, the time on
-    // the right. @p s is the HUD's pixel scale.
+    // The title screen over the frozen first level: the route home across the top, then a panel
+    // with the title between the astronaut and the rocket, the story, the controls as keycaps
+    // and the prompt.
+    void drawTitle(glm::vec2 screen, float middle, float s, float pulse)
+    {
+        dim(screen, 0.4F);
+        drawRoute(screen, middle + (88.0F * s), s);
+        panel(screen, 200.0F * s, middle - (78.0F * s), middle + (64.0F * s), s);
+        drawTitleArt(screen, middle + (16.0F * s), s);
+        // Two-tone lettering: a darker copy a little lower gives the title some depth.
+        drawCentered("ASTRA RUN", middle + (49.0F * s), 32.0F * s, kOrange);
+        drawCentered("ASTRA RUN", middle + (52.0F * s), 32.0F * s, kGold, false);
+        drawCentered("a stranded astronaut, four planets, one way home", middle + (6.0F * s),
+                     8.0F * s, kMuted);
+        m_renderer.drawQuad({std::round(screen.x * 0.5F), middle - (8.0F * s)},
+                            {std::min(240.0F * s, screen.x - (24.0F * s)), s},
+                            faded(kPanelEdge, 0.5F));
+        drawKeyRow(kMoveRow, middle - (22.0F * s), s, kMuted);
+        drawKeyRow(kMenuRow, middle - (40.0F * s), s, kMuted);
+        drawKeyRow(kStartRow, middle - (62.0F * s), s, faded(kGold, pulse));
+    }
+
+    // The level's name and hint on a panel below the status bar (at its scale @p s), fading out
+    // with @p alpha.
+    void drawBanner(glm::vec2 screen, float s, float alpha)
+    {
+        const float top = screen.y - (34.0F * s); // the status bar is 28 high, with its margin
+        const float halfWidth =
+            (std::max(textWidth(m_level.name, s) * 2.0F, textWidth(m_level.hint, s)) * 0.5F) +
+            (14.0F * s);
+        panel(screen, halfWidth, top - (50.0F * s), top, s, alpha);
+        drawCentered(m_level.name, top - (10.0F * s), 16.0F * s, faded(kGold, alpha));
+        drawCentered(m_level.hint, top - (34.0F * s), 8.0F * s, faded(kWhite, alpha));
+    }
+
+    // Small panels along the top: hearts and coins on the left, the time on the right and the
+    // level in the middle if there is room. @p s is the HUD's pixel scale.
     void drawStatusBar(glm::vec2 screen, float s)
     {
-        const float text = 8.0F * s;
-        const float row = screen.y - (14.0F * s); // centre line of the bar
+        const float margin = 6.0F * s;
+        const float height = 22.0F * s;
+        const float top = screen.y - margin;
+        const float row = top - (height * 0.5F); // centre line of the panels
         const float textTop = row + (4.0F * s);
-        examples::drawPanel(m_renderer, {-s, screen.y - (28.0F * s)}, {screen.x + s, screen.y + s},
-                            s);
+        const float text = 8.0F * s;
 
-        for (int i = 0; i < kMaxHearts; ++i) {
-            m_renderer.drawSprite({(14.0F + (18.0F * static_cast<float>(i))) * s, row},
-                                  glm::vec2{16.0F * s},
-                                  m_sheet.frame(i < m_hearts ? kHeartFull : kHeartEmpty));
-        }
-        const float coinX = (14.0F + (18.0F * static_cast<float>(kMaxHearts)) + 8.0F) * s;
-        m_renderer.drawSprite({coinX, row}, glm::vec2{16.0F * s}, m_sheet.frame(kCoinIcon));
+        // Left: the hearts (the last one beats), then the coins (the icon pops on a pickup).
         const std::string coins = std::format("{}/{}", m_coins, m_level.count(ThingKind::Coin));
-        drawText(coins, {coinX + (12.0F * s), textTop}, text, kGold);
-        const float leftEnd = coinX + (12.0F * s) + m_font.atlas().measure(coins, text).x;
-
-        std::string right = std::format("TIME {}:{:02}", static_cast<int>(m_levelTime) / 60,
-                                        static_cast<int>(m_levelTime) % 60);
-        if (m_audio.muted()) {
-            right = "MUTED  " + right;
+        const float coinX = margin + ((8.0F + (17.0F * kMaxHearts) + 8.0F) * s);
+        const float leftEnd = coinX + (11.0F * s) + textWidth(coins, s) + (8.0F * s);
+        pixelPanel({margin, top - height}, {leftEnd, top}, s);
+        for (int i = 0; i < kMaxHearts; ++i) {
+            const bool full = i < m_hearts;
+            const float beat =
+                full && m_hearts == 1 ? std::max(0.0F, std::sin(m_time * 8.0F)) : 0.0F;
+            m_renderer.drawSprite({margin + ((16.0F + (17.0F * static_cast<float>(i))) * s), row},
+                                  glm::vec2{std::round(16.0F + (3.0F * beat)) * s},
+                                  m_sheet.frame(full ? kHeartFull : kHeartEmpty));
         }
-        const float rightStart = screen.x - (12.0F * s) - m_font.atlas().measure(right, text).x;
-        drawText(right, {rightStart, textTop}, text, kWhite);
+        m_renderer.drawSprite({coinX, row}, glm::vec2{std::round(16.0F + (5.0F * m_coinPop)) * s},
+                              m_sheet.frame(kCoinIcon));
+        drawText(coins, {coinX + (11.0F * s), textTop}, text, kGold);
 
-        // The level's name too, if it fits between the two sides.
-        std::string level = std::format("{} \u00b7 {}", m_levelIndex + 1, m_level.name);
-        if (m_font.atlas().measure(level, text).x > rightStart - leftEnd - (24.0F * s)) {
-            level = std::format("LEVEL {}", m_levelIndex + 1);
+        // Right: the time, with a muted label (and a note while the sound is off).
+        const std::string time = std::format("{}:{:02}", static_cast<int>(m_levelTime) / 60,
+                                             static_cast<int>(m_levelTime) % 60);
+        const std::string_view label = m_audio.muted() ? "MUTED  TIME " : "TIME ";
+        const float rightWidth = textWidth(label, s) + textWidth(time, s) + (16.0F * s);
+        const float rightStart = screen.x - margin - rightWidth;
+        pixelPanel({rightStart, top - height}, {screen.x - margin, top}, s);
+        drawText(label, {rightStart + (8.0F * s), textTop}, text, kMuted);
+        drawText(time, {rightStart + (8.0F * s) + textWidth(label, s), textTop}, text, kWhite);
+
+        // Middle: the level's number and name, or only the number, or nothing if neither fits.
+        const std::string number = std::format("{} ", m_levelIndex + 1);
+        const float free = rightStart - leftEnd - (16.0F * s);
+        std::string_view name = m_level.name;
+        float width = textWidth(number, s) + textWidth(name, s) + (16.0F * s);
+        if (width > free) {
+            name = {};
+            width = textWidth(number, s) + (14.0F * s);
         }
-        const float width = m_font.atlas().measure(level, text).x; // centred in the free space
-        drawText(level, {std::round((leftEnd + rightStart - width) * 0.5F), textTop}, text, kWhite);
+        if (width > free) {
+            return;
+        }
+        // Centred on the screen, or as close to it as the side panels allow.
+        const float left = std::round(std::clamp((screen.x - width) * 0.5F, leftEnd + (8.0F * s),
+                                                 rightStart - (8.0F * s) - width));
+        pixelPanel({left, top - height}, {left + width, top}, s);
+        drawText(number, {left + (8.0F * s), textTop}, text, kGold);
+        drawText(name, {left + (8.0F * s) + textWidth(number, s), textTop}, text, kWhite);
+    }
+
+    // A row of the controls (see KeySegment), centred on @p y.
+    template <std::size_t N>
+    void drawKeyRow(const std::array<KeySegment, N>& row, float y, float s, glm::vec4 color)
+    {
+        constexpr float kGap = 5.0F;
+        constexpr float kSeparator = 10.0F;
+        const auto widthOf = [&](const KeySegment& segment) {
+            if (segment.text.empty()) {
+                return kSeparator * s;
+            }
+            const float width = textWidth(segment.text, s);
+            return segment.key ? std::max(width + (8.0F * s), 13.0F * s) : width;
+        };
+        float total = 0.0F;
+        for (const KeySegment& segment : row) {
+            total += widthOf(segment) + (kGap * s);
+        }
+        float x = std::round((static_cast<float>(framebufferSize().x) - total + (kGap * s)) * 0.5F);
+        for (const KeySegment& segment : row) {
+            const float width = widthOf(segment);
+            if (segment.key) {
+                drawKeycap(segment.text, {x, y}, width, s, color.a);
+            } else if (!segment.text.empty()) {
+                drawText(segment.text, {x, y + (4.0F * s)}, 8.0F * s, color);
+            }
+            x += width + (kGap * s);
+        }
+    }
+
+    // A key of the keyboard: a raised cap with a darker front edge, @p width wide, whose left
+    // edge is at left.x and centre line at left.y.
+    void drawKeycap(std::string_view key, glm::vec2 left, float width, float s, float alpha)
+    {
+        const float height = 13.0F * s;
+        const glm::vec2 min{left.x, std::round(left.y - (height * 0.5F))};
+        const glm::vec2 max{left.x + width, min.y + height};
+        pixelPanel(min, max, s, alpha, kKeyFill);
+        m_renderer.drawQuad({(min.x + max.x) * 0.5F, min.y + (1.5F * s)}, {width - (2.0F * s), s},
+                            faded(kKeyFront, alpha));
+        m_renderer.drawText(
+            m_font, key, {(min.x + max.x) * 0.5F, max.y - (2.0F * s)},
+            {.size = 8.0F * s, .color = faded(kWhite, alpha), .anchor = {0.5F, 1.0F}});
     }
 
     // The astronaut (twice the HUD's scale, bobbing) left of the title and their rocket right of
     // it, both standing on @p ground.
     void drawTitleArt(glm::vec2 screen, float ground, float s)
     {
-        const float x = 170.0F * s;
+        const float x = 166.0F * s;
         const float bob = std::round(std::sin(m_time * 2.0F) * 1.5F) * s;
         const int idle = kAstronautIdle + (static_cast<int>(m_time * 2.0F) % 2);
         // A frame's art stands on row 19 of 24, 8 texels below its centre.
@@ -1518,17 +1655,19 @@ private:
                               m_big.frame(kRocketTop));
     }
 
-    // The route across the top: every planet, linked by a dotted line, with Earth at the end.
+    // The route across the top: every planet, linked by a dotted line along which a light runs
+    // towards Earth at the end.
     void drawRoute(glm::vec2 screen, float y, float s)
     {
         const float step = 44.0F * s;
         const float first = (screen.x * 0.5F) - (step * (planet::kCount - 1) * 0.5F);
-        for (int i = 0; i + 1 < planet::kCount; ++i) { // the dots between two planets
+        const int lit = static_cast<int>(m_time * 6.0F) % 3; // which dot of each gap is lit
+        for (int i = 0; i + 1 < planet::kCount; ++i) {
             for (int dot = 1; dot < 4; ++dot) {
                 const float x =
                     first + (step * (static_cast<float>(i) + (0.25F * static_cast<float>(dot))));
                 m_renderer.drawQuad({std::round(x), y}, glm::vec2{2.0F * s},
-                                    {1.0F, 1.0F, 1.0F, 0.6F});
+                                    dot - 1 == lit ? kGold : glm::vec4{1.0F, 1.0F, 1.0F, 0.45F});
             }
         }
         for (int i = 0; i < planet::kCount; ++i) {
@@ -1539,16 +1678,39 @@ private:
 
     // A panel centred horizontally, @p halfWidth to each side (at most the window's width), from
     // @p bottom to @p top.
-    void panel(glm::vec2 screen, float halfWidth, float bottom, float top, float s)
+    void panel(glm::vec2 screen, float halfWidth, float bottom, float top, float s,
+               float alpha = 1.0F)
     {
-        halfWidth = std::min(halfWidth, (screen.x * 0.5F) - (4.0F * s));
-        examples::drawPanel(m_renderer, {(screen.x * 0.5F) - halfWidth, bottom},
-                            {(screen.x * 0.5F) + halfWidth, top}, s);
+        halfWidth = std::round(std::min(halfWidth, (screen.x * 0.5F) - (4.0F * s)));
+        pixelPanel({std::round(screen.x * 0.5F) - halfWidth, bottom},
+                   {std::round(screen.x * 0.5F) + halfWidth, top}, s, alpha);
+    }
+
+    // A pixel-art panel from @p min to @p max: a one-pixel border (in HUD pixels of @p s) with
+    // the corners left out, so it looks rounded, and a light line inside its top edge.
+    void pixelPanel(glm::vec2 min, glm::vec2 max, float s, float alpha = 1.0F,
+                    glm::vec4 fill = kPanelFill)
+    {
+        const glm::vec2 center = (min + max) * 0.5F;
+        const glm::vec2 size = max - min;
+        m_renderer.drawQuad(center, size - (2.0F * s), faded(fill, alpha));
+        const glm::vec4 edge = faded(kPanelEdge, alpha);
+        m_renderer.drawQuad({center.x, max.y - (0.5F * s)}, {size.x - (2.0F * s), s}, edge);
+        m_renderer.drawQuad({center.x, min.y + (0.5F * s)}, {size.x - (2.0F * s), s}, edge);
+        m_renderer.drawQuad({min.x + (0.5F * s), center.y}, {s, size.y - (2.0F * s)}, edge);
+        m_renderer.drawQuad({max.x - (0.5F * s), center.y}, {s, size.y - (2.0F * s)}, edge);
+        m_renderer.drawQuad({center.x, max.y - (1.5F * s)}, {size.x - (4.0F * s), s},
+                            faded(kPanelHighlight, alpha));
     }
 
     void dim(glm::vec2 screen, float alpha)
     {
         m_renderer.drawQuad(screen * 0.5F, screen, {0.0F, 0.0F, 0.0F, alpha});
+    }
+
+    static constexpr glm::vec4 faded(glm::vec4 color, float alpha)
+    {
+        return {color.r, color.g, color.b, color.a * alpha};
     }
 
     // --- State --------------------------------------------------------------------------------
@@ -1642,7 +1804,9 @@ private:
     float m_levelTime = 0.0F;
     float m_totalTime = 0.0F;
     float m_banner = 0.0F;
+    float m_coinPop = 0.0F; // 1 right after a coin, then down to 0
     float m_time = 0.0F;
+    float m_reloadTimer = 0.0F;
     std::vector<glm::vec3> m_weather; // see driftWeather()
 };
 

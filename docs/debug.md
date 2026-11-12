@@ -80,14 +80,19 @@ for a HUD or the window title; the Sandbox shows the FPS and frame time in its H
 @ref astra2d::DebugOverlay draws two [Dear ImGui](https://github.com/ocornut/imgui) windows on top
 of the game:
 
-| Window | Section | Shows |
+| Window | Part | Shows |
 |---|---|---|
-| Debug | Frame | A graph of the last 240 frame times with the 60 and 30 FPS budgets marked; FPS, min / mean / max frame time; a bar of the frame split into its phases (update, render, swap buffers, ...) against the 60 FPS budget; draw calls, quads, entities |
-| | Time | Pause, single fixed steps while paused, and slow motion or fast forward (0.05× to 4×) |
-| | Profiler | The call tree of the CPU profiler (below): per scope the average time, the self time, the recent peak, the share of the frame and the calls per frame |
-| | Toggles | The game's switches (`addToggle()`), e.g. the physics debug view and its parts |
-| | the game's own | Anything the game draws with ImGui (`addPanel()`): tuning values, buttons, statistics |
-| Entities | | The scene's entities as the parent/child tree, a name filter, *Pick* (select an entity by clicking it in the game), *Move* (drag entities with the mouse), *Save scene*, and an inspector for the selected entity, which is also outlined in the game |
+| Debug | Header | The frame rate in large type, green within the 60 FPS budget, yellow up to twice it, red beyond; mean, min and max frame time |
+| | Time toolbar | Pause / Resume, *Step* (one fixed step while paused), and the time scale (0.25×, 0.5×, 1×, 2× or any value from 0.05× to 4×) |
+| | Frame graph | The last 240 frames as bars coloured by the same budget, with the 60 and 30 FPS lines; hovering a bar shows its time. Below it, a bar of the frame split into its phases (update, render, swap buffers, ...) and the draw calls, quads and entities |
+| | *Profiler* tab | The call tree of the CPU profiler (below): per scope the average time, the self time, the recent peak, the share of the frame and the calls per frame |
+| | *Game* tab | The game's switches (`addToggle()`), e.g. the physics debug view and its parts, and the sections the game draws with ImGui (`addPanel()`) |
+| Entities | | *Pick* (select an entity by clicking it in the game), *Move* (drag entities with the mouse), *Save scene*, the entities as the parent/child tree with a name filter, and an inspector for the selected entity |
+| On the game | | Badges at the top while the game is paused, runs at another speed or a mouse tool is on, so they are seen with the windows collapsed; the selected entity's outline and name |
+
+The windows use the engine's own theme: dark navy with the Astra2D blue as the accent, rounded
+corners, and a scalable font. Sizes and text are scaled by the window's content scale, so the
+overlay keeps its size on a HiDPI display instead of shrinking to a 13 px bitmap font.
 
 A game creates it with its Application, feeds it each frame and draws it last:
 

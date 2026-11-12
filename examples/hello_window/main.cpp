@@ -7,9 +7,8 @@
 // Controls: Escape quits.
 
 #include <astra2d/core/application.hpp>
+#include <astra2d/renderer/renderer2d.hpp>
 #include <astra2d/core/log.hpp>
-
-#include <glad/gl.h>
 
 #include <cmath>
 #include <exception>
@@ -40,8 +39,7 @@ protected:
     void onRender() override
     {
         const float red = 0.5F + (0.5F * std::sin(m_time));
-        glClearColor(red * 0.3F, 0.15F, 0.3F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({red * 0.3F, 0.15F, 0.3F, 1.0F});
     }
 
 private:

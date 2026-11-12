@@ -22,7 +22,6 @@
 
 #include "../common/example_assets.hpp"
 
-#include <glad/gl.h>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
@@ -124,8 +123,7 @@ protected:
     {
         // 1. Draw the scene into the framebuffer. bind() also sets the viewport to its size.
         m_scene.bind();
-        glClearColor(0.12F, 0.10F, 0.22F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.12F, 0.10F, 0.22F, 1.0F});
         drawScene();
 
         // 2. Draw the framebuffer's texture to the window through the chosen effect.

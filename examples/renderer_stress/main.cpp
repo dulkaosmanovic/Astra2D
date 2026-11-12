@@ -239,8 +239,7 @@ protected:
     {
         const auto start = std::chrono::steady_clock::now();
         m_target.bind();
-        glClearColor(0.05F, 0.05F, 0.07F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        astra2d::Renderer2D::clear({0.05F, 0.05F, 0.07F, 1.0F});
 
         m_renderer.resetStats();
         const auto cpuStart = std::chrono::steady_clock::now();
