@@ -153,7 +153,8 @@ void PhysicsWorld::Impl::findPairs(float dt)
             const glm::vec2 motion = b.velocity * dt;
             box = box.merged({.min = box.min + motion, .max = box.max + motion});
         }
-        proxies.push_back({.aabb = box, .id = i, .movable = b.isDynamic()});
+        // Kinematic bodies count as movable: they still enter static triggers.
+        proxies.push_back({.aabb = box, .id = i, .movable = b.type != BodyType::Static});
     }
     broadPhase.setType(settings.broadPhase);
     broadPhase.setCellSize(settings.gridCellSize);
@@ -169,7 +170,17 @@ void PhysicsWorld::Impl::findPairs(float dt)
         if ((a.def.category & b.def.mask) == 0 || (b.def.category & a.def.mask) == 0) {
             return true;
         }
-        return !bodies[a.body].isDynamic() && !bodies[b.body].isDynamic();
+        const Body& bodyA = bodies[a.body];
+        const Body& bodyB = bodies[b.body];
+        if (bodyA.isDynamic() || bodyB.isDynamic()) {
+            return false;
+        }
+        // Static and kinematic bodies never collide, but a kinematic one (a moving platform)
+        // still enters triggers.
+        const bool trigger = a.def.isTrigger || b.def.isTrigger;
+        const bool kinematic =
+            bodyA.type == BodyType::Kinematic || bodyB.type == BodyType::Kinematic;
+        return !(trigger && kinematic);
     });
     // Sorted by key: the contacts come out in the same order whatever broad phase found them,
     // which keeps the simulation deterministic, and they can be merged with the last step's list.

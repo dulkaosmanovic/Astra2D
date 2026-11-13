@@ -308,17 +308,21 @@ def e2(md):
     line_chart(IMAGES / "e2_ecs.svg", "E2: sparse-set ECS vs. OOP game objects",
                "Time per object and update (mean ± sd over runs); lower is faster",
                "objects", "ns per object",
-               series(per, 0, 1, ["ecs", "oop", "oop_shuffled"]), True, False)
+               series(per, 0, 1, E2_APPROACHES), True, False)
     md.append("## E2: ECS vs. OOP game objects\n")
-    md.append("| objects | ecs ns/object | oop ns/object | oop_shuffled ns/object | oop / ecs | "
-              "shuffled / ecs | ecs ms per update |")
-    md.append("|---:|---:|---:|---:|---:|---:|---:|")
+    md.append("Nanoseconds per object and update.\n")
+    md.append("| objects | ecs | ecs_shuffled | oop | oop_shuffled | oop / ecs | "
+              "oop_shuffled / ecs_shuffled | ecs ms per update |")
+    md.append("|---:|---:|---:|---:|---:|---:|---:|---:|")
     for n in sorted({int(k[1]) for k in per}):
-        e, o, s = (per[(a, str(n))] for a in ("ecs", "oop", "oop_shuffled"))
-        md.append(f"| {n:,} | {pm(e[0], e[1], 2)} | {pm(o[0], o[1], 2)} | {pm(s[0], s[1], 2)} "
-                  f"| {o[0] / e[0]:.1f}× | {s[0] / e[0]:.1f}× "
+        e, es, o, s = (per[(a, str(n))] for a in E2_APPROACHES)
+        md.append(f"| {n:,} | {pm(e[0], e[1], 2)} | {pm(es[0], es[1], 2)} | {pm(o[0], o[1], 2)} "
+                  f"| {pm(s[0], s[1], 2)} | {o[0] / e[0]:.1f}× | {s[0] / es[0]:.1f}× "
                   f"| {pm(*total[('ecs', str(n))][:2])} |")
     md.append("")
+
+
+E2_APPROACHES = ["ecs", "ecs_shuffled", "oop", "oop_shuffled"]
 
 
 def e3(md):
@@ -363,6 +367,23 @@ def e4(md):
         md.append("|" + "---:|" * len(stack[0]))
         for row in stack:
             md.append("| " + " | ".join(row.values()) + " |")
+        md.append("")
+    tower = read("e4_tower.csv")
+    if tower:
+        standing = defaultdict(lambda: [0, 0])
+        for row in tower:
+            case = standing[(int(row["boxes"]), int(row["iterations"]))]
+            case[0] += int(row["standing"])
+            case[1] += 1
+        heights = sorted({b for b, _ in standing})
+        iterations = sorted({i for _, i in standing})
+        md.append(f"Towers with random sideways offsets up to {tower[0]['offset']}: "
+                  "towers still standing after the run, by solver velocity iterations.\n")
+        md.append("| boxes | " + " | ".join(f"{i} it." for i in iterations) + " |")
+        md.append("|---:|" + "---:|" * len(iterations))
+        for b in heights:
+            md.append(f"| {b} | " + " | ".join(
+                f"{standing[(b, i)][0]}/{standing[(b, i)][1]}" for i in iterations) + " |")
         md.append("")
     if bounce:
         md.append("| " + " | ".join(bounce[0]) + " |")

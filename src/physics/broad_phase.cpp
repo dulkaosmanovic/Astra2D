@@ -87,8 +87,8 @@ void BroadPhase::sortAndSweep(const std::vector<BroadPhaseProxy>& proxies,
                               std::vector<ProxyPair>& pairs)
 {
     // Boxes sorted by their left edge; a box can only overlap the boxes after it that start
-    // before it ends. The order from the last step is kept: it changes little, which suits the
-    // sort.
+    // before it ends. The order from the last step is the starting order; bodies move little
+    // between steps, so it is nearly sorted already.
     if (m_order.size() != proxies.size()) {
         m_order.resize(proxies.size());
         std::iota(m_order.begin(), m_order.end(), 0U);

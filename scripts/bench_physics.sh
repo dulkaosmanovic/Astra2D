@@ -4,8 +4,9 @@
 #
 # E3 "How much does the broad phase reduce collision cost?": brute force, sort and sweep and the
 #    uniform grid at several body counts -> benchmarks/results/e3_broadphase.csv
-# E4 "Is the physics stable?": drift of box towers over 10 s, and the energy of a bouncing ball
-#    with restitution 0 and 1 -> benchmarks/results/e4_stack.csv, e4_bounce.csv
+# E4 "Is the physics stable?": drift of aligned box towers over 10 s; towers with random sideways
+#    offsets, by height and solver iterations; and the bounce heights of a ball with restitution
+#    0, 0.5 and 1 -> benchmarks/results/e4_stack.csv, e4_tower.csv, e4_bounce.csv
 #
 #   scripts/bench_physics.sh
 #   RUNS=3 BODIES="100 1000" scripts/bench_physics.sh
@@ -18,6 +19,11 @@
 #   WARMUP   steps ignored before that          (default 60)
 #   BOXES    tower heights for E4               (default "5 10 20")
 #   SIM_SECONDS  simulated time for E4          (default 10)
+#   OFFSET   largest sideways offset of a box in the E4 tower sweep, units (default 0.05)
+#   SEEDS    random towers per case             (default "1 2 3")
+#   TOWERS   tower heights for the sweep        (default "10 15 20")
+#   SOLVER_ITERATIONS  velocity iterations for the sweep (default "4 8 12 16 20 24")
+#   TOWER_SECONDS  simulated time for the sweep (default 30: some towers fall only after 15 s)
 #   OUT      output directory                   (default benchmarks/results)
 #
 # E4 is deterministic (same result every run), so it runs once. Keep the machine otherwise idle
@@ -33,6 +39,11 @@ STEPS=${STEPS:-300}
 WARMUP=${WARMUP:-60}
 BOXES=${BOXES:-"5 10 20"}
 SIM_SECONDS=${SIM_SECONDS:-10}
+OFFSET=${OFFSET:-0.05}
+SEEDS=${SEEDS:-"1 2 3"}
+TOWERS=${TOWERS:-"10 15 20"}
+SOLVER_ITERATIONS=${SOLVER_ITERATIONS:-"4 8 12 16 20 24"}
+TOWER_SECONDS=${TOWER_SECONDS:-30}
 OUT=${OUT:-benchmarks/results}
 
 [[ -f "$BUILD/build.ninja" ]] || meson setup "$BUILD" --buildtype=release
@@ -70,6 +81,17 @@ for boxes in $BOXES; do
     "$bench" stack --boxes "$boxes" --seconds "$SIM_SECONDS" 2> /dev/null | tee -a "$stack"
 done
 
+tower="$OUT/e4_tower.csv"
+"$bench" stack --boxes 1 --seconds 0 --header 2> /dev/null | head -1 > "$tower"
+for boxes in $TOWERS; do
+    for iterations in $SOLVER_ITERATIONS; do
+        for seed in $SEEDS; do
+            "$bench" stack --boxes "$boxes" --offset "$OFFSET" --seed "$seed" \
+                --iterations "$iterations" --seconds "$TOWER_SECONDS" 2> /dev/null | tee -a "$tower"
+        done
+    done
+done
+
 bounce="$OUT/e4_bounce.csv"
 "$bench" bounce --seconds 0 --header 2> /dev/null | head -1 > "$bounce"
 for restitution in 0 0.5 1; do
@@ -77,4 +99,4 @@ for restitution in 0 0.5 1; do
         tee -a "$bounce"
 done
 
-echo "Results: $e3 $stack $bounce"
+echo "Results: $e3 $stack $tower $bounce"

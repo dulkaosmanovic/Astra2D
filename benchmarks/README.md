@@ -8,7 +8,7 @@ a CSV file and a `*.machine.txt` file describing the machine, build and settings
 | E1: batched vs. naive rendering | `scripts/bench_renderer.sh` | `results/e1_renderer.csv` |
 | E2: ECS vs. OOP game objects | `scripts/bench_ecs.sh` | `results/e2_ecs.csv` |
 | E3: broad phase cost | `scripts/bench_physics.sh` | `results/e3_broadphase.csv` |
-| E4: physics stability | `scripts/bench_physics.sh` | `results/e4_stack.csv`, `results/e4_bounce.csv` |
+| E4: physics stability | `scripts/bench_physics.sh` | `results/e4_stack.csv`, `results/e4_tower.csv`, `results/e4_bounce.csv` |
 | E5: usability | `scripts/bench_usability.py` | `results/e5_loc.csv`, `results/e5_api.csv` |
 | all of the above, then charts | `scripts/bench_all.sh` | also `results/summary.md`, `docs/images/evaluation/*.svg` |
 
@@ -37,8 +37,9 @@ health data that the update does not touch, as a real object would carry.
 
 | Approach | Layout |
 |---|---|
-| `ecs` | Four component pools; the update is a `View<Position, Velocity>` over two packed arrays |
-| `oop` | One heap-allocated `GameObject` per object behind a base pointer, virtual `update()`; allocated in update order (best case for this layout) |
+| `ecs` | Four component pools; the update is a `View<Position, Velocity>` over two packed arrays in the same order (best case for this layout) |
+| `ecs_shuffled` | The same, with Velocity added in random order: the view finds each velocity through the sparse array |
+| `oop` | One heap-allocated `GameObject` per object behind a base pointer, virtual `update()` (three subclasses, so the call is not devirtualised); allocated in update order (best case for this layout) |
 | `oop_shuffled` | The same objects updated in random order, as after a long game of creating and destroying objects |
 
 Every run is a separate process with warm-up updates first. CSV columns:
@@ -66,14 +67,18 @@ bit-identical), so only the cost differs. Warm-up steps are ignored. CSV columns
 | `pair_tests` | bounding box tests done by the broad phase: the work it saves |
 | `candidate_pairs`, `touching` | pairs passed to the narrow phase, pairs actually touching |
 
-**E4** is deterministic, so every case runs once (10 simulated seconds, sleeping off):
+**E4** is deterministic, so every case runs once (sleeping off):
 
-- `stack --boxes N`: a tower of N unit boxes. `max_drift_x` is the largest sideways offset of any
-  box, `top_error_y` how far the top box ends up below where it was placed (the allowed overlap of
-  all contacts added up), `max_angle` the largest rotation.
-- `bounce --restitution e`: a ball dropped from 5 units. `energy_start`, `energy_end`,
-  `energy_max` are kinetic plus potential energy per unit mass; with e = 1 it should stay
-  constant, with e = 0 the ball should stop at the first impact. `bounces` counts contact begins.
+- `stack --boxes N [--offset d --seed s] [--iterations i]`: a tower of N unit boxes, perfectly
+  aligned (`e4_stack.csv`, 10 s) or with every box moved sideways by a random amount up to d
+  (`e4_tower.csv`, 30 s, by solver velocity iterations). `max_drift_x` is the largest sideways
+  movement of any box, `top_error_y` how far the top box ends up below where it was placed (the
+  allowed overlap of all contacts added up), `max_angle` the largest rotation, `standing` 1 if the
+  tower is still up at the end.
+- `bounce --restitution e`: a ball dropped from 5 units (10 s). `drop_height`, `first_apex`,
+  `last_apex`, `max_apex` are heights of its lowest point, at the drop and at the top of the
+  bounces; with e = 1 every apex should reach the drop height, with e = 0 there is no bounce.
+  `bounces` counts contact begins.
 
 ## E5: usability
 

@@ -173,7 +173,7 @@ Stretch
 
 Required
 - [x] Benchmarks below, run in a release build: E1–E5 in `benchmarks/results/`, charts by `scripts/make_charts.py`, results and discussion in `docs/evaluation.md` (`scripts/bench_all.sh` repeats everything)
-- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks; line coverage per module by `scripts/coverage.py` (78 % overall)
+- [x] Full test run under ASan/UBSan and Valgrind without errors or leaks; line coverage per module by `scripts/coverage.py` (75 % overall)
 - [x] Doxygen comments on all public APIs (`WARN_IF_UNDOCUMENTED`, 0 warnings; CI fails on any)
 - [x] README: build, run, usage example
 
@@ -187,16 +187,24 @@ Feature set is frozen: no new engine features from here on, only the items below
 
 Required
 - [ ] Write the thesis text in the faculty's language and template, following [Thesis chapters](#thesis-chapters): theory with equations (impulse, SAT, fixed timestep), citations, numbered figures; reuse `docs/*.md` and the evaluation charts
-- [ ] E2 at 10k objects is noise (3.56 ± 1.89 ns): more iterations, or explain timer resolution in the text
+- [x] E2 at 10k objects is noise (3.56 ± 1.89 ns): more iterations (200 million object updates per run; now ± 0.3 ns)
 - [ ] E1: more runs (now 3); explain why batching gives 2× and not 100× using the CPU/GPU split table
-- [ ] Explain the low coverage of renderer (43 %), assets (48 %) and core (58 %): they need an OpenGL context
+- [x] Explain the low coverage of renderer (48 %), assets (50 %), debug (59 %) and core (63 %): they need an OpenGL context (in evaluation.md)
 - [ ] Check the faculty's rules on AI-assisted work and declare it if required
+
+From the pre-submission review (fix in this order; numbers in the docs only change in the last step)
+- [x] Bug: a box-shaped bullet tunnels through a thin wall (a circle stops); fix or limit the claim to circles, add a test
+- [x] Bug: a kinematic body never fires a static trigger; fix and add a test
+- [x] E2: add an ECS case with mixed/shuffled components (aligned pools are the best case); make the OOP baseline really virtual (several subclasses, not `final`); more iterations at 10k (the noise is too few iterations, not timer resolution)
+- [x] E4: towers with random x offsets, and tower height vs. solver iterations; measure bounce apex height instead of ½v² + gh per step (an integrator artefact)
+- [x] Tests that check their name: smallest pool leads the view, only the needed sparse page is allocated, a ball rolls without sliding, a tight apex tolerance; add two-body collisions and friction on a slope
+- [ ] Rerun E1–E5, coverage and the test count at one commit on an idle machine; fix every quoted number, the E3 text (722 are candidate pairs, the grid tests only the same cell) and claims with no data behind them
 
 Stretch
 - [ ] External baselines: the same scene in Box2D (E3/E4) and the same update in EnTT (E2)
 - [ ] E1 on a second machine with a dedicated GPU
 - [ ] GL tests under Xvfb/llvmpipe (Docker image already has it) to raise renderer/assets coverage
-- [ ] Physics tests against analytic results: projectile range, box sliding on a slope with friction μ, momentum in elastic collisions
+- [ ] Physics tests against analytic results: projectile range (slope with friction μ and momentum/restitution in head-on collisions are done)
 
 Defense prep
 - [ ] Be able to derive the impulse formula, explain sparse-set cache locality and the timestep accumulator on a whiteboard

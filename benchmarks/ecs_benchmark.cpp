@@ -4,16 +4,22 @@
 // update, for three layouts of the same data:
 //
 //   ecs           Registry with Position, Velocity, Appearance and Health components; the update
-//                 is a View<Position, Velocity>, so it reads two packed arrays and nothing else.
+//                 is a View<Position, Velocity>. Every entity got its components in the same
+//                 order, so both pools are packed in the same order and the view reads two arrays
+//                 one after another: the best case for this layout.
+//   ecs_shuffled  The same entities, but Velocity added in a random order: what happens when
+//                 components are added and removed over a long-running game. The view walks the
+//                 Position pool and finds each Velocity through the sparse array, in random order.
 //   oop           One heap-allocated GameObject per object (all four parts as members) behind a
-//                 base-class pointer, updated through a virtual update(). Objects are allocated
-//                 one after another, so they usually lie in memory in update order: the best case
-//                 for this layout.
+//                 base-class pointer, updated through a virtual update(). Three subclasses take
+//                 turns, so the compiler cannot replace the virtual call with a direct one.
+//                 Objects are allocated one after another, so they usually lie in memory in
+//                 update order: the best case for this layout.
 //   oop_shuffled  The same objects, updated in a random order: what happens to a long-running
 //                 game whose objects were created and destroyed over time, so that the update
 //                 order no longer matches the memory order.
 //
-// Both layouts hold the same data per object; only its layout and the dispatch differ.
+// All layouts hold the same data per object; only its layout and the dispatch differ.
 //
 //   ecs_benchmark --approach ecs --entities 100000 [--iterations 200] [--warmup 20] [--header]
 //
@@ -83,7 +89,7 @@ public:
     [[nodiscard]] virtual glm::vec2 position() const = 0;
 };
 
-class Mover final : public GameObject {
+class Mover : public GameObject {
 public:
     Mover(glm::vec2 position, glm::vec2 velocity)
         : m_position(position)
@@ -99,6 +105,32 @@ private:
     Appearance m_appearance; // carried along, as in a real object, but not updated
     Health m_health;
 };
+
+// A game has many kinds of objects. With only one, the compiler sees that every call goes to
+// Mover::update() and inlines it, so no virtual call would be measured. These do the same work,
+// so only the dispatch differs from the ECS.
+class Player final : public Mover {
+public:
+    using Mover::Mover;
+    void update(float deltaTime) override { Mover::update(deltaTime); }
+};
+class Enemy final : public Mover {
+public:
+    using Mover::Mover;
+    void update(float deltaTime) override { Mover::update(deltaTime); }
+};
+
+std::unique_ptr<GameObject> makeObject(int i, glm::vec2 position, glm::vec2 velocity)
+{
+    switch (i % 3) {
+    case 0:
+        return std::make_unique<Mover>(position, velocity);
+    case 1:
+        return std::make_unique<Player>(position, velocity);
+    default:
+        return std::make_unique<Enemy>(position, velocity);
+    }
+}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -145,9 +177,9 @@ Options parseOptions(std::span<char*> args)
             throw std::invalid_argument("unknown argument " + std::string(arg));
         }
     }
-    if (options.approach != "ecs" && options.approach != "oop" &&
-        options.approach != "oop_shuffled") {
-        throw std::invalid_argument("--approach must be ecs, oop or oop_shuffled");
+    if (options.approach != "ecs" && options.approach != "ecs_shuffled" &&
+        options.approach != "oop" && options.approach != "oop_shuffled") {
+        throw std::invalid_argument("--approach must be ecs, ecs_shuffled, oop or oop_shuffled");
     }
     return options;
 }
@@ -180,15 +212,32 @@ std::vector<double> measure(const Options& options, Update update)
     return times;
 }
 
-double runEcs(const Options& options, std::vector<double>& times)
+// A fixed seed on purpose: every run and approach shuffles the same way.
+std::mt19937 shuffler()
+{
+    return std::mt19937(42); // NOLINT(bugprone-random-generator-seed)
+}
+
+double runEcs(const Options& options, bool shuffled, std::vector<double>& times)
 {
     astra2d::Registry registry;
-    for (int i = 0; i < options.entities; ++i) {
+    std::vector<int> order(static_cast<std::size_t>(options.entities));
+    std::iota(order.begin(), order.end(), 0);
+    std::vector<astra2d::Entity> entities;
+    entities.reserve(order.size());
+    for (const int i : order) {
         const astra2d::Entity entity = registry.create();
         registry.emplace<Position>(entity, startPosition(i));
-        registry.emplace<Velocity>(entity, startVelocity(i));
         registry.emplace<Appearance>(entity);
         registry.emplace<Health>(entity);
+        entities.push_back(entity);
+    }
+    if (shuffled) {
+        auto random = shuffler();
+        std::ranges::shuffle(order, random);
+    }
+    for (const int i : order) {
+        registry.emplace<Velocity>(entities[static_cast<std::size_t>(i)], startVelocity(i));
     }
     auto view = registry.view<Position, Velocity>();
     times = measure(options, [&] {
@@ -204,11 +253,10 @@ double runOop(const Options& options, bool shuffled, std::vector<double>& times)
     std::vector<std::unique_ptr<GameObject>> objects;
     objects.reserve(static_cast<std::size_t>(options.entities));
     for (int i = 0; i < options.entities; ++i) {
-        objects.push_back(std::make_unique<Mover>(startPosition(i), startVelocity(i)));
+        objects.push_back(makeObject(i, startPosition(i), startVelocity(i)));
     }
     if (shuffled) {
-        // A fixed seed on purpose: every run and approach shuffles the same way.
-        std::mt19937 random(42); // NOLINT(bugprone-random-generator-seed)
+        auto random = shuffler();
         std::ranges::shuffle(objects, random);
     }
     times = measure(options, [&] {
@@ -234,9 +282,10 @@ int main(int argc, char** argv)
         }
 
         std::vector<double> times;
-        const double checksum = options.approach == "ecs"
-                                    ? runEcs(options, times)
-                                    : runOop(options, options.approach == "oop_shuffled", times);
+        const bool shuffled = options.approach.ends_with("_shuffled");
+        const double checksum = options.approach.starts_with("ecs")
+                                    ? runEcs(options, shuffled, times)
+                                    : runOop(options, shuffled, times);
 
         const auto count = static_cast<double>(times.size());
         const double mean = std::accumulate(times.begin(), times.end(), 0.0) / count;

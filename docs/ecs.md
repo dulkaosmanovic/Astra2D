@@ -99,8 +99,9 @@ bosses, not transforms. For each visited entity:
   in the same order sit at the same place in every pool, so this is usually a sequential read; only
   otherwise does it do a sparse lookup.
 
-That shortcut matters: in the E2 benchmark it took the update of a million entities from 3.9 ms to
-2.6 ms.
+That shortcut is the ECS's best case, and E2 measures both sides of it: entities that got their
+components in the same order (`ecs`), and the same entities with Velocity added in random order
+(`ecs_shuffled`), where every lookup is a random access into the other pool.
 
 ### Changing the registry while iterating
 
@@ -282,23 +283,28 @@ a name it can map back; the `scene` example does exactly this.
 `scripts/bench_ecs.sh` runs `benchmarks/ecs_benchmark`: N objects with a position, a velocity and
 some data the update does not touch, updated as `position += velocity * dt`, stored three ways:
 
-- `ecs`: four components, updated by a `View<Position, Velocity>`;
-- `oop`: one heap-allocated `GameObject` per object with a virtual `update()`, allocated in order;
+- `ecs`: four components, updated by a `View<Position, Velocity>`, every entity given its
+  components in the same order;
+- `ecs_shuffled`: the same, with Velocity added in random order, so the two pools no longer match;
+- `oop`: one heap-allocated `GameObject` per object with a virtual `update()` (three subclasses,
+  so the call stays virtual), allocated in order;
 - `oop_shuffled`: the same objects updated in random order, as in a long-running game whose objects
   were created and destroyed over time.
 
 Time per object and update (release build, AMD Ryzen 5 3500U, mean of 5 runs):
 
-| Objects | ecs | oop | oop_shuffled |
-|---:|---:|---:|---:|
-| 10,000 | 3.6 ns | 2.2 ns | 4.2 ns |
-| 100,000 | 2.07 ns | 7.07 ns | 12.5 ns |
-| 1,000,000 | 2.60 ns | 6.84 ns | 12.9 ns |
+| Objects | ecs | ecs_shuffled | oop | oop_shuffled |
+|---:|---:|---:|---:|---:|
+| 10,000 | 2.56 ns | 5.04 ns | 2.95 ns | 9.44 ns |
+| 100,000 | 3.07 ns | 7.99 ns | 13.9 ns | 30.7 ns |
+| 1,000,000 | 4.03 ns | 53.3 ns | 13.7 ns | 36.6 ns |
 
-While everything fits in the CPU cache (10,000 objects) the layouts cost about the same, within the
-measurement noise. Beyond that, the ECS stays flat, while the game objects get 2.6 to 3.4 times
-slower in allocation order and 5 to 6 times slower shuffled, because each object is a cache miss
-and carries data the update does not need. @ref evaluation has the chart and the discussion.
+With matching pools the ECS stays nearly flat, while the game objects get 3.4 to 4.5 times slower
+once they no longer fit in the cache, because each object is a cache miss and carries data the
+update does not need. With pools out of order, every entity costs a sparse lookup and a random
+load into the other pool; at a million entities that is slower than the shuffled game objects.
+Sorting a pool into the order of another (or EnTT-style groups) would fix that case; Astra2D does
+not do it yet. @ref evaluation has the chart and the discussion.
 
 ## Examples
 

@@ -26,8 +26,8 @@ enum class BroadPhaseType {
 struct BroadPhaseProxy {
     Aabb aabb;            ///< World bounding box.
     std::uint32_t id = 0; ///< Returned in pairs (the world uses the shape index).
-    /// Pairs of two proxies that both cannot move (static or kinematic bodies) are never
-    /// reported, nor tested.
+    /// Pairs of two proxies that both cannot move (e.g. static bodies) are never reported, nor
+    /// tested.
     bool movable = true;
 };
 

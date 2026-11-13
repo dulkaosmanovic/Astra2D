@@ -231,12 +231,14 @@ TEST(RegistryTests, RemovalKeepsOtherComponentsCorrect)
 TEST(RegistryTests, SparsePagesHandleHighIndices)
 {
     Registry registry;
+    const Entity first = registry.create();
     Entity last;
     for (std::size_t i = 0; i < (2 * astra2d::SparseSet::kPageSize) + 10; ++i) {
         last = registry.create();
     }
-    registry.emplace<Tag>(last); // only the third page is allocated
+    registry.emplace<Tag>(last); // an index in the third sparse page; the first is never allocated
     EXPECT_TRUE(registry.has<Tag>(last));
+    EXPECT_FALSE(registry.has<Tag>(first)); // looked up in a page that does not exist
     EXPECT_EQ(registry.count<Tag>(), 1U);
 }
 
@@ -316,7 +318,9 @@ TEST(ViewTests, IteratesTheSmallestPool)
     registry.emplace<Tag>(tagged);
 
     const auto view = registry.view<Position, Tag>();
+    EXPECT_EQ(view.sizeHint(), 1U); // walks the one Tag, not the 1001 Positions
     EXPECT_EQ(collect(view), std::vector<Entity>{tagged});
+    EXPECT_EQ((registry.view<Tag, Position>().sizeHint()), 1U); // whatever the order
 }
 
 TEST(ViewTests, MissingPoolGivesEmptyView)

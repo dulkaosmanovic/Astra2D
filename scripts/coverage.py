@@ -43,6 +43,9 @@ def collect():
     branches = defaultdict(dict)  # file -> (line, index) -> taken
     functions = defaultdict(dict)  # file -> name -> executed
     notes = [*(BUILD / "src").rglob("*.gcno"), *(BUILD / "tests").rglob("*.gcno")]
+    # A note without its object is left over from a file that was moved or renamed (ninja does not
+    # delete it); it describes old code and would add lines that can never be covered.
+    notes = [note for note in notes if note.with_suffix(".o").exists()]
     for note in notes:
         # Without a .gcda (the object was never linked into a test), gcov reports zero counts.
         result = subprocess.run(["gcov", "--json-format", "--stdout", "--branch-probabilities",

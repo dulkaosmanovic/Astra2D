@@ -361,6 +361,12 @@ public:
         return m_leading != nullptr && m_registry->valid(entity) && matches(entity);
     }
 
+    /// Size of the pool the view walks (the smallest one): an upper bound of count(), in O(1).
+    [[nodiscard]] std::size_t sizeHint() const
+    {
+        return m_leading != nullptr ? m_leading->size() : 0;
+    }
+
     /// Exact number of matching entities (walks the smallest pool).
     [[nodiscard]] std::size_t count() const
     {

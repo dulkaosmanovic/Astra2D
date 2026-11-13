@@ -173,9 +173,18 @@ Manifold collideAabbs(const Aabb& a, const Aabb& b, float margin, unsigned edgeM
         manifold.points[0] = makePoint(low, 0);
         manifold.points[1] = makePoint(high, 1);
         manifold.count = 2;
+    } else if (high >= low) {
+        manifold.points[0] = makePoint(0.5F * (low + high), 0); // corner on corner
+        manifold.count = 1;
     } else {
-        // Corner on corner (or a speculative contact of diagonal neighbours).
-        manifold.points[0] = makePoint(0.5F * (low + high), 0);
+        // Speculative contact of diagonal neighbours, e.g. a bullet about to hit a face: the
+        // smaller box's leading corner, not the middle of the gap, so it does not spin
+        // around a point outside both boxes.
+        const bool smallerA = a.max[along] - a.min[along] <= b.max[along] - b.min[along];
+        const Aabb& small = smallerA ? a : b;
+        const Aabb& large = smallerA ? b : a;
+        manifold.points[0] =
+            makePoint(small.max[along] < large.min[along] ? small.max[along] : small.min[along], 0);
         manifold.count = 1;
     }
     return manifold;
@@ -340,14 +349,7 @@ Manifold collidePolygons(const Polygon& a, const Pose& poseA, const Polygon& b, 
     const glm::vec2 v1 = reference.vertex(referenceEdge);
     const glm::vec2 v2 = reference.vertex(referenceEdge + 1);
     const glm::vec2 tangent = glm::normalize(v2 - v1);
-    std::array<ClipVertex, 2> clipped1{};
-    std::array<ClipVertex, 2> clipped2{};
-    if (clipSegment(segment, clipped1, -tangent, -glm::dot(tangent, v1)) < 2 ||
-        clipSegment(clipped1, clipped2, tangent, glm::dot(tangent, v2)) < 2) {
-        return manifold; // only possible for speculative contacts past a corner
-    }
-
-    for (const ClipVertex& vertex : clipped2) {
+    const auto addPoint = [&](const ClipVertex& vertex) {
         const float separation = glm::dot(n, vertex.point - v1);
         if (separation <= margin) {
             ManifoldPoint& point = manifold.points[static_cast<std::size_t>(manifold.count++)];
@@ -355,8 +357,21 @@ Manifold collidePolygons(const Polygon& a, const Pose& poseA, const Polygon& b, 
             point.separation = separation;
             point.id = vertex.id;
         }
-    }
+    };
     manifold.normal = flip ? -n : n;
+    std::array<ClipVertex, 2> clipped1{};
+    std::array<ClipVertex, 2> clipped2{};
+    if (clipSegment(segment, clipped1, -tangent, -glm::dot(tangent, v1)) < 2 ||
+        clipSegment(clipped1, clipped2, tangent, glm::dot(tangent, v2)) < 2) {
+        // Only possible for a speculative contact past the end of the reference face, e.g. a
+        // bullet that reaches the face diagonally: the nearest incident vertex still stops it.
+        const bool first = glm::dot(n, segment[0].point) <= glm::dot(n, segment[1].point);
+        addPoint(first ? segment[0] : segment[1]);
+        return manifold;
+    }
+    for (const ClipVertex& vertex : clipped2) {
+        addPoint(vertex);
+    }
     return manifold;
 }
 

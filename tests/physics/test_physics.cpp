@@ -185,8 +185,9 @@ TEST(PhysicsWorldTests, RestitutionOneBouncesBackRestitutionZeroDoesNot)
         if (restitution == 0.0F) {
             EXPECT_LT(highest, 0.55F);
         } else {
-            EXPECT_GT(highest, 4.7F); // almost the 5 m it fell from
-            EXPECT_LT(highest, 5.2F); // no energy gained
+            // Back to the 5 m it fell from, neither lost nor gained; sampling every step misses
+            // the true top by at most g·dt²/2 (1.4 mm).
+            EXPECT_NEAR(highest, 5.0F, 0.005F);
         }
     }
 }
@@ -258,7 +259,89 @@ TEST(PhysicsWorldTests, BallRollsDownASlope)
     const BodyId ball = addBall(world, {0.0F, 1.5F});
     run(world, 2.0F);
     EXPECT_GT(world.position(ball).x, 1.0F);
-    EXPECT_LT(world.angularVelocity(ball), -0.5F); // rolling clockwise, not sliding
+    // Rolling without sliding: the contact point does not move, so speed = -ω·r.
+    const float speed = glm::length(world.velocity(ball));
+    EXPECT_GT(speed, 1.0F);
+    EXPECT_NEAR(-world.angularVelocity(ball) * 0.5F, speed, 0.02F * speed);
+}
+
+TEST(PhysicsWorldTests, ProjectileRangeMatchesTheAnalyticRange)
+{
+    // Launched at speed v and angle θ, a body comes back to its start height at R = v²·sin 2θ / g.
+    // Semi-implicit Euler adds gravity to the velocity before moving, so after n steps
+    // y = vy·n·dt - g·dt²·n(n+1)/2: it lands exactly one step early, at R - vx·dt.
+    const float v = 10.0F;
+    const float g = 9.81F;
+    for (const float theta : {0.3F, std::numbers::pi_v<float> / 4.0F, 1.2F}) {
+        PhysicsWorld world;
+        const glm::vec2 velocity = v * glm::vec2(std::cos(theta), std::sin(theta));
+        const BodyId ball = addBall(world, {0.0F, 0.0F}, 0.1F, {.velocity = velocity});
+        glm::vec2 previous = world.position(ball);
+        while (true) {
+            world.step(kDt);
+            const glm::vec2 now = world.position(ball);
+            if (now.y < 0.0F) { // crossed the start height: interpolate where
+                const float x =
+                    previous.x + ((now.x - previous.x) * previous.y / (previous.y - now.y));
+                EXPECT_NEAR(x, (v * v * std::sin(2.0F * theta) / g) - (velocity.x * kDt), 0.01F)
+                    << theta;
+                break;
+            }
+            previous = now;
+        }
+    }
+}
+
+TEST(PhysicsWorldTests, HeadOnCollisionsMatchTheAnalyticVelocities)
+{
+    // Two balls on a line, masses 1 and 3: momentum is kept, and the relative speed after the
+    // impact is e times the one before:
+    //   v1' = (m1·v1 + m2·v2 - m2·e·(v1 - v2)) / (m1 + m2), v2' likewise with +m1·e.
+    const float m1 = 1.0F;
+    const float m2 = 3.0F;
+    const float v1 = 2.0F;
+    const float v2 = -1.0F;
+    for (const float e : {0.0F, 0.5F, 1.0F}) {
+        PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+        const BodyId a =
+            addBall(world, {0.0F, 0.0F}, 0.5F, {.velocity = {v1, 0.0F}, .mass = m1}, e);
+        const BodyId b =
+            addBall(world, {3.0F, 0.0F}, 0.5F, {.velocity = {v2, 0.0F}, .mass = m2}, e);
+        run(world, 1.0F); // they meet at about 0.67 s
+        const float momentum = (m1 * v1) + (m2 * v2);
+        const float after1 = (momentum - (m2 * e * (v1 - v2))) / (m1 + m2);
+        const float after2 = (momentum + (m1 * e * (v1 - v2))) / (m1 + m2);
+        EXPECT_NEAR(world.velocity(a).x, after1, 1e-3F) << "e = " << e;
+        EXPECT_NEAR(world.velocity(b).x, after2, 1e-3F) << "e = " << e;
+        EXPECT_NEAR((m1 * world.velocity(a).x) + (m2 * world.velocity(b).x), momentum, 1e-3F);
+    }
+}
+
+TEST(PhysicsWorldTests, FrictionHoldsABoxOnASlopeUntilTanThetaExceedsMu)
+{
+    // A box at rest on a slope of angle θ with friction μ = 0.5 stays while tan θ < μ, and
+    // otherwise slides down with acceleration g·(sin θ - μ·cos θ).
+    const float mu = 0.5F;
+    const float g = 9.81F;
+    for (const float theta : {std::atan(mu) - 0.1F, std::atan(mu) + 0.15F}) {
+        PhysicsWorld world({.enableSleep = false});
+        const BodyId slope = world.createBody({.type = BodyType::Static, .angle = theta});
+        ShapeDef def = ShapeDef::makeBox({20.0F, 0.5F});
+        def.friction = mu;
+        world.addShape(slope, def);
+        const glm::vec2 up(-std::sin(theta), std::cos(theta)); // the slope's normal
+        const BodyId box = addBox(world, up * 1.0F, glm::vec2(0.5F), {.angle = theta}, mu);
+        run(world, 1.0F);
+        const float speed1 = glm::length(world.velocity(box));
+        run(world, 1.0F);
+        const float speed2 = glm::length(world.velocity(box));
+        if (std::tan(theta) < mu) {
+            EXPECT_LT(speed2, 1e-3F) << "theta " << theta;
+        } else {
+            const float expected = g * (std::sin(theta) - (mu * std::cos(theta)));
+            EXPECT_NEAR(speed2 - speed1, expected, 0.02F * expected) << "theta " << theta;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -376,6 +459,30 @@ TEST(PhysicsWorldTests, TriggersReportOverlapsWithoutColliding)
     EXPECT_EQ(enters, 1);
     EXPECT_EQ(exits, 1);
     EXPECT_NEAR(world.position(ball).y, 0.25F, 0.02F); // fell through the zone onto the ground
+}
+
+TEST(PhysicsWorldTests, KinematicBodiesEnterStaticTriggers)
+{
+    PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+    const BodyId zone = world.createBody({.type = BodyType::Static, .position = {3.0F, 0.0F}});
+    ShapeDef def = ShapeDef::makeBox({0.5F, 0.5F});
+    def.isTrigger = true;
+    world.addShape(zone, def);
+    const BodyId platform = world.createBody(
+        {.type = BodyType::Kinematic, .position = {0.0F, 0.0F}, .velocity = {2.0F, 0.0F}});
+    world.addShape(platform, ShapeDef::makeBox({0.5F, 0.1F}));
+    int enters = 0;
+    int exits = 0;
+    for (int i = 0; i < 240; ++i) { // 4 s: from x = 0 through the zone to x = 8
+        world.step(kDt);
+        for (const auto& event : world.triggerBeginEvents()) {
+            ++enters;
+            EXPECT_EQ(event.otherBody, platform);
+        }
+        exits += static_cast<int>(world.triggerEndEvents().size());
+    }
+    EXPECT_EQ(enters, 1);
+    EXPECT_EQ(exits, 1);
 }
 
 // Built at compile time.
@@ -533,6 +640,20 @@ TEST(PhysicsWorldTests, BulletsDoNotTunnelThroughThinWalls)
         } else {
             EXPECT_GT(world.position(shot).x, 10.0F); // tunnelled
         }
+    }
+}
+
+TEST(PhysicsWorldTests, BoxBulletsDoNotTunnelWhenTheyHitAWallDiagonally)
+{
+    // Starts above the wall's top and reaches its face at an angle, axis-aligned and rotated.
+    for (const float angle : {0.0F, 0.3F}) {
+        PhysicsWorld world({.gravity = {0.0F, 0.0F}});
+        const BodyId wall = world.createBody({.type = BodyType::Static, .position = {5.0F, 0.0F}});
+        world.addShape(wall, ShapeDef::makeBox({0.05F, 2.0F}));
+        const BodyId shot = addBox(world, {-2.5F, 4.0F}, glm::vec2(0.1F),
+                                   {.angle = angle, .velocity = {300.0F, -90.0F}, .bullet = true});
+        run(world, 0.1F);
+        EXPECT_LT(world.position(shot).x, 5.0F) << "angle " << angle;
     }
 }
 

@@ -10,16 +10,22 @@
 //   (all means per step). Every method finds the same pairs, so only the cost differs.
 //
 // E4 "Is the physics stable?"
-//   physics_benchmark stack --boxes 10 [--seconds 10] [--header]
-//     A tower of unit boxes on the ground, without sleeping. Prints
-//       boxes,seconds,max_drift_x,top_error_y,max_angle
-//     max_drift_x: largest sideways offset of any box; top_error_y: how far the top box is below
-//     where it was placed (overlap of all contacts); max_angle: largest rotation in radians.
+//   physics_benchmark stack --boxes 10 [--offset 0] [--seed 1] [--iterations 8] [--seconds 10]
+//                           [--header]
+//     A tower of unit boxes on the ground, without sleeping. With --offset, every box is moved
+//     sideways by a random amount up to that many units (a tower stacked by hand), else they are
+//     perfectly aligned. --iterations sets the solver's velocity iterations. Prints
+//       boxes,offset,seed,iterations,seconds,max_drift_x,top_error_y,max_angle,standing
+//     max_drift_x: largest sideways movement of any box from where it was placed; top_error_y:
+//     how far the top box is below where it was placed (overlap of all contacts); max_angle:
+//     largest rotation in radians; standing: 1 if the top box is still within half a box of its
+//     height at the end, 0 if the tower fell.
 //   physics_benchmark bounce --restitution 1 [--seconds 10] [--header]
 //     A ball dropped from 5 units onto the ground. Prints
-//       restitution,seconds,energy_start,energy_end,energy_max,bounces
-//     Energy is kinetic + potential per unit mass; with restitution 1 it should stay, with 0 the
-//     ball should come to rest (energy_end = energy at rest).
+//       restitution,seconds,drop_height,first_apex,last_apex,max_apex,bounces
+//     Heights of the ball's lowest point at the top of each bounce. With restitution 1 every apex
+//     should reach the drop height, with 0.5 each should be a quarter of the one before (the
+//     speed halves), with 0 the ball should not bounce at all (no apex: 0).
 //
 // A checksum of the final state goes to stderr, so the compiler cannot skip the work.
 
@@ -55,6 +61,9 @@ struct Options {
     int steps = 300;
     int warmup = 60;
     int boxes = 10;
+    float offset = 0.0F;
+    unsigned seed = 1;
+    int iterations = 8;
     float seconds = 10.0F;
     float restitution = 1.0F;
     bool header = false;
@@ -96,6 +105,12 @@ Options parseOptions(std::span<char*> args)
             options.warmup = parseNumber<int>(next(), arg);
         } else if (arg == "--boxes") {
             options.boxes = parseNumber<int>(next(), arg);
+        } else if (arg == "--offset") {
+            options.offset = parseNumber<float>(next(), arg);
+        } else if (arg == "--seed") {
+            options.seed = parseNumber<unsigned>(next(), arg);
+        } else if (arg == "--iterations") {
+            options.iterations = std::max(1, parseNumber<int>(next(), arg));
         } else if (arg == "--seconds") {
             options.seconds = parseNumber<float>(next(), arg);
         } else if (arg == "--restitution") {
@@ -139,7 +154,8 @@ void broadPhase(const Options& options)
 {
     PhysicsWorld world(
         {.gravity = {0.0F, 0.0F}, .enableSleep = false, .broadPhase = methodType(options.method)});
-    // About 4 square units per body: dense enough for many contacts, loose enough to move.
+    // About 4 square units per body: loose enough to move. Only a few bodies touch at a time (about
+    // 80 of 5,000), so the step time is mostly the broad phase, which is what E3 compares.
     const float half = std::sqrt(static_cast<float>(options.bodies) * 4.0F) / 2.0F;
     const BodyId walls = world.createBody({.type = BodyType::Static});
     for (const auto& [center, extents] :
@@ -223,30 +239,37 @@ BodyId addGround(PhysicsWorld& world)
 
 void stack(const Options& options)
 {
-    PhysicsWorld world({.enableSleep = false});
+    PhysicsWorld world({.velocityIterations = options.iterations, .enableSleep = false});
     addGround(world);
+    std::mt19937 random(options.seed);
+    std::uniform_real_distribution<float> offset(-options.offset, options.offset);
     std::vector<BodyId> boxes;
+    std::vector<float> startX;
     for (int i = 0; i < options.boxes; ++i) {
-        const BodyId box = world.createBody({.position = {0.0F, 0.5F + static_cast<float>(i)}});
+        const float x = options.offset > 0.0F ? offset(random) : 0.0F;
+        const BodyId box = world.createBody({.position = {x, 0.5F + static_cast<float>(i)}});
         world.addShape(box, ShapeDef::makeBox(glm::vec2(0.5F)));
         boxes.push_back(box);
+        startX.push_back(x);
     }
     float maxDrift = 0.0F;
     float maxAngle = 0.0F;
     for (int i = 0; i < steps(options.seconds); ++i) {
         world.step(kDt);
-        for (const BodyId box : boxes) {
-            maxDrift = std::max(maxDrift, std::abs(world.position(box).x));
-            maxAngle = std::max(maxAngle, std::abs(world.angle(box)));
+        for (std::size_t b = 0; b < boxes.size(); ++b) {
+            maxDrift = std::max(maxDrift, std::abs(world.position(boxes[b]).x - startX[b]));
+            maxAngle = std::max(maxAngle, std::abs(world.angle(boxes[b])));
         }
     }
     const float topError =
         (0.5F + static_cast<float>(options.boxes - 1)) - world.position(boxes.back()).y;
     if (options.header) {
-        std::cout << "boxes,seconds,max_drift_x,top_error_y,max_angle\n";
+        std::cout << "boxes,offset,seed,iterations,seconds,max_drift_x,top_error_y,max_angle,"
+                     "standing\n";
     }
-    std::cout << std::format("{},{:.1f},{:.6f},{:.6f},{:.6f}\n", options.boxes, options.seconds,
-                             maxDrift, topError, maxAngle);
+    std::cout << std::format("{},{:.3f},{},{},{:.1f},{:.6f},{:.6f},{:.6f},{}\n", options.boxes,
+                             options.offset, options.seed, options.iterations, options.seconds,
+                             maxDrift, topError, maxAngle, topError < 0.5F ? 1 : 0);
     std::cerr << std::format("checksum {:.6f}\n", world.position(boxes.back()).y);
 }
 
@@ -261,25 +284,33 @@ void bounce(const Options& options)
     shape.restitution = options.restitution;
     world.addShape(ball, shape);
 
-    const float g = -world.settings().gravity.y;
-    const auto energy = [&] {
-        const glm::vec2 v = world.velocity(ball);
-        // Potential energy measured from the resting height (the ball's centre at its radius).
-        return (0.5F * glm::dot(v, v)) + (g * (world.position(ball).y - radius));
-    };
-    const float start = energy();
-    float highest = start;
+    // The height of the ball's lowest point. Measured at the top of each bounce (where the
+    // vertical velocity turns from up to down), not as kinetic + potential energy every step:
+    // the semi-implicit Euler integrator makes that sum swing by up to g·|v|·dt/2 within a
+    // step, which would show up as energy gained or lost that the ball never has.
+    const auto height = [&] { return world.position(ball).y - radius; };
+    const float drop = height();
+    float firstApex = 0.0F;
+    float lastApex = 0.0F;
+    float maxApex = 0.0F;
     int bounces = 0;
+    float previousVy = 0.0F;
     for (int i = 0; i < steps(options.seconds); ++i) {
         world.step(kDt);
-        highest = std::max(highest, energy());
         bounces += static_cast<int>(world.contactBeginEvents().size());
+        const float vy = world.velocity(ball).y;
+        if (previousVy > 0.0F && vy <= 0.0F) {
+            lastApex = height();
+            firstApex = firstApex > 0.0F ? firstApex : lastApex;
+            maxApex = std::max(maxApex, lastApex);
+        }
+        previousVy = vy;
     }
     if (options.header) {
-        std::cout << "restitution,seconds,energy_start,energy_end,energy_max,bounces\n";
+        std::cout << "restitution,seconds,drop_height,first_apex,last_apex,max_apex,bounces\n";
     }
-    std::cout << std::format("{:.2f},{:.1f},{:.4f},{:.4f},{:.4f},{}\n", options.restitution,
-                             options.seconds, start, energy(), highest, bounces);
+    std::cout << std::format("{:.2f},{:.1f},{:.4f},{:.4f},{:.4f},{:.4f},{}\n", options.restitution,
+                             options.seconds, drop, firstApex, lastApex, maxApex, bounces);
     std::cerr << std::format("checksum {:.6f}\n", world.position(ball).y);
 }
 

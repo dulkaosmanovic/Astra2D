@@ -103,7 +103,7 @@ polygon code.
 ## Broad phase (E3)
 
 Testing every pair of n shapes costs n(n−1)/2 narrow phase tests: 12.5 million for 5000 bodies,
-although only a few hundred pairs touch. The broad phase finds the candidate pairs cheaply with
+although in the E3 scene only about 80 of them touch. The broad phase finds the candidate pairs cheaply with
 bounding boxes. Three methods are implemented, selected with `PhysicsSettings::broadPhase`:
 
 | Method | Idea | Cost |
@@ -122,12 +122,12 @@ without gravity (release build, Ryzen 5 3500U, mean step time):
 
 | Bodies | Brute force | Sort and sweep | Uniform grid | Box tests: brute / SAP / grid |
 |---:|---:|---:|---:|---|
-| 100 | 0.049 ms | 0.026 ms | 0.032 ms | 5,350 / 611 / 154 |
-| 1,000 | 2.72 ms | 0.20 ms | 0.16 ms | 503,500 / 15,523 / 1,403 |
-| 5,000 | 62.4 ms | 1.57 ms | 0.92 ms | 12,517,500 / 160,676 / 6,851 |
+| 100 | 0.061 ms | 0.025 ms | 0.027 ms | 5,350 / 611 / 154 |
+| 1,000 | 4.08 ms | 0.31 ms | 0.24 ms | 503,500 / 15,523 / 1,403 |
+| 5,000 | 94.0 ms | 2.38 ms | 1.39 ms | 12,517,500 / 160,676 / 6,851 |
 
-With 100 bodies the broad phase does not matter; at 5000, brute force alone takes four frames
-while the grid needs 1 ms for the whole step. Run `scripts/bench_physics.sh` for the full
+With 100 bodies the broad phase does not matter; at 5000, brute force alone takes more than five
+frames while the grid needs 1.4 ms for the whole step. Run `scripts/bench_physics.sh` for the full
 experiment (several runs, CSV in `benchmarks/results/`).
 
 ## The solver
@@ -159,8 +159,8 @@ it.
 **Block solver.** A box lying flat has two contact points. Solving them one after the other makes
 the order show: the first point pushes the box up a little and tilts it, and a tall stack slowly
 leans. The two normal impulses are therefore solved together as a 2×2 linear complementarity
-problem (both push, one pushes, none), as in Box2D. A tower of 20 boxes stays perfectly upright
-(below), where the sequential version drifted 3 cm in 10 s with 10 boxes.
+problem (both push, one pushes, none), as in Box2D. A perfectly aligned tower of 20 boxes stays
+upright (below); how tall a tower stacked less carefully can be depends on the iterations.
 
 ### Restitution
 
@@ -168,8 +168,7 @@ Bounciness e (the larger of the two shapes') is applied after the velocity itera
 approached faster than `restitutionThreshold` get a separating velocity of e times their approach
 speed. Below the threshold nothing bounces, so resting bodies do not jitter. The approach speed is
 taken *before* gravity is added in the step, and a bouncing contact is not also pushed out by the
-position correction: either would add energy on every bounce (a first version gained 18% in five
-bounces).
+position correction: either would add energy on every bounce.
 
 ### Removing overlap: split impulses
 
@@ -182,7 +181,8 @@ from step to step instead of flickering.
 
 ### Stability (E4)
 
-`benchmarks/physics_benchmark stack` and `bounce` (10 simulated seconds, no sleeping):
+`benchmarks/physics_benchmark stack` and `bounce` (10 simulated seconds, no sleeping), perfectly
+aligned towers:
 
 | Tower | Sideways drift | Top box below its start | Largest tilt |
 |---:|---:|---:|---:|
@@ -191,8 +191,11 @@ from step to step instead of flickering.
 | 20 boxes | 0 | 0.064 | 0 |
 
 The vertical error is the allowed overlap of every contact added up (and the bottom boxes carrying
-the most weight overlap most). A ball dropped from 5 m with restitution 1 keeps its energy within
-±2% over 10 s; with restitution 0 it stops at the first impact. @ref evaluation discusses both.
+the most weight overlap most). Aligned towers are the best case: with every box moved sideways by
+up to 5 cm, the default 8 velocity iterations hold towers of about 10 boxes, and 20 boxes need 20
+iterations (`PhysicsSettings::velocityIterations`). A ball dropped from 5 m with restitution 1
+bounces back to 99.94 % of its height every time; with restitution 0 it stops at the first impact.
+@ref evaluation discusses both.
 
 ## Body types, sleeping, events
 

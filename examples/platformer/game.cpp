@@ -797,7 +797,9 @@ private:
         m_connections.push_back(
             m_physics.onTriggerExit().connect([this](const astra2d::TriggerContact& contact) {
             const auto& registry = m_scene.registry();
-            if (registry.valid(contact.trigger) && registry.has<HazardTile>(contact.trigger)) {
+            // Only the player's exits: moving platforms (kinematic) pass through hazards too.
+            if (contact.other == m_player && registry.valid(contact.trigger) &&
+                registry.has<HazardTile>(contact.trigger)) {
                 m_hazardContacts = std::max(m_hazardContacts - 1, 0);
             }
         }));
