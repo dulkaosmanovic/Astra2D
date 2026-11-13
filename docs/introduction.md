@@ -30,9 +30,9 @@ view (F3).
 <h2>Key results</h2>
 
 <div class="astra-stats">
-<div class="astra-stat"><span class="astra-stat-value">10</span><span class="astra-stat-label">draw calls for 100,000 sprites instead of 100,000; render time halved (E1)</span></div>
+<div class="astra-stat"><span class="astra-stat-value">10</span><span class="astra-stat-label">draw calls for 100,000 sprites instead of 100,000; render 2.8× faster (E1)</span></div>
 <div class="astra-stat"><span class="astra-stat-value">3.4×</span><span class="astra-stat-label">faster updates with the ECS than with OOP game objects at 1M objects, while its pools are in the same order (E2)</span></div>
-<div class="astra-stat"><span class="astra-stat-value">68×</span><span class="astra-stat-label">faster physics step at 5,000 bodies with the uniform grid broad phase (E3)</span></div>
+<div class="astra-stat"><span class="astra-stat-value">67×</span><span class="astra-stat-label">faster physics step at 5,000 bodies with the uniform grid broad phase (E3)</span></div>
 <div class="astra-stat"><span class="astra-stat-value">20</span><span class="astra-stat-label">boxes in an uneven tower that stands with 20 solver iterations; 10 with the default 8 (E4)</span></div>
 <div class="astra-stat"><span class="astra-stat-value">75 %</span><span class="astra-stat-label">of engine lines covered by 400+ unit tests; 90 %+ in the modules without OpenGL</span></div>
 </div>

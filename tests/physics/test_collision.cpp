@@ -285,6 +285,31 @@ TEST(CollidePolygonsTests, FlatBoxOnGroundTouchesAlongAnEdge)
     EXPECT_NEAR(std::abs(m.points[0].point.x - m.points[1].point.x), 1.0F, 1e-2F);
 }
 
+TEST(CollidePolygonsTests, ChoosesTheSameFacesInAnyLengthUnit)
+{
+    // Two boxes resting on each other, slightly turned, so both faces are nearly as good a
+    // reference: the tolerance that decides between them must scale with the length unit, or a
+    // game measured in pixels picks other faces (and loses its warm starting) than one in metres.
+    const float scale = 32.0F;
+    // With these, the turned box's face is better by 0.0001 to 0.0003 m: within the tolerance
+    // (0.0005 m), so the first box's face stays the reference, in metres and in pixels.
+    for (const float angle : {1e-3F, 3e-3F}) {
+        const glm::vec2 offset{-0.1F, 0.99F};
+        const Manifold metres =
+            astra2d::collidePolygons(astra2d::makeBox({0.5F, 0.5F}), at({0, 0}),
+                                     astra2d::makeBox({0.5F, 0.5F}), at(offset, angle));
+        const Manifold pixels =
+            astra2d::collidePolygons(astra2d::makeBox(glm::vec2(0.5F * scale)), at({0, 0}),
+                                     astra2d::makeBox(glm::vec2(0.5F * scale)),
+                                     at(offset * scale, angle), 0.0F, 0xFFU, 0xFFU, scale);
+        ASSERT_EQ(metres.count, pixels.count) << angle;
+        for (int i = 0; i < metres.count; ++i) {
+            const auto index = static_cast<std::size_t>(i);
+            EXPECT_EQ(metres.points[index].id, pixels.points[index].id) << angle;
+        }
+    }
+}
+
 TEST(CollidePolygonsTests, TriangleAgainstBoxAndSeparation)
 {
     const std::vector<glm::vec2> points = {{-1, 0}, {1, 0}, {0, 1}};

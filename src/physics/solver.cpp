@@ -384,9 +384,11 @@ void PhysicsWorld::Impl::integratePositions(float dt)
 {
     for (Body& b : bodies) {
         if (!b.alive || !b.active()) {
+            b.lastMotion = glm::vec2(0.0F);
             continue;
         }
-        b.center += dt * (b.velocity + b.pseudoVelocity);
+        b.lastMotion = dt * (b.velocity + b.pseudoVelocity);
+        b.center += b.lastMotion;
         b.angle += dt * (b.angularVelocity + b.pseudoAngularVelocity);
         b.rotation = Rotation::fromAngle(b.angle);
         b.origin = b.center - b.rotation.apply(b.localCenter);

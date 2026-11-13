@@ -293,7 +293,8 @@ Manifold collideAabbCircle(const Aabb& box, const Circle& circle, float margin, 
 }
 
 Manifold collidePolygons(const Polygon& a, const Pose& poseA, const Polygon& b, const Pose& poseB,
-                         float margin, unsigned edgeMaskA, unsigned edgeMaskB)
+                         float margin, unsigned edgeMaskA, unsigned edgeMaskB,
+                         float lengthUnitsPerMeter)
 {
     Manifold manifold;
     const WorldPolygon worldA = toWorld(a, poseA);
@@ -317,9 +318,10 @@ Manifold collidePolygons(const Polygon& a, const Pose& poseA, const Polygon& b, 
     if (sepA.edge < 0 && sepB.edge < 0) {
         return manifold;
     }
-    constexpr float kTolerance = 0.1F * 0.005F;
+    // A tenth of the default linearSlop (5 mm), in world units.
+    const float tolerance = 0.1F * 0.005F * lengthUnitsPerMeter;
     const bool flip =
-        sepA.edge < 0 || (sepB.edge >= 0 && sepB.separation > sepA.separation + kTolerance);
+        sepA.edge < 0 || (sepB.edge >= 0 && sepB.separation > sepA.separation + tolerance);
     const WorldPolygon& reference = flip ? worldB : worldA;
     const WorldPolygon& incident = flip ? worldA : worldB;
     const int referenceEdge = flip ? sepB.edge : sepA.edge;

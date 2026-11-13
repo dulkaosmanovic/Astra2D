@@ -11,7 +11,7 @@
 #
 # Settings (environment variables):
 #   BUILD    build directory               (default build-release, configured if missing)
-#   RUNS     repetitions of every case     (default 3)
+#   RUNS     repetitions of every case     (default 10)
 #   SPRITES  sprite counts                 (default "1000 10000 50000 100000")
 #   FRAMES   measured frames per run       (default 600)
 #   WARMUP   frames ignored before that    (default 120)
@@ -26,7 +26,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUILD=${BUILD:-build-release}
-RUNS=${RUNS:-3}
+RUNS=${RUNS:-10}
 SPRITES=${SPRITES:-"1000 10000 50000 100000"}
 FRAMES=${FRAMES:-600}
 WARMUP=${WARMUP:-120}
@@ -39,7 +39,7 @@ mkdir -p "$(dirname "$OUT")"
 machine="${OUT%.csv}.machine.txt"
 {
     echo "date: $(date -Iseconds)"
-    echo "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "commit: $(git describe --always --dirty 2>/dev/null || echo unknown)"
     echo "kernel: $(uname -sr)"
     echo "cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ //')"
     echo "compiler: $(meson introspect "$BUILD" --compilers |

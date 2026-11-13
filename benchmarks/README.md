@@ -84,9 +84,11 @@ bit-identical), so only the cost differs. Warm-up steps are ignored. CSV columns
 
 `scripts/bench_usability.py` counts the lines of the engine (`include/` + `src/`), the tests and
 every example: code lines are non-blank lines that are not only a comment, comment lines are counted
-apart (`e5_loc.csv`). It also lists every engine name (`astra2d::Name`) the platformer uses, with the
-module and header that declare it (`e5_api.csv`), which shows how much of the engine a real game
-touches.
+apart (`e5_loc.csv`). It also lists every engine name (`astra2d::Name`) the platformer uses, and
+every engine member function it calls on an object (`.name(` or `->name(`; names that standard
+containers also have, such as `empty` or `get`, only as a template call `get<...>`), with the module
+and header that declare it (`e5_api.csv`, column `kind`: name or member), which shows how much of
+the engine a real game touches. A member declared in several modules lists all of them.
 
 ## Charts and summary
 

@@ -60,10 +60,13 @@ struct Manifold {
                                          unsigned edgeMask = 0xFFU);
 
 /// Two convex polygons placed at their poses: separating axis test, then the incident edge is
-/// clipped against the reference edge to get up to two points.
+/// clipped against the reference edge to get up to two points. @p lengthUnitsPerMeter scales the
+/// tolerance that keeps the reference face from flipping between nearly equal faces (see
+/// PhysicsSettings::lengthUnitsPerMeter).
 [[nodiscard]] Manifold collidePolygons(const Polygon& a, const Pose& poseA, const Polygon& b,
                                        const Pose& poseB, float margin = 0.0F,
-                                       unsigned edgeMaskA = 0xFFU, unsigned edgeMaskB = 0xFFU);
+                                       unsigned edgeMaskA = 0xFFU, unsigned edgeMaskB = 0xFFU,
+                                       float lengthUnitsPerMeter = 1.0F);
 
 /// A convex polygon and a circle placed at their poses.
 [[nodiscard]] Manifold collidePolygonCircle(const Polygon& polygon, const Pose& polygonPose,

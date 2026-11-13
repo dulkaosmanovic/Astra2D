@@ -27,7 +27,7 @@ the game makes. The game's own rules (movement tuning, enemies, levels) are in t
 
 <div class="astra-summary"><b>In short</b>
 <ul>
-<li>2,307 lines of game code on top of the engine, 18 % of the engine's size (@ref evaluation "E5"); it uses 54 engine names from all eight modules.</li>
+<li>2,308 lines of game code on top of the engine, 18 % of the engine's size (@ref evaluation "E5"); it names 54 engine types and functions from all eight modules and calls 81 engine member functions.</li>
 <li>The game is an <code>Application</code>, its objects are entities in a <code>Scene</code>, its logic is Scene systems, and it reacts to physics through signals.</li>
 <li>The parts without OpenGL (level loading, movement rules) are unit-tested.</li>
 </ul></div>
@@ -37,7 +37,7 @@ the game makes. The game's own rules (movement tuning, enemies, levels) are in t
 | File | Lines | What |
 |---|---|---|
 | `main.cpp`, `game.hpp` | 79 | Entry point: reads the level number, runs the game |
-| `game.cpp` | 1,821 | The `Application`: entities, systems, physics events, camera, drawing, HUD, sound |
+| `game.cpp` | 1,823 | The `Application`: entities, systems, physics events, camera, drawing, HUD, sound |
 | `level.hpp/.cpp` | 568 | Levels as data: text maps and Tiled maps into tile grids and spawn points |
 | `controller.hpp/.cpp` | 136 | Movement rules: acceleration, jump, coyote time, jump buffering |
 | `looks.hpp` | 151 | Each planet's sky and parallax layers, as plain data |

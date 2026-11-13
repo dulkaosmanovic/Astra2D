@@ -53,7 +53,7 @@ Manifold flipped(Manifold manifold)
 
 // The narrow phase: picks the collision function for the two shape types.
 Manifold collide(const ShapeDef& a, const Pose& poseA, const ShapeDef& b, const Pose& poseB,
-                 float margin)
+                 float margin, float lengthUnitsPerMeter)
 {
     const bool circleA = a.type == ShapeType::Circle;
     const bool circleB = b.type == ShapeType::Circle;
@@ -79,7 +79,8 @@ Manifold collide(const ShapeDef& a, const Pose& poseA, const ShapeDef& b, const 
     if (circleA) {
         return flipped(collidePolygonCircle(b.polygon, poseB, a.circle, poseA, margin, b.edgeMask));
     }
-    return collidePolygons(a.polygon, poseA, b.polygon, poseB, margin, a.edgeMask, b.edgeMask);
+    return collidePolygons(a.polygon, poseA, b.polygon, poseB, margin, a.edgeMask, b.edgeMask,
+                           lengthUnitsPerMeter);
 }
 
 // Union-find over body indices, for islands of touching bodies.
@@ -244,7 +245,7 @@ void PhysicsWorld::Impl::updateContact(Contact& contact, bool existed, float dt)
     }
     Manifold manifold =
         collide(shapes[contact.shapeA].def, bodyA.pose(), shapes[contact.shapeB].def, bodyB.pose(),
-                contactMargin(contact, dt));
+                contactMargin(contact, dt), scale());
     if (contact.trigger) {
         updateTrigger(contact, manifold);
         return;
@@ -310,8 +311,11 @@ void PhysicsWorld::Impl::decideOneWay(Contact& contact, const Manifold& manifold
     const float slop = settings.linearSlop * scale();
     const float depth = -manifold.minSeparation();
     if (contact.oneWay == OneWayState::Undecided) {
-        // A shape falling onto the top sinks in at most as far as it fell in the last step.
-        const float maxDepth = slop + (std::max(-rising, 0.0F) * dt);
+        // A shape falling onto the top sinks in at most as far as it fell in the last step. That
+        // is its motion in the last step, not its velocity now: a game that caps the fall speed
+        // between steps leaves a velocity smaller than the one the body moved with.
+        const float fell = glm::dot(platform.lastMotion - other.lastMotion, up);
+        const float maxDepth = slop + std::max({fell, -rising * dt, 0.0F});
         contact.oneWay = fromAbove && depth <= maxDepth && rising <= slop / dt
                              ? OneWayState::Enabled
                              : OneWayState::Disabled;

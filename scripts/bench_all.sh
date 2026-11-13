@@ -8,7 +8,7 @@
 # bench_physics.sh (E3, E4) and bench_usability.py (E5), then scripts/make_charts.py, which writes
 # docs/images/evaluation/*.svg and benchmarks/results/summary.md. The settings of each script
 # (RUNS, FRAMES, ...) can be passed as environment variables. Keep the machine otherwise idle: the
-# whole run takes about ten minutes.
+# whole run takes about half an hour.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

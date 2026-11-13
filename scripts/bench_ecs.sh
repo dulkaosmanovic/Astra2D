@@ -38,7 +38,7 @@ mkdir -p "$(dirname "$OUT")"
 machine="${OUT%.csv}.machine.txt"
 {
     echo "date: $(date -Iseconds)"
-    echo "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    echo "commit: $(git describe --always --dirty 2>/dev/null || echo unknown)"
     echo "kernel: $(uname -sr)"
     echo "cpu: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ //')"
     echo "compiler: $(meson introspect "$BUILD" --compilers |

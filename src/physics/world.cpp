@@ -188,6 +188,7 @@ void PhysicsWorld::setTransform(BodyId body, glm::vec2 position, float angle)
 {
     Body& b = m_impl->body(body);
     b.origin = position;
+    b.lastMotion = glm::vec2(0.0F); // moved, but not by the simulation
     b.angle = angle;
     b.rotation = Rotation::fromAngle(angle);
     m_impl->updateCenter(b);

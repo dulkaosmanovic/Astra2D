@@ -122,9 +122,9 @@ without gravity (release build, Ryzen 5 3500U, mean step time):
 
 | Bodies | Brute force | Sort and sweep | Uniform grid | Box tests: brute / SAP / grid |
 |---:|---:|---:|---:|---|
-| 100 | 0.061 ms | 0.025 ms | 0.027 ms | 5,350 / 611 / 154 |
-| 1,000 | 4.08 ms | 0.31 ms | 0.24 ms | 503,500 / 15,523 / 1,403 |
-| 5,000 | 94.0 ms | 2.38 ms | 1.39 ms | 12,517,500 / 160,676 / 6,851 |
+| 100 | 0.062 ms | 0.029 ms | 0.029 ms | 5,350 / 611 / 154 |
+| 1,000 | 4.07 ms | 0.31 ms | 0.25 ms | 503,500 / 15,523 / 1,403 |
+| 5,000 | 93.9 ms | 2.36 ms | 1.41 ms | 12,517,500 / 160,676 / 6,851 |
 
 With 100 bodies the broad phase does not matter; at 5000, brute force alone takes more than five
 frames while the grid needs 1.4 ms for the whole step. Run `scripts/bench_physics.sh` for the full
@@ -241,7 +241,10 @@ character jumping up through a platform passes it entirely, then lands on it. A 
 through starts colliding when it falls again with its bottom in the platform's upper half: a jump
 that only just reaches the top still lands on it instead of dropping through. Only the edges that face
 up give contact normals, so a character landing on the very end of a platform stands on it
-instead of being pushed off sideways.
+instead of being pushed off sideways. "Arriving from above" means it sank in no deeper than it
+moved towards the platform in the last step. That motion is recorded per body: a game that caps
+the fall speed between steps (as the platformer does) leaves a velocity smaller than the one the
+body moved with, and judged by the velocity a fast fall would sometimes drop through.
 
 **Tile maps.** @ref astra2d::TileGrid holds solid and one-way tiles. @ref astra2d::mergeTiles()
 covers them with few rectangles: each row is split into runs of equal tiles, and equal runs in

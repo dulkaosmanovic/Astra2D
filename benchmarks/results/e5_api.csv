@@ -1,55 +1,136 @@
-module,name,header
-assets,AssetCache,astra2d/assets/asset_cache.hpp
-audio,AudioEngine,astra2d/audio/audio_engine.hpp
-audio,Sound,astra2d/audio/audio_engine.hpp
-core,ActionMap,astra2d/core/actions.hpp
-core,Application,astra2d/core/application.hpp
-core,Connection,astra2d/core/signal.hpp
-core,GamepadAxis,astra2d/core/input.hpp
-core,GamepadButton,astra2d/core/input.hpp
-core,Key,astra2d/core/input.hpp
-debug,DebugOverlay,astra2d/debug/debug_overlay.hpp
-debug,EntityInspector,astra2d/debug/entity_inspector.hpp
-debug,FrameStats,astra2d/debug/frame_stats.hpp
-debug,PhysicsDebugSettings,astra2d/debug/physics_debug_draw.hpp
-debug,drawPhysicsDebug,astra2d/debug/physics_debug_draw.hpp
-ecs,Entity,astra2d/ecs/entity.hpp
-physics,BodyType,astra2d/physics/world.hpp
-physics,TileCollision,astra2d/physics/tilemap.hpp
-physics,TileGrid,astra2d/physics/tilemap.hpp
-physics,collisionGroups,astra2d/physics/world.hpp
-physics,withoutGroups,astra2d/physics/world.hpp
-renderer,CameraFollow,astra2d/renderer/camera_follow.hpp
-renderer,CameraShake,astra2d/renderer/camera_shake.hpp
-renderer,Font,astra2d/renderer/font.hpp
-renderer,OrthographicCamera,astra2d/renderer/camera.hpp
-renderer,ParticleEmitter,astra2d/renderer/particles.hpp
-renderer,Renderer2D,astra2d/renderer/renderer2d.hpp
-renderer,SpriteAnimation,astra2d/renderer/animation.hpp
-renderer,SpriteSheet,astra2d/renderer/sprite.hpp
-renderer,Texture2D,astra2d/renderer/texture.hpp
-renderer,TextureFilter,astra2d/renderer/texture.hpp
-renderer,TextureSettings,astra2d/renderer/texture.hpp
-renderer,TextureWrap,astra2d/renderer/texture.hpp
-renderer,TileLayer,astra2d/renderer/tile_layer.hpp
-scene,Animator,astra2d/scene/components.hpp
-scene,Collider,astra2d/scene/components.hpp
-scene,CollisionEvent,astra2d/scene/physics_system.hpp
-scene,Interpolated,astra2d/scene/components.hpp
-scene,Lifetime,astra2d/scene/components.hpp
-scene,PhysicsSystem,astra2d/scene/physics_system.hpp
-scene,RigidBody,astra2d/scene/components.hpp
-scene,Scene,astra2d/scene/scene.hpp
-scene,SpriteRenderer,astra2d/scene/components.hpp
-scene,SystemPhase,astra2d/scene/scene.hpp
-scene,TiledMap,astra2d/scene/tiled_map.hpp
-scene,TiledObject,astra2d/scene/tiled_map.hpp
-scene,TiledTile,astra2d/scene/tiled_map.hpp
-scene,TiledTileLayer,astra2d/scene/tiled_map.hpp
-scene,TilemapCollider,astra2d/scene/components.hpp
-scene,Transform,astra2d/scene/components.hpp
-scene,TriggerContact,astra2d/scene/physics_system.hpp
-scene,loadTiledMap,astra2d/scene/tiled_map.hpp
-scene,makeTileGrid,astra2d/scene/tiled_map.hpp
-scene,makeTileLayer,astra2d/scene/tiled_map.hpp
-scene,tiledCollision,astra2d/scene/tiled_map.hpp
+module,name,kind,header
+assets,reloadChanged,member,astra2d/assets/asset_cache.hpp
+assets,resolve,member,astra2d/assets/asset_cache.hpp
+assets,AssetCache,name,astra2d/assets/asset_cache.hpp
+assets/ecs,get,member,astra2d/assets/resource_cache.hpp astra2d/ecs/registry.hpp astra2d/ecs/sparse_set.hpp
+assets/renderer,texture,member,astra2d/assets/asset_cache.hpp astra2d/renderer/font.hpp astra2d/renderer/sprite.hpp
+audio,muted,member,astra2d/audio/audio_engine.hpp
+audio,playMusic,member,astra2d/audio/audio_engine.hpp
+audio,setMuted,member,astra2d/audio/audio_engine.hpp
+audio,sound,member,astra2d/audio/audio_engine.hpp
+audio,AudioEngine,name,astra2d/audio/audio_engine.hpp
+audio,Sound,name,astra2d/audio/audio_engine.hpp
+audio/renderer,play,member,astra2d/audio/audio_engine.hpp astra2d/renderer/animation.hpp
+core,axis,member,astra2d/core/actions.hpp astra2d/core/input.hpp
+core,bindAxis,member,astra2d/core/actions.hpp
+core,clearFixedStepPresses,member,astra2d/core/input.hpp
+core,connect,member,astra2d/core/signal.hpp
+core,framebufferHeight,member,astra2d/core/window.hpp
+core,framebufferWidth,member,astra2d/core/window.hpp
+core,input,member,astra2d/core/application.hpp astra2d/core/window.hpp
+core,isHeld,member,astra2d/core/actions.hpp astra2d/core/input.hpp
+core,isPressed,member,astra2d/core/actions.hpp astra2d/core/input.hpp
+core,run,member,astra2d/core/application.hpp
+core,ActionMap,name,astra2d/core/actions.hpp
+core,Application,name,astra2d/core/application.hpp
+core,Connection,name,astra2d/core/signal.hpp
+core,GamepadAxis,name,astra2d/core/input.hpp
+core,GamepadButton,name,astra2d/core/input.hpp
+core,Key,name,astra2d/core/input.hpp
+core/ecs/scene,has,member,astra2d/core/actions.hpp astra2d/ecs/registry.hpp astra2d/scene/tiled_map.hpp
+core/physics/renderer,apply,member,astra2d/core/input.hpp astra2d/physics/geometry.hpp astra2d/renderer/camera_shake.hpp astra2d/renderer/post_process.hpp
+core/renderer,bind,member,astra2d/core/actions.hpp astra2d/renderer/buffer.hpp astra2d/renderer/framebuffer.hpp astra2d/renderer/shader.hpp astra2d/renderer/texture.hpp astra2d/renderer/vertex_array.hpp
+debug,addFrame,member,astra2d/debug/debug_overlay.hpp astra2d/debug/frame_stats.hpp
+debug,addInspector,member,astra2d/debug/entity_inspector.hpp
+debug,addPanel,member,astra2d/debug/debug_overlay.hpp
+debug,addToggle,member,astra2d/debug/debug_overlay.hpp
+debug,drawSelection,member,astra2d/debug/debug_overlay.hpp
+debug,inspector,member,astra2d/debug/debug_overlay.hpp
+debug,restart,member,astra2d/debug/frame_stats.hpp
+debug,setCamera,member,astra2d/debug/debug_overlay.hpp
+debug,setScene,member,astra2d/debug/debug_overlay.hpp
+debug,summary,member,astra2d/debug/frame_stats.hpp
+debug,toggle,member,astra2d/debug/debug_overlay.hpp
+debug,DebugOverlay,name,astra2d/debug/debug_overlay.hpp
+debug,EntityInspector,name,astra2d/debug/entity_inspector.hpp
+debug,FrameStats,name,astra2d/debug/frame_stats.hpp
+debug,PhysicsDebugSettings,name,astra2d/debug/physics_debug_draw.hpp
+debug,drawPhysicsDebug,name,astra2d/debug/physics_debug_draw.hpp
+debug/renderer,draw,member,astra2d/debug/debug_overlay.hpp astra2d/debug/entity_inspector.hpp astra2d/renderer/particles.hpp astra2d/renderer/renderer2d.hpp
+ecs,each,member,astra2d/ecs/registry.hpp
+ecs,emplace,member,astra2d/ecs/registry.hpp astra2d/ecs/sparse_set.hpp
+ecs,remove,member,astra2d/ecs/registry.hpp astra2d/ecs/sparse_set.hpp
+ecs,tryGet,member,astra2d/ecs/registry.hpp
+ecs,view,member,astra2d/ecs/registry.hpp
+ecs,Entity,name,astra2d/ecs/entity.hpp
+ecs/physics,valid,member,astra2d/ecs/registry.hpp astra2d/physics/world.hpp
+ecs/physics/renderer,position,member,astra2d/ecs/sparse_set.hpp astra2d/physics/world.hpp astra2d/renderer/camera.hpp astra2d/renderer/camera_follow.hpp
+physics,BodyType,name,astra2d/physics/world.hpp
+physics,TileCollision,name,astra2d/physics/tilemap.hpp
+physics,TileGrid,name,astra2d/physics/tilemap.hpp
+physics,collisionGroups,name,astra2d/physics/world.hpp
+physics,withoutGroups,name,astra2d/physics/world.hpp
+physics/renderer,stats,member,astra2d/physics/world.hpp astra2d/renderer/renderer2d.hpp
+physics/scene,isGrounded,member,astra2d/physics/world.hpp astra2d/scene/physics_system.hpp
+physics/scene,rayCast,member,astra2d/physics/collision.hpp astra2d/physics/world.hpp astra2d/scene/physics_system.hpp
+renderer,addTrauma,member,astra2d/renderer/camera_shake.hpp
+renderer,atlas,member,astra2d/renderer/font.hpp
+renderer,drawQuad,member,astra2d/renderer/renderer2d.hpp
+renderer,drawSprite,member,astra2d/renderer/renderer2d.hpp
+renderer,drawTileLayer,member,astra2d/renderer/renderer2d.hpp
+renderer,drawTiled,member,astra2d/renderer/renderer2d.hpp
+renderer,frame,member,astra2d/renderer/animation.hpp astra2d/renderer/sprite.hpp
+renderer,measure,member,astra2d/renderer/font.hpp
+renderer,pixelsPerUnit,member,astra2d/renderer/camera.hpp
+renderer,resetStats,member,astra2d/renderer/renderer2d.hpp
+renderer,setBounds,member,astra2d/renderer/camera_follow.hpp
+renderer,setPixelPerfect,member,astra2d/renderer/camera.hpp
+renderer,setViewportSize,member,astra2d/renderer/camera.hpp
+renderer,snap,member,astra2d/renderer/camera_follow.hpp
+renderer,stream,member,astra2d/renderer/particles.hpp
+renderer,visibleMax,member,astra2d/renderer/camera.hpp
+renderer,visibleMin,member,astra2d/renderer/camera.hpp
+renderer,visibleSize,member,astra2d/renderer/camera.hpp
+renderer,withParallax,member,astra2d/renderer/camera.hpp
+renderer,CameraFollow,name,astra2d/renderer/camera_follow.hpp
+renderer,CameraShake,name,astra2d/renderer/camera_shake.hpp
+renderer,Font,name,astra2d/renderer/font.hpp
+renderer,OrthographicCamera,name,astra2d/renderer/camera.hpp
+renderer,ParticleEmitter,name,astra2d/renderer/particles.hpp
+renderer,Renderer2D,name,astra2d/renderer/renderer2d.hpp
+renderer,SpriteAnimation,name,astra2d/renderer/animation.hpp
+renderer,SpriteSheet,name,astra2d/renderer/sprite.hpp
+renderer,Texture2D,name,astra2d/renderer/texture.hpp
+renderer,TextureFilter,name,astra2d/renderer/texture.hpp
+renderer,TextureSettings,name,astra2d/renderer/texture.hpp
+renderer,TextureWrap,name,astra2d/renderer/texture.hpp
+renderer,TileLayer,name,astra2d/renderer/tile_layer.hpp
+scene,addSystem,member,astra2d/scene/scene.hpp
+scene,boolean,member,astra2d/scene/tiled_map.hpp
+scene,createEntity,member,astra2d/scene/scene.hpp
+scene,destroyLater,member,astra2d/scene/scene.hpp
+scene,fixedUpdate,member,astra2d/scene/scene.hpp
+scene,objectCenter,member,astra2d/scene/tiled_map.hpp
+scene,objectLayer,member,astra2d/scene/tiled_map.hpp
+scene,onCollisionBegin,member,astra2d/scene/physics_system.hpp
+scene,onTriggerExit,member,astra2d/scene/physics_system.hpp
+scene,other,member,astra2d/scene/physics_system.hpp
+scene,registry,member,astra2d/scene/scene.hpp
+scene,render,member,astra2d/scene/scene.hpp
+scene,resetInterpolation,member,astra2d/scene/scene.hpp
+scene,setParent,member,astra2d/scene/scene.hpp
+scene,string,member,astra2d/scene/tiled_map.hpp
+scene,tileLayer,member,astra2d/scene/tiled_map.hpp
+scene,world,member,astra2d/scene/physics_system.hpp
+scene,worldTransform,member,astra2d/scene/scene.hpp
+scene,Animator,name,astra2d/scene/components.hpp
+scene,Collider,name,astra2d/scene/components.hpp
+scene,CollisionEvent,name,astra2d/scene/physics_system.hpp
+scene,Interpolated,name,astra2d/scene/components.hpp
+scene,Lifetime,name,astra2d/scene/components.hpp
+scene,PhysicsSystem,name,astra2d/scene/physics_system.hpp
+scene,RigidBody,name,astra2d/scene/components.hpp
+scene,Scene,name,astra2d/scene/scene.hpp
+scene,SpriteRenderer,name,astra2d/scene/components.hpp
+scene,SystemPhase,name,astra2d/scene/scene.hpp
+scene,TiledMap,name,astra2d/scene/tiled_map.hpp
+scene,TiledObject,name,astra2d/scene/tiled_map.hpp
+scene,TiledTile,name,astra2d/scene/tiled_map.hpp
+scene,TiledTileLayer,name,astra2d/scene/tiled_map.hpp
+scene,TilemapCollider,name,astra2d/scene/components.hpp
+scene,Transform,name,astra2d/scene/components.hpp
+scene,TriggerContact,name,astra2d/scene/physics_system.hpp
+scene,loadTiledMap,name,astra2d/scene/tiled_map.hpp
+scene,makeTileGrid,name,astra2d/scene/tiled_map.hpp
+scene,makeTileLayer,name,astra2d/scene/tiled_map.hpp
+scene,tiledCollision,name,astra2d/scene/tiled_map.hpp

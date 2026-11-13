@@ -295,11 +295,11 @@ Time per object and update (release build, AMD Ryzen 5 3500U, mean of 5 runs):
 
 | Objects | ecs | ecs_shuffled | oop | oop_shuffled |
 |---:|---:|---:|---:|---:|
-| 10,000 | 2.56 ns | 5.04 ns | 2.95 ns | 9.44 ns |
-| 100,000 | 3.07 ns | 7.99 ns | 13.9 ns | 30.7 ns |
-| 1,000,000 | 4.03 ns | 53.3 ns | 13.7 ns | 36.6 ns |
+| 10,000 | 2.69 ns | 5.01 ns | 2.83 ns | 8.31 ns |
+| 100,000 | 3.06 ns | 7.99 ns | 13.5 ns | 29.7 ns |
+| 1,000,000 | 4.01 ns | 50.8 ns | 13.5 ns | 35.3 ns |
 
-With matching pools the ECS stays nearly flat, while the game objects get 3.4 to 4.5 times slower
+With matching pools the ECS stays nearly flat, while the game objects get 3.4 to 4.4 times slower
 once they no longer fit in the cache, because each object is a cache miss and carries data the
 update does not need. With pools out of order, every entity costs a sparse lookup and a random
 load into the other pool; at a million entities that is slower than the shuffled game objects.

@@ -188,7 +188,7 @@ Feature set is frozen: no new engine features from here on, only the items below
 Required
 - [ ] Write the thesis text in the faculty's language and template, following [Thesis chapters](#thesis-chapters): theory with equations (impulse, SAT, fixed timestep), citations, numbered figures; reuse `docs/*.md` and the evaluation charts
 - [x] E2 at 10k objects is noise (3.56 ± 1.89 ns): more iterations (200 million object updates per run; now ± 0.3 ns)
-- [ ] E1: more runs (now 3); explain why batching gives 2× and not 100× using the CPU/GPU split table
+- [x] E1: 10 runs per case; why batching gives 2–3× and not 100× is explained with the CPU/GPU split table (evaluation.md)
 - [x] Explain the low coverage of renderer (48 %), assets (50 %), debug (59 %) and core (63 %): they need an OpenGL context (in evaluation.md)
 - [ ] Check the faculty's rules on AI-assisted work and declare it if required
 
@@ -198,7 +198,8 @@ From the pre-submission review (fix in this order; numbers in the docs only chan
 - [x] E2: add an ECS case with mixed/shuffled components (aligned pools are the best case); make the OOP baseline really virtual (several subclasses, not `final`); more iterations at 10k (the noise is too few iterations, not timer resolution)
 - [x] E4: towers with random x offsets, and tower height vs. solver iterations; measure bounce apex height instead of ½v² + gh per step (an integrator artefact)
 - [x] Tests that check their name: smallest pool leads the view, only the needed sparse page is allocated, a ball rolls without sliding, a tight apex tolerance; add two-body collisions and friction on a slope
-- [ ] Rerun E1–E5, coverage and the test count at one commit on an idle machine; fix every quoted number, the E3 text (722 are candidate pairs, the grid tests only the same cell) and claims with no data behind them
+- [x] Rerun E1–E5, coverage and the test count at one commit; fix every quoted number, the E3 text and claims with no data behind them
+- [ ] Before hand-in: one more `scripts/bench_all.sh` on an otherwise idle machine (the last run was in a desktop session), then update the numbers in README, evaluation, ecs, physics and introduction
 
 Stretch
 - [ ] External baselines: the same scene in Box2D (E3/E4) and the same update in EnTT (E2)

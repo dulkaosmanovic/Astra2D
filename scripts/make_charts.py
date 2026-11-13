@@ -413,8 +413,8 @@ def e5(md):
     if api:
         by_module = defaultdict(list)
         for r in api:
-            by_module[r["module"]].append(r["name"])
-        md.append("| module | engine names the platformer uses |")
+            by_module[r["module"]].append(r["name"] + ("()" if r.get("kind") == "member" else ""))
+        md.append("| module | engine names and member functions the platformer uses |")
         md.append("|---|---|")
         for module in sorted(by_module):
             md.append(f"| {module} | {', '.join(sorted(by_module[module]))} |")

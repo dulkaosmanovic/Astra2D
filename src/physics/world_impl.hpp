@@ -28,6 +28,9 @@ struct Body {
     glm::vec2 center{0.0F};
     glm::vec2 velocity{0.0F};
     float angularVelocity = 0.0F;
+    // How far the centre moved in the last step. The velocity can be changed by the game between
+    // steps, so it does not tell how far the body really came (one-way platforms need that).
+    glm::vec2 lastMotion{0.0F};
     glm::vec2 force{0.0F};
     float torque = 0.0F;
     float mass = 1.0F; // as set by the game; invMass is 0 unless dynamic

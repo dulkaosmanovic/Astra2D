@@ -16,6 +16,7 @@ Only the Python standard library is used.
 """
 
 import csv
+from collections import defaultdict
 import re
 from pathlib import Path
 
@@ -86,18 +87,61 @@ def declaring_header(name, headers):
     return None
 
 
+# A member function declared in a class body (indented), e.g. `    Registry& registry();`.
+MEMBER = re.compile(r"^\s+(?:\[\[nodiscard\]\]\s+)?(?:(?:static|virtual|explicit|constexpr|inline)"
+                    r"\s+)*[\w:<>&*,. ]*[\s&*](\w+)\s*(?:<[^>]*>)?\s*\(", re.MULTILINE)
+# A call of a member through an object: `.name(`, `->name(`, `.name<`.
+CALL = r"(?:\.|->){name}\s*[(<]"
+# Names that standard containers and smart pointers have too: `items.empty()` is not the engine,
+# so these only count as a template call, `registry.get<Health>(entity)`.
+STANDARD = {"back", "begin", "clear", "count", "data", "emplace", "empty", "end", "erase", "find",
+            "front", "get", "insert", "remove", "reset", "resize", "set", "size", "swap"}
+TEMPLATE_CALL = r"(?:\.|->){name}\s*<"
+
+
+def without_comments(text):
+    return re.sub(r"//.*", "", text)
+
+
+def member_headers(headers):
+    """Member function name -> the engine headers that declare it."""
+    members = defaultdict(list)
+    for header in headers:
+        for name in set(MEMBER.findall(without_comments(header.read_text(encoding="utf-8")))):
+            if not name.startswith("operator"):
+                members[name].append(header)
+    return members
+
+
 def api_rows():
-    game = "\n".join(p.read_text(encoding="utf-8") for p in files("examples/platformer"))
-    names = sorted(set(re.findall(r"astra2d::([A-Za-z_]\w*)", game)))
+    sources = files("examples/platformer")
+    game = without_comments("\n".join(p.read_text(encoding="utf-8") for p in sources))
     headers = files("include")
     rows = []
-    for name in names:
+    # Engine types and free functions, named with their namespace.
+    for name in sorted(set(re.findall(r"astra2d::([A-Za-z_]\w*)", game))):
         header = declaring_header(name, headers)
-        relative = header.relative_to(ROOT / "include") if header else None
-        rows.append({"module": relative.parts[1] if relative else "?", "name": name,
-                     "header": str(relative) if relative else "?"})
-    rows.sort(key=lambda r: (r["module"], r["name"]))
+        rows.append(api_row(name, [header] if header else [], "name"))
+    # Engine member functions the game calls (the game reaches most of the engine through
+    # objects: `m_scene.registry()`, `registry.view<...>()`), except names the game declares
+    # itself, whose calls may be to its own functions.
+    own = set(MEMBER.findall(game)) | set(re.findall(r"^\w[\w:<>&*, ]*[\s&*](\w+)\s*\(", game,
+                                                        re.MULTILINE))
+    for name, declared in sorted(member_headers(headers).items()):
+        call = TEMPLATE_CALL if name in STANDARD else CALL
+        if name not in own and re.search(call.format(name=re.escape(name)), game):
+            rows.append(api_row(name, declared, "member"))
+    rows.sort(key=lambda r: (r["module"], r["kind"], r["name"]))
     return rows
+
+
+def api_row(name, headers, kind):
+    """A name declared in several modules (e.g. `position()`) lists all of them: which object the
+    game calls it on is not known from the text."""
+    relative = [h.relative_to(ROOT / "include") for h in headers]
+    modules = sorted({r.parts[1] for r in relative})
+    return {"module": "/".join(modules) or "?", "name": name, "kind": kind,
+            "header": " ".join(sorted(str(r) for r in relative)) or "?"}
 
 
 def write(path, rows):
@@ -115,11 +159,12 @@ def main():
     write(RESULTS / "e5_api.csv", api)
     engine = next(r for r in loc if r["part"] == "engine")
     game = next(r for r in loc if r["kind"] == "game")
-    modules = sorted({r["module"] for r in api})
+    modules = sorted({m for r in api for m in r["module"].split("/")})
     print(f"engine {engine['code_lines']} code lines, platformer {game['code_lines']} "
           f"({100 * game['code_lines'] / engine['code_lines']:.0f} % of the engine)")
-    print(f"platformer uses {len(api)} engine names from {len(modules)} modules: "
-          f"{', '.join(modules)}")
+    names = sum(r["kind"] == "name" for r in api)
+    print(f"platformer uses {names} engine names and {len(api) - names} member functions from "
+          f"{len(modules)} modules: {', '.join(modules)}")
     unknown = [r["name"] for r in api if r["module"] == "?"]
     if unknown:
         print("not found in include/:", ", ".join(unknown))

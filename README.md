@@ -80,11 +80,11 @@ engine is used, in one commented `main.cpp` in `examples/`:
 
 | | Question | Result |
 |---|---|---|
-| **E1** | Does sprite batching pay off? | 100,000 sprites in **10 draw calls instead of 100,000**, render time halved (56.7 → 27.9 ms) |
+| **E1** | Does sprite batching pay off? | 100,000 sprites in **10 draw calls instead of 100,000**, render time 2.8× shorter (82.3 → 29.2 ms) |
 | **E2** | Is the ECS faster than OOP game objects? | At 1M objects **3.4× faster** than objects with a virtual `update()` while its pools are in the same order; with components added in random order it is **slower** than shuffled objects (no pool sorting or groups yet); at 10k objects there is no real difference |
-| **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **68× faster** than brute force (1.4 vs. 94 ms), sort-and-sweep 40× |
+| **E3** | How much does a broad phase save? | At 5,000 bodies the uniform grid steps **67× faster** than brute force (1.4 vs. 94 ms), sort-and-sweep 40× |
 | **E4** | Is the solver stable? | Aligned towers of 5–20 boxes stand with no drift; towers with small random offsets stand up to 10 boxes at the default 8 iterations, 20 boxes need 20; a ball with restitution 1 bounces back to 99.94 % of its height every time |
-| **E5** | Is the API usable? | The whole platformer is 2,307 lines, 18 % of the engine's size; compared with raylib and Godot in the docs |
+| **E5** | Is the API usable? | The whole platformer is 2,308 lines, 18 % of the engine's size; compared with raylib and Godot in the docs |
 
 
 Tests cover 75 % of the engine's lines. Method and full tables: [Evaluation](https://dulkaosmanovic.github.io/Astra2D/evaluation.html).

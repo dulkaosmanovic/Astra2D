@@ -19,19 +19,19 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <text class="ink2" x="20" y="47" font-size="12">Code lines without blank and comment-only lines; the platformer is the game</text>
 <text class="ink2" x="182" y="82" font-size="12" text-anchor="end">engine</text>
 <path class="f1" d="M190 71 h406.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-406.0 Z"/>
-<text class="ink" x="606.0" y="82" font-size="12">12,683</text>
+<text class="ink" x="606.0" y="82" font-size="12">12,686</text>
 <text class="ink2" x="182" y="104" font-size="12" text-anchor="end">tests</text>
-<path class="f1" d="M190 93 h202.3 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-202.3 Z"/>
-<text class="ink" x="402.3" y="104" font-size="12">6,381</text>
+<path class="f1" d="M190 93 h203.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-203.6 Z"/>
+<text class="ink" x="403.6" y="104" font-size="12">6,423</text>
 <text class="ink2" x="182" y="126" font-size="12" text-anchor="end">platformer</text>
 <path class="f1" d="M190 115 h70.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-70.6 Z"/>
-<text class="ink" x="270.6" y="126" font-size="12">2,307</text>
+<text class="ink" x="270.6" y="126" font-size="12">2,308</text>
 <text class="ink2" x="182" y="148" font-size="12" text-anchor="end">physics_playground</text>
 <path class="f1" d="M190 137 h14.4 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-14.4 Z"/>
 <text class="ink" x="214.4" y="148" font-size="12">570</text>
 <text class="ink2" x="182" y="170" font-size="12" text-anchor="end">coin_collector</text>
-<path class="f1" d="M190 159 h12.6 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-12.6 Z"/>
-<text class="ink" x="212.6" y="170" font-size="12">512</text>
+<path class="f1" d="M190 159 h12.5 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-12.5 Z"/>
+<text class="ink" x="212.5" y="170" font-size="12">512</text>
 <text class="ink2" x="182" y="192" font-size="12" text-anchor="end">sandbox</text>
 <path class="f1" d="M190 181 h8.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-8.0 Z"/>
 <text class="ink" x="208.0" y="192" font-size="12">370</text>
@@ -42,8 +42,8 @@ text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <path class="f1" d="M190 225 h6.0 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-6.0 Z"/>
 <text class="ink" x="206.0" y="236" font-size="12">309</text>
 <text class="ink2" x="182" y="258" font-size="12" text-anchor="end">post_processing</text>
-<path class="f1" d="M190 247 h1.9 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-1.9 Z"/>
-<text class="ink" x="201.9" y="258" font-size="12">181</text>
+<path class="f1" d="M190 247 h1.8 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-1.8 Z"/>
+<text class="ink" x="201.8" y="258" font-size="12">181</text>
 <text class="ink2" x="182" y="280" font-size="12" text-anchor="end">input</text>
 <path class="f1" d="M190 269 h1.7 a4 4 0 0 1 4 4 v8 a4 4 0 0 1 -4 4 h-1.7 Z"/>
 <text class="ink" x="201.7" y="280" font-size="12">175</text>

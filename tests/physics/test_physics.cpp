@@ -624,6 +624,70 @@ TEST(PhysicsWorldTests, OneWayPlatformHoldsABodyLandingOnItsVeryEnd)
     EXPECT_TRUE(world.isGrounded(box));
 }
 
+TEST(PhysicsWorldTests, OneWayPlatformHoldsABodyWhoseVelocityTheGameCapsEveryStep)
+{
+    // As in the platformer: a character whose fall speed the game caps before every step, while
+    // gravity adds to it during the step. It sinks into the platform as far as it really moved,
+    // which is more than its capped velocity says. Dropped from many heights, so the step in
+    // which it reaches the platform lands at every depth.
+    const float maxFall = 420.0F;
+    for (int i = 0; i < 40; ++i) {
+        PhysicsWorld world({.gravity = {0.0F, -1200.0F}, .lengthUnitsPerMeter = 16.0F});
+        const BodyId platform =
+            world.createBody({.type = BodyType::Static, .position = {0.0F, 0.0F}});
+        ShapeDef def = ShapeDef::makeBox({24.0F, 3.5F});
+        def.oneWay = true;
+        def.friction = 0.0F;
+        world.addShape(platform, def);
+        const float start = 60.0F + (0.2F * static_cast<float>(i));
+        const BodyId box = world.createBody(
+            {.position = {0.0F, start}, .gravityScale = 1.7F, .fixedRotation = true});
+        world.addShape(box, ShapeDef::makeBox({6.0F, 9.0F}));
+        for (int step = 0; step < 120; ++step) {
+            const glm::vec2 v = world.velocity(box);
+            world.setVelocity(box, {v.x, std::max(v.y, -maxFall)});
+            world.step(kDt);
+        }
+        EXPECT_NEAR(world.position(box).y, 3.5F + 9.0F, 0.5F) << "dropped from " << start;
+    }
+}
+
+TEST(PhysicsWorldTests, OneWayMovingPlatformsCarryABodyLandingOnThem)
+{
+    // The platformer's lifts and platforms: kinematic, given each step the velocity that reaches
+    // the next point of a smooth back-and-forth path, so their velocity changes every step too.
+    // A character dropped onto them at different moments must land and ride along.
+    const float period = 4.0F;
+    for (const glm::vec2 travel : {glm::vec2(0.0F, 64.0F), glm::vec2(64.0F, 0.0F)}) {
+        for (int i = 0; i < 20; ++i) {
+            PhysicsWorld world({.gravity = {0.0F, -1200.0F}, .lengthUnitsPerMeter = 16.0F});
+            const BodyId lift = world.createBody({.type = BodyType::Kinematic});
+            ShapeDef def = ShapeDef::makeBox({24.0F, 3.5F});
+            def.oneWay = true;
+            def.friction = 0.0F;
+            world.addShape(lift, def);
+            const BodyId box =
+                world.createBody({.position = {0.0F, 40.0F + (3.0F * static_cast<float>(i))},
+                                  .gravityScale = 1.7F,
+                                  .fixedRotation = true});
+            world.addShape(box, ShapeDef::makeBox({6.0F, 9.0F}));
+            float time = 0.0F;
+            for (int step = 0; step < 600; ++step) { // 10 s, two and a half periods
+                time += kDt;
+                const float phase =
+                    0.5F - (0.5F * std::cos(2.0F * std::numbers::pi_v<float> * time / period));
+                world.setVelocity(lift, ((travel * phase) - world.position(lift)) / kDt);
+                const glm::vec2 v = world.velocity(box);
+                // Carried sideways, as the game's controller does, and the fall speed capped.
+                world.setVelocity(box, {world.velocity(lift).x, std::max(v.y, -420.0F)});
+                world.step(kDt);
+            }
+            EXPECT_NEAR(world.position(box).y - world.position(lift).y, 3.5F + 9.0F, 1.0F)
+                << "travel " << travel.x << "," << travel.y << ", drop " << i;
+        }
+    }
+}
+
 TEST(PhysicsWorldTests, BulletsDoNotTunnelThroughThinWalls)
 {
     for (const bool bullet : {false, true}) {
