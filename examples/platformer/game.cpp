@@ -431,7 +431,7 @@ private:
         ASTRA_PROFILE_SCOPE("draw ending");
         drawSky(kEndingLook);
         const glm::vec2 screen(framebufferSize());
-        const float s = hudScale(screen);
+        const float s = endingScale(screen);
         const astra2d::Texture2D& earth = m_assets.texture("textures/earth.png");
         const float radius = 120.0F * s; // of the planet in earth.png
         const glm::vec2 center{std::round(screen.x * 0.5F), (70.0F * s) - radius};
@@ -465,6 +465,14 @@ private:
             }
         }
         m_renderer.end();
+    }
+
+    // The ending's pixel scale: the HUD's, but small enough that the screen is at least 230 HUD
+    // pixels high, so the panel (94 from the top) stays clear of the rocket (134 from the bottom)
+    // in a wide, short window.
+    [[nodiscard]] float endingScale(glm::vec2 screen) const
+    {
+        return std::max(1.0F, std::min(hudScale(screen), std::floor(screen.y / 230.0F)));
     }
 
     // The HUD's pixel scale: the world's, but small enough that the HUD fits a narrow window.
@@ -1489,15 +1497,16 @@ private:
             for (const Level& level : m_levels) {
                 allCoins += level.count(ThingKind::Coin);
             }
+            const float e = endingScale(screen); // as the planet and rocket below the panel
             const float top = screen.y;
-            panel(screen, 160.0F * s, top - (94.0F * s), top - (10.0F * s), s);
-            drawCentered("YOU MADE IT HOME!", top - (22.0F * s), 16.0F * s, kGold);
-            drawCentered("welcome back to Earth, astronaut", top - (46.0F * s), text, kMuted);
+            panel(screen, 160.0F * e, top - (94.0F * e), top - (10.0F * e), e);
+            drawCentered("YOU MADE IT HOME!", top - (22.0F * e), 16.0F * e, kGold);
+            drawCentered("welcome back to Earth, astronaut", top - (46.0F * e), 8.0F * e, kMuted);
             drawCentered(std::format("coins {}/{}   time {}:{:02}", m_totalCoins, allCoins,
                                      static_cast<int>(m_totalTime) / 60,
                                      static_cast<int>(m_totalTime) % 60),
-                         top - (60.0F * s), text, kWhite);
-            drawKeyRow(kAgainRow, top - (80.0F * s), s, faded(kWhite, pulse));
+                         top - (60.0F * e), 8.0F * e, kWhite);
+            drawKeyRow(kAgainRow, top - (80.0F * e), e, faded(kWhite, pulse));
             break;
         }
         }
